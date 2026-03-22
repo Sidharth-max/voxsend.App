@@ -1,0 +1,35 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0
+}
+
+:root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --surface2: #171717;
+    --border: #222;
+    --border2: #2e2e2e;
+    --text: #ededed;
+    --text2: #888;
+    --text3: #444;
+    --success: #3ecf8e;
+    --error: #f87171;
+    --sidebar-w: 220px;
+    --topbar-h: 52px;
+    --bottomnav-h: 60px;
+}
+
+html {
+    font-size: 1rem;
+    height: 100%
+}
+
+body {
+    font-family: 'Geist', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden
+}

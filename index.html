@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Twilio Call Broadcast — Broadcast</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/theme.css" />
+</head>
+
+<body>
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen"
+        style="position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; align-items:center; justify-content:center;">
+        <div style="width:100%; max-width:320px; padding:20px;">
+            <div style="text-align:center; margin-bottom:24px;">
+                <div class="brand-name" style="font-size: 1.7143rem;">Twilio Call Broadcast</div>
+                <div class="brand-sub">Broadcast System</div>
+            </div>
+            <div class="block">
+                <div class="block-body">
+                    <form id="login-form" onsubmit="handleLogin(event)">
+                        <div class="field">
+                            <label class="field-label">Username</label>
+                            <input type="text" id="login-user" required autocomplete="username" />
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Password</label>
+                            <div style="position:relative;">
+                                <input type="password" id="login-pass" required style="padding-right:40px;" />
+                                <button type="button" onclick="togglePass('login-pass')"
+                                    style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text2); cursor:pointer; font-size: 0.7857rem; text-transform:uppercase;">Show</button>
+                            </div>
+                        </div>
+                        <div id="login-err"
+                            style="color:var(--error); font-size: 0.8571rem; margin-bottom:14px; display:none;">Invalid
+                            credentials</div>
+                        <button type="submit" class="btn">Sign In</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app" id="main-app" style="display:none;">
+
+        <!-- ── SIDEBAR (desktop) ─────────────── -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-name">Twilio Call Broadcast</span>
+                <span class="brand-sub">Broadcast System</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">Main</div>
+
+                <div class="nav-item active" id="snav-broadcast" onclick="go('broadcast')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="8" cy="8" r="6" />
+                        <path d="M8 5v3l2 1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Broadcast
+                </div>
+
+                <div class="nav-item" id="snav-contacts" onclick="go('contacts')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M10.5 5.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM3.5 13a4.5 4.5 0 019 0"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Contacts
+                </div>
+
+                <div class="nav-item" id="snav-history" onclick="go('history')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="3" width="12" height="10" rx="1.5" />
+                        <path d="M5 7h6M5 10h4" stroke-linecap="round" />
+                    </svg>
+                    History
+                </div>
+
+                <div class="nav-section-label" style="margin-top:8px">Config</div>
+
+                <div class="nav-item" id="snav-api" onclick="go('api')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="2" width="12" height="12" rx="2" />
+                        <path d="M6 6l-2 2 2 2M10 6l2 2-2 2M9 5l-2 6" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Twilio API
+                </div>
+
+                <div class="nav-item" id="snav-settings" onclick="go('settings')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="8" cy="8" r="2" />
+                        <path
+                            d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+                    </svg>
+                    Settings
+                </div>
+
+                <div class="nav-section-label" style="margin-top:8px" id="snav-users-lbl">Admin</div>
+                <div class="nav-item" id="snav-users" onclick="go('users')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="8" cy="5" r="3" />
+                        <path d="M2 14c0-3 3-4 6-4s6 1 6 4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Users
+                </div>
+            </nav>
+
+            <div class="sidebar-footer" style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <span class="dot"></span>
+                    <span class="status-txt">Ready</span>
+                </div>
+                <button onclick="logout()"
+                    style="background:none; border:none; color:var(--text2); font-size: 0.7857rem; cursor:pointer; text-transform:uppercase; letter-spacing:.05em;">Logout</button>
+            </div>
+        </aside>
+
+        <!-- ── TOP BAR (tablet) ──────────────── -->
+        <header class="topbar">
+            <span class="topbar-brand">Twilio Call Broadcast</span>
+            <div class="topbar-tabs">
+                <div class="topbar-tab active" id="tnav-broadcast" onclick="go('broadcast')">Send</div>
+                <div class="topbar-tab" id="tnav-contacts" onclick="go('contacts')">Contacts</div>
+                <div class="topbar-tab" id="tnav-history" onclick="go('history')">History</div>
+                <div class="topbar-tab" id="tnav-api" onclick="go('api')">API</div>
+                <div class="topbar-tab" id="tnav-settings" onclick="go('settings')">Settings</div>
+                <div class="topbar-tab" id="tnav-users" onclick="go('users')">Users</div>
+            </div>
+        </header>
+
+        <!-- ── MAIN ──────────────────────────── -->
+        <main class="main">
+            <div class="content">
+
+                <!-- BROADCAST TAB -->
+                <div class="tab-section active" id="tab-broadcast">
+                    <div class="page-hd">
+                        <div class="page-title">New Broadcast</div>
+                        <div class="page-desc">Compose a voice message and send to all members.</div>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric">
+                            <div class="metric-val" id="m-total">0</div>
+                            <div class="metric-lbl">Total Sent</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-val" id="m-ok">0</div>
+                            <div class="metric-lbl">Successful</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-val" id="m-cost">₹0</div>
+                            <div class="metric-lbl">Spent Today</div>
+                        </div>
+                    </div>
+
+                    <!-- Message -->
+                    <div class="block">
+                        <div class="block-head">
+                            <span class="block-title">Message</span>
+                            <div class="lang-pills">
+                                <button class="lang-pill active" onclick="setLang('hi')" id="pill-hi">Hindi</button>
+                                <button class="lang-pill" onclick="setLang('en')" id="pill-en">English</button>
+                            </div>
+                        </div>
+                        <div class="block-body">
+                            <div class="field">
+                                <label class="field-label">Voice message text</label>
+                                <textarea id="msg" class="hindi"
+                                    placeholder="नमस्ते! हमारा कार्यक्रम कल 11 बजे है। कृपया समय पर पधारें। धन्यवाद।"
+                                    oninput="preview()"></textarea>
+                                <div class="flex-between" style="margin-top:5px">
+                                    <span class="hint">Keep under 150 words (~45 sec call)</span>
+                                    <span class="hint mono" id="char-count">0 chars</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recipients -->
+                    <div class="block">
+                        <div class="block-head">
+                            <span class="block-title">Recipients</span>
+                            <span class="hint mono" id="num-count" style="margin:0">0 numbers</span>
+                        </div>
+                        <div class="block-body">
+                            <div class="field">
+                                <label class="field-label">Phone numbers — one per line, with country code</label>
+                                <textarea class="mono" id="numbers" style="min-height:100px"
+                                    placeholder="+919876543210&#10;+919876543211&#10;+919876543212"
+                                    oninput="preview()"></textarea>
+                                <p class="hint">e.g. +91XXXXXXXXXX for India</p>
+                            </div>
+                            <div class="cost-strip" id="cost-strip" style="display:none">
+                                <div class="ci">Calls <strong id="cs-n">0</strong></div>
+                                <div class="ci">Rate <strong>₹0.70/min</strong></div>
+                                <div class="ci">TTS <strong style="color:var(--success)">Free</strong></div>
+                                <div class="ci">Est. total <strong id="cs-cost">₹0</strong></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deploy -->
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">Deploy</span></div>
+                        <div class="block-body">
+                            <button class="btn" id="send-btn" onclick="blast()">
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M2 8h12M10 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Send to All Members
+                            </button>
+                            <div class="prog-wrap" id="prog-wrap">
+                                <div class="prog-track">
+                                    <div class="prog-fill" id="prog-fill"></div>
+                                </div>
+                                <div class="prog-lbl" id="prog-lbl">Initializing...</div>
+                            </div>
+                            <div class="log" id="log"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTACTS TAB -->
+                <div class="tab-section" id="tab-contacts">
+                    <div class="page-hd">
+                        <div class="page-title">Contacts</div>
+                        <div class="page-desc">Import and manage phone numbers for broadcasting.</div>
+                    </div>
+
+                    <div class="contacts-grid">
+                        <!-- Upload -->
+                        <div class="block">
+                        <div class="block-head"><span class="block-title">Import Contacts</span></div>
+                        <div class="block-body">
+                            <label class="file-drop" id="file-drop">
+                                <input type="file" id="csv-upload" accept=".csv" onchange="handleCSV(event)" />
+                                <p style="color:var(--text);font-weight:500;font-size: 1rem;margin-bottom:5px">Click to
+                                    upload CSV</p>
+                                <p>Expected columns: <span class="mono">name, phone, group</span> (phone required)</p>
+                            </label>
+                            <div style="text-align:center; margin-top:12px;">
+                                <button class="btn btn-secondary btn-sm" onclick="downloadTemplate(event)"
+                                    style="display:inline-flex; width:auto; text-transform:uppercase; letter-spacing:0.05em; font-size: 0.7143rem;">Download
+                                    CSV Format</button>
+                            </div>
+
+                            <hr style="border:none; border-top:1px solid var(--border); margin:18px 0;" />
+
+                            <div
+                                style="font-size: 0.7857rem; color:var(--text2); margin-bottom:10px; text-transform:uppercase; letter-spacing:.05em;">
+                                Or Add Manually</div>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap">
+                                <input type="text" id="man-name" placeholder="Name" style="flex:1; min-width:100px"
+                                    autocomplete="off" />
+                                <input type="text" id="man-phone" placeholder="Phone (e.g. +91...)"
+                                    style="flex:1; min-width:120px" autocomplete="off" />
+                                <input type="text" id="man-group" placeholder="Group (optional)"
+                                    style="flex:1; min-width:100px" autocomplete="off" />
+                                <button class="btn btn-secondary btn-sm" onclick="addManualContact()"
+                                    style="padding:0 20px;">Add</button>
+                            </div>
+                        </div>
+                    </div>
+
+                        <!-- List -->
+                        <div class="block dir-block">
+                        <div class="block-head">
+                            <span class="block-title">Directory</span>
+                            <span class="badge" id="contacts-count">0 total</span>
+                        </div>
+                        <div class="block-body">
+                            <div class="controls-row">
+                                <input type="text" id="search-contacts" placeholder="Search by name or phone..."
+                                    oninput="renderContacts()" />
+                                <select id="filter-group" onchange="renderContacts()">
+                                    <option value="">All Groups</option>
+                                </select>
+                            </div>
+
+                            <div class="flex-between" style="margin-bottom: 12px">
+                                <div style="display:flex;gap:8px">
+                                    <button class="btn btn-secondary btn-sm" onclick="toggleSelectAll()">Select
+                                        All</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="useSelected()">Use
+                                        Selected</button>
+                                </div>
+                                <div style="display:flex;gap:8px">
+                                    <button class="btn btn-secondary btn-sm" onclick="exportCSV()">Export</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteSelected()">Delete</button>
+                                </div>
+                            </div>
+
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:40px"><input type="checkbox" class="checkbox"
+                                                    id="check-all" onclick="toggleSelectAll(this.checked)" /></th>
+                                            <th>Name</th>
+                                            <th>Phone</th>
+                                            <th>Group</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="contacts-tbody">
+                                        <!-- Rows render here -->
+                                        <tr>
+                                            <td colspan="4" class="empty">No contacts imported yet.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
+                <!-- HISTORY TAB -->
+                <div class="tab-section" id="tab-history">
+                    <div class="page-hd flex-between">
+                        <div>
+                            <div class="page-title">History</div>
+                            <div class="page-desc">Recent outgoing broadcasts and delivery statuses.</div>
+                        </div>
+                        <span id="hist-badge" class="badge" style="background:rgba(240,173,78,.1); color:#f0ad4e; border-color:rgba(240,173,78,.3); display:none;">Local Fallback</span>
+                    </div>
+                    <div class="block">
+                        <div id="hist-list">
+                            <div class="empty">No broadcasts yet. Send your first one.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API TAB -->
+                <div class="tab-section" id="tab-api">
+                    <div class="page-hd">
+                        <div class="page-title">Twilio API</div>
+                        <div class="page-desc">Credentials are saved locally in your browser only.</div>
+                    </div>
+
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">Credentials</span></div>
+                        <div class="block-body">
+                            <div class="field">
+                                <label class="field-label">Account SID</label>
+                                <input type="text" id="sid" class="mono"
+                                    placeholder="REMOVED_SID" autocomplete="off" />
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Auth Token</label>
+                                <input type="password" id="token" class="mono"
+                                    placeholder="••••••••••••••••••••••••••••••••" autocomplete="off" />
+                            </div>
+                            <div class="field">
+                                <label class="field-label">From Number</label>
+                                <input type="text" id="from" class="mono" placeholder="+1XXXXXXXXXX" />
+                            </div>
+                            <button class="btn" id="save-btn" onclick="saveCfg()">Save Credentials</button>
+                        </div>
+                    </div>
+
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">Pricing Reference</span></div>
+                        <div class="block-body">
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">Outbound US → India</div>
+                                </div>
+                                <div class="row-right"><span class="mono"
+                                        style="font-size: 0.8571rem;color:var(--text2)">$0.0075 / min</span></div>
+                            </div>
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">Hindi TTS (Polly.Aditi)</div>
+                                </div>
+                                <div class="row-right"><span style="font-size: 0.8571rem;color:var(--success)">Free</span>
+                                </div>
+                            </div>
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">India number rental</div>
+                                </div>
+                                <div class="row-right"><span class="mono"
+                                        style="font-size: 0.8571rem;color:var(--text2)">$2.00 / mo</span></div>
+                            </div>
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">Exchange rate (approx.)</div>
+                                </div>
+                                <div class="row-right"><span class="mono" style="font-size: 0.8571rem;color:var(--text2)">1
+                                        USD ≈ ₹93.78</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SETTINGS TAB -->
+                <div class="tab-section" id="tab-settings">
+                    <div class="page-hd">
+                        <div class="page-title">Settings</div>
+                        <div class="page-desc">Configure call behavior and preferences.</div>
+                    </div>
+
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">Organization</span></div>
+                        <div class="block-body">
+                            <div class="field">
+                                <label class="field-label">Trust name</label>
+                                <input type="text" value="Shri Jain Shwetamber Parasali Twilio Call Broadcast" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">Call Behavior</span></div>
+                        <div class="block-body">
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">Parallel calls</div>
+                                    <div class="row-sub">Concurrent outbound connections</div>
+                                </div>
+                                <div class="row-right">
+                                    <select style="width:auto;min-width:80px">
+                                        <option>10</option>
+                                        <option>25</option>
+                                        <option selected>50</option>
+                                        <option>100</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">Retry failed calls</div>
+                                    <div class="row-sub">Attempt once more on failure</div>
+                                </div>
+                                <div class="row-right">
+                                    <label class="toggle">
+                                        <input type="checkbox" checked />
+                                        <div class="tog-track">
+                                            <div class="tog-thumb"></div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">Default language</div>
+                                    <div class="row-sub">Voice for TTS</div>
+                                </div>
+                                <div class="row-right">
+                                    <select style="width:auto;min-width:120px">
+                                        <option>Hindi (hi-IN)</option>
+                                        <option>English (en-IN)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">Delay between calls</div>
+                                    <div class="row-sub">Ms between each request</div>
+                                </div>
+                                <div class="row-right">
+                                    <select style="width:auto;min-width:90px">
+                                        <option>100 ms</option>
+                                        <option selected>200 ms</option>
+                                        <option>500 ms</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">About</span></div>
+                        <div class="block-body">
+                            <p style="font-size: 0.9286rem;color:var(--text2);line-height:1.7">
+                                Built for <strong style="color:var(--text)">Shri Jain Shwetamber Parasali Twilio Call Broadcast</strong>.<br>
+                                Powered by Twilio Voice API + Amazon Polly (Hindi TTS).<br>
+                                Host this file on GitHub Pages — no server needed.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- USERS TAB -->
+                <div class="tab-section" id="tab-users">
+                    <div class="page-hd">
+                        <div class="page-title">Users</div>
+                        <div class="page-desc">Manage access for operators, senders, and viewers.</div>
+                    </div>
+
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">Add User</span></div>
+                        <div class="block-body">
+                            <form id="add-user-form" onsubmit="addUser(event)">
+                                <div class="field">
+                                    <label class="field-label">Full Name</label>
+                                    <input type="text" id="add-u-name" required />
+                                </div>
+                                <div class="field">
+                                    <label class="field-label">Username / Email</label>
+                                    <input type="text" id="add-u-email" required />
+                                </div>
+                                <div class="field">
+                                    <label class="field-label">Password</label>
+                                    <input type="text" id="add-u-pass" required />
+                                </div>
+                                <div class="field">
+                                    <label class="field-label">Role</label>
+                                    <select id="add-u-role">
+                                        <option value="sender">Sender (Broadcast + History)</option>
+                                        <option value="viewer">Viewer (History only)</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn">Add User</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">Active Users</span></div>
+                        <div class="block-body">
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Username</th>
+                                            <th>Role</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- SETTINGS FAB -->
+        <div id="settings-fab" onclick="toggleThemePop()"
+            style="position:fixed; bottom:80px; right:20px; width:44px; height:44px; border-radius:50%; background:var(--surface2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:90; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+            <svg viewBox="0 0 16 16" fill="none" stroke="var(--text)" stroke-width="1.5"
+                style="width:20px;height:20px;">
+                <circle cx="8" cy="8" r="2" />
+                <path
+                    d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+            </svg>
+        </div>
+
+        <div id="theme-pop"
+            style="display:none; position:fixed; bottom:130px; right:20px; width:220px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; z-index:90; box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div
+                style="font-size: 0.7857rem; font-weight:500; color:var(--text2); text-transform:uppercase; margin-bottom:12px; letter-spacing:.05em;">
+                Appearance</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <span style="font-size: 0.9286rem; color:var(--text);">Light Mode</span>
+                <label class="toggle">
+                    <input type="checkbox" id="theme-toggle" onchange="setThemeMode(this.checked)" />
+                    <div class="tog-track">
+                        <div class="tog-thumb"></div>
+                    </div>
+                </label>
+            </div>
+            <div
+                style="font-size: 0.7857rem; font-weight:500; color:var(--text2); text-transform:uppercase; margin-bottom:12px; letter-spacing:.05em;">
+                Font Size</div>
+            <input type="range" id="font-slider" min="12" max="18" value="14" step="1" oninput="setFontSize(this.value)"
+                style="width:100%; accent-color:var(--text);" />
+            <div
+                style="display:flex; justify-content:space-between; margin-top:6px; font-size: 0.7857rem; color:var(--text3); font-family:'Geist Mono',monospace;">
+                <span>12px</span><span>18px</span>
+            </div>
+        </div>
+
+        <!-- ── BOTTOM NAV (mobile) ────────────── -->
+        <nav class="bottomnav">
+            <div class="bottomnav-inner">
+                <div class="bn-item active" id="bnav-broadcast" onclick="go('broadcast')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="8" cy="8" r="6" />
+                        <path d="M8 5v3l2 1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Send
+                </div>
+                <div class="bn-item" id="bnav-contacts" onclick="go('contacts')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M10.5 5.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM3.5 13a4.5 4.5 0 019 0"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Contacts
+                </div>
+                <div class="bn-item" id="bnav-history" onclick="go('history')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="3" width="12" height="10" rx="1.5" />
+                        <path d="M5 7h6M5 10h4" stroke-linecap="round" />
+                    </svg>
+                    History
+                </div>
+                <div class="bn-item" id="bnav-api" onclick="go('api')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="2" width="12" height="12" rx="2" />
+                        <path d="M6 6l-2 2 2 2M10 6l2 2-2 2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    API
+                </div>
+                <div class="bn-item" id="bnav-settings" onclick="go('settings')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="8" cy="8" r="2" />
+                        <path
+                            d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+                    </svg>
+                    Settings
+                </div>
+                <div class="bn-item" id="bnav-users" onclick="go('users')">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="8" cy="5" r="3" />
+                        <path d="M2 14c0-3 3-4 6-4s6 1 6 4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Users
+                </div>
+            </div>
+        </nav>
+
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/contacts.js"></script>
+    <script src="js/broadcast.js"></script>
+    <script src="js/settings.js"></script>
+</body>
+
+</html>
