@@ -52,6 +52,7 @@ window.unlockApi = function() {
         wrap.style.pointerEvents = 'auto';
         wrap.style.filter = 'none';
         document.getElementById('api-unlock-err').style.display = 'none';
+        window.loadCfg(); // Load credentials only after unlock
     } else {
         document.getElementById('api-unlock-err').style.display = 'block';
     }
@@ -92,6 +93,5 @@ window.loadCfg = function() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    window.loadCfg();
     if (window.initAuth) window.initAuth();
 });

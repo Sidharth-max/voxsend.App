@@ -308,8 +308,9 @@
                                 <div style="display:flex; gap:10px; flex-wrap:wrap">
                                     <input type="text" id="man-name" placeholder="Name" style="flex:1; min-width:100px"
                                         autocomplete="off" />
-                                    <input type="text" id="man-phone" placeholder="Phone (e.g. +91...)"
-                                        style="flex:1; min-width:120px" autocomplete="off" />
+                                    <input type="tel" id="man-phone" placeholder="Phone (e.g. +91...)"
+                                        style="flex:1; min-width:120px" autocomplete="off" inputmode="tel"
+                                        oninput="this.value = this.value.replace(/[^0-9+]/g, '')" />
                                     <input type="text" id="man-group" placeholder="Group (optional)"
                                         style="flex:1; min-width:100px" autocomplete="off" />
                                     <button class="btn btn-secondary btn-sm" onclick="addManualContact()"
@@ -422,17 +423,17 @@
                                 <div class="field">
                                     <label class="field-label">Account SID</label>
                                     <input type="text" id="sid" class="mono" placeholder="REMOVED_SID"
-                                        autocomplete="off" />
+                                        autocomplete="new-password" />
                                 </div>
                                 <div class="field">
                                     <label class="field-label">Auth Token</label>
                                     <input type="password" id="token" class="mono"
-                                        placeholder="••••••••••••••••••••••••••••••••" autocomplete="off" />
+                                        placeholder="••••••••••••••••••••••••••••••••" autocomplete="new-password" />
                                 </div>
                                 <div class="field">
                                     <label class="field-label">From Number</label>
                                     <input type="text" id="from" class="mono" placeholder="+1XXXXXXXXXX"
-                                        autocomplete="off" />
+                                        autocomplete="new-password" />
                                 </div>
                                 <button class="btn" id="save-btn" onclick="saveCfg()">Save Credentials</button>
                             </div>
