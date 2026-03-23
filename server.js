@@ -73,6 +73,21 @@ app.post('/api/messages', (req, res) => {
     res.json({ success: true });
 });
 
+app.get('/api/settings', (req, res) => {
+    try {
+        if (fs.existsSync('settings.json')) {
+            res.json(JSON.parse(fs.readFileSync('settings.json', 'utf8')));
+        } else {
+            res.json({});
+        }
+    } catch (e) { res.json({}); }
+});
+
+app.post('/api/settings', (req, res) => {
+    fs.writeFileSync('settings.json', JSON.stringify(req.body, null, 2));
+    res.json({ success: true });
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);

@@ -25,23 +25,51 @@ window.setFontSize = function(size) {
 window.saveTrustName = function() {
     const name = document.getElementById('trust-name-input').value.trim();
     if (!name) return alert("Name cannot be empty");
-    localStorage.setItem('trust_name', name);
-    window.applyTrustName();
-    alert("Trust name saved!");
+    window.applyTrustName(name);
+    window.saveAppSettings();
 };
 
-window.applyTrustName = function() {
-    const name = localStorage.getItem('trust_name') || 'Call Broadcast';
-    const input = document.getElementById('trust-name-input');
-    if (input) input.value = name;
-    
+window.applyTrustName = function(name) {
     const display = document.getElementById('display-trust-name');
     if (display) display.textContent = name;
 };
 
+window.saveAppSettings = function() {
+    const settings = {
+        trust_name: document.getElementById('trust-name-input').value.trim(),
+        parallel_calls: document.getElementById('parallel-calls').value,
+        retry_toggle: document.getElementById('retry-toggle').checked,
+        default_lang: document.getElementById('default-lang').value,
+        call_delay: document.getElementById('call-delay').value
+    };
+
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    }).then(res => res.json()).then(res => {
+        if (res.success) {
+            alert("Settings saved successfully!");
+        }
+    }).catch(e => console.error("Error saving settings:", e));
+};
+
+window.loadAppSettings = function() {
+    fetch('/api/settings').then(res => res.json()).then(s => {
+        if (s.trust_name) {
+            document.getElementById('trust-name-input').value = s.trust_name;
+            window.applyTrustName(s.trust_name);
+        }
+        if (s.parallel_calls) document.getElementById('parallel-calls').value = s.parallel_calls;
+        if (s.retry_toggle !== undefined) document.getElementById('retry-toggle').checked = s.retry_toggle;
+        if (s.default_lang) document.getElementById('default-lang').value = s.default_lang;
+        if (s.call_delay) document.getElementById('call-delay').value = s.call_delay;
+    }).catch(e => console.error("Error loading settings:", e));
+};
+
 document.addEventListener('DOMContentLoaded', () => {
-    // init theme
-    window.applyTrustName();
+    // init server settings
+    window.loadAppSettings();
     const theme = localStorage.getItem('theme');
     if (theme === 'light') {
         document.documentElement.setAttribute('data-theme', 'light');

@@ -104,14 +104,6 @@
                     Settings
                 </div>
 
-                <div class="nav-section-label" style="margin-top:8px" id="snav-users-lbl">Admin</div>
-                <div class="nav-item" id="snav-users" onclick="go('users')">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="8" cy="5" r="3" />
-                        <path d="M2 14c0-3 3-4 6-4s6 1 6 4" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    Users
-                </div>
             </nav>
 
             <div class="sidebar-footer" style="display:flex; justify-content:space-between; align-items:center;">
@@ -133,7 +125,6 @@
                 <div class="topbar-tab" id="tnav-history" onclick="go('history')">History</div>
                 <div class="topbar-tab" id="tnav-api" onclick="go('api')">API</div>
                 <div class="topbar-tab" id="tnav-settings" onclick="go('settings')">Settings</div>
-                <div class="topbar-tab" id="tnav-users" onclick="go('users')">Users</div>
             </div>
         </header>
 
@@ -511,7 +502,7 @@
                                     <div class="row-sub">Concurrent outbound connections</div>
                                 </div>
                                 <div class="row-right">
-                                    <select style="width:auto;min-width:80px">
+                                    <select id="parallel-calls" style="width:auto;min-width:80px">
                                         <option>10</option>
                                         <option>25</option>
                                         <option selected>50</option>
@@ -526,7 +517,7 @@
                                 </div>
                                 <div class="row-right">
                                     <label class="toggle">
-                                        <input type="checkbox" checked />
+                                        <input type="checkbox" id="retry-toggle" checked />
                                         <div class="tog-track">
                                             <div class="tog-thumb"></div>
                                         </div>
@@ -539,9 +530,9 @@
                                     <div class="row-sub">Voice for TTS</div>
                                 </div>
                                 <div class="row-right">
-                                    <select style="width:auto;min-width:120px">
-                                        <option>Hindi (hi-IN)</option>
-                                        <option>English (en-IN)</option>
+                                    <select id="default-lang" style="width:auto;min-width:120px">
+                                        <option value="hi-IN">Hindi (hi-IN)</option>
+                                        <option value="en-IN">English (en-IN)</option>
                                     </select>
                                 </div>
                             </div>
@@ -551,13 +542,14 @@
                                     <div class="row-sub">Ms between each request</div>
                                 </div>
                                 <div class="row-right">
-                                    <select style="width:auto;min-width:90px">
-                                        <option>100 ms</option>
-                                        <option selected>200 ms</option>
-                                        <option>500 ms</option>
+                                    <select id="call-delay" style="width:auto;min-width:90px">
+                                        <option value="100">100 ms</option>
+                                        <option value="200" selected>200 ms</option>
+                                        <option value="500">500 ms</option>
                                     </select>
                                 </div>
                             </div>
+                            <button class="btn btn-secondary btn-sm" onclick="saveAppSettings()" style="width:auto; margin-top:20px;">Save Behavior</button>
                         </div>
                     </div>
 
@@ -630,6 +622,11 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Logout for Mobile -->
+                    <div class="block" style="margin-top: 40px; border: none; background: transparent; box-shadow: none;">
+                        <button class="btn btn-danger" onclick="logout()" style="width: 100%; padding: 14px;">Logout</button>
                     </div>
                 </div>
 
