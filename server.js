@@ -11,7 +11,6 @@ app.use(express.static(__dirname));
 app.get('/api/credentials', (req, res) => {
     res.json({
         sid: process.env.TWILIO_ACCOUNT_SID,
-        token: process.env.TWILIO_AUTH_TOKEN,
         from: process.env.TWILIO_FROM
     });
 });
