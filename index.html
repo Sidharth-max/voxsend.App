@@ -305,7 +305,7 @@
                                 <div
                                     style="font-size: 0.7857rem; color:var(--text2); margin-bottom:10px; text-transform:uppercase; letter-spacing:.05em;">
                                     Or Add Manually</div>
-                                <div style="display:flex; gap:10px; flex-wrap:wrap">
+                                <div class="form-row" style="display:flex; gap:10px; flex-wrap:wrap">
                                     <input type="text" id="man-name" placeholder="Name" style="flex:1; min-width:100px"
                                         autocomplete="off" />
                                     <input type="tel" id="man-phone" placeholder="Phone (e.g. +91...)"
@@ -334,14 +334,13 @@
                                     </select>
                                 </div>
 
-                                <div class="flex-between" style="margin-bottom: 12px">
-                                    <div style="display:flex;gap:8px">
+                                <div
+                                    style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap;">
+                                    <div class="header-actions">
                                         <button class="btn btn-secondary btn-sm" onclick="toggleSelectAll()">Select
                                             All</button>
-                                        <button class="btn btn-secondary btn-sm" onclick="useSelected()">Send to
-                                            Broadcast</button>
-                                    </div>
-                                    <div style="display:flex;gap:8px">
+                                        <button class="btn btn-secondary btn-sm" onclick="useSelected()">Use
+                                            Selected</button>
                                         <button class="btn btn-secondary btn-sm" onclick="exportCSV()">Export</button>
                                         <button class="btn btn-danger btn-sm" onclick="deleteSelected()">Delete</button>
                                     </div>
@@ -384,10 +383,8 @@
                             style="background:rgba(240,173,78,.1); color:#f0ad4e; border-color:rgba(240,173,78,.3); display:none;">Local
                             Fallback</span>
                     </div>
-                    <div class="block">
-                        <div id="hist-list">
-                            <div class="empty">No broadcasts yet. Send your first one.</div>
-                        </div>
+                    <div id="hist-list">
+                        <div class="empty">No broadcasts yet. Send your first one.</div>
                     </div>
                 </div>
 
@@ -712,6 +709,43 @@
             </div>
         </nav>
 
+    </div>
+
+    <div id="hist-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-hd">
+                <div class="modal-title">Broadcast Details</div>
+                <button class="modal-close" onclick="closeHistoryDetails()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-item">
+                    <div class="detail-label">Message</div>
+                    <div id="mdl-msg" class="detail-val"></div>
+                </div>
+                <div style="display:flex; gap:20px; flex-wrap:wrap">
+                    <div class="detail-item" style="flex:1">
+                        <div class="detail-label">Date & Time</div>
+                        <div id="mdl-date" class="detail-val"></div>
+                    </div>
+                    <div class="detail-item" style="flex:1">
+                        <div class="detail-label">Sent By</div>
+                        <div id="mdl-op" class="detail-val"></div>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Recipients</div>
+                    <div id="mdl-recipients" class="recipient-list"></div>
+                </div>
+            </div>
+            <div class="modal-ft">
+                <button class="btn btn-secondary btn-sm" id="mdl-repeat" style="width:auto">Repeat Broadcast</button>
+                <button class="btn btn-primary btn-sm" onclick="closeHistoryDetails()" style="width:auto">Close</button>
+            </div>
+        </div>
     </div>
 
     <script src="js/app.js"></script>

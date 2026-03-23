@@ -70,24 +70,109 @@ window.renderHistory = function() {
         list.innerHTML = '<div class="empty">No broadcasts found.</div>';
         return;
     }
-    list.innerHTML = historyData.map((h, i) => {
-        return `
-        <div class="block" style="margin-bottom:12px;">
-            <div class="block-body" style="padding:16px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-                    <div class="hist-meta">${new Date(h.date).toLocaleString()} <span style="margin-left:8px;color:var(--text3)">by ${h.sentBy || 'Operator'}</span></div>
-                    <button class="btn btn-secondary btn-sm" onclick="repeatBroadcast(${i})" style="width:auto; padding:4px 10px; font-size:10px;">RE-USE BROADCAST</button>
+
+    // Date grouping logic
+    const groups = {
+        'Today': [],
+        'Yesterday': [],
+        'Older': []
+    };
+
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const yest = new Date();
+    yest.setDate(now.getDate() - 1);
+    const yestStr = yest.toDateString();
+
+    historyData.forEach((h, i) => {
+        h._index = i; // keep original index for callback
+        const d = new Date(h.date);
+        const dStr = d.toDateString();
+        
+        if (dStr === todayStr) groups['Today'].push(h);
+        else if (dStr === yestStr) groups['Yesterday'].push(h);
+        else groups['Older'].push(h);
+    });
+
+    let html = '';
+    for (const [label, items] of Object.entries(groups)) {
+        if (!items.length) continue;
+        
+        html += `<div class="hist-date-group">
+            <div class="hist-date-label">${label}</div>`;
+        
+        items.forEach(h => {
+            const okPerf = h.total > 0 ? (h.successful / h.total) * 100 : 0;
+            const errPerf = h.total > 0 ? (h.failed / h.total) * 100 : 0;
+
+            html += `
+            <div class="hist-card" onclick="showHistoryDetails(${h._index})" style="cursor:pointer">
+                <div class="hist-card-hd">
+                    <div class="hist-card-time">${new Date(h.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    <div class="hist-card-op">By ${h.sentBy || 'Operator'}</div>
                 </div>
-                <div class="hist-msg">"${h.message}"</div>
-                <div class="flex-between" style="margin-top:10px;">
-                    <div class="badge" style="background:transparent;border-color:var(--border);">Total: ${h.total}</div>
-                    <div class="badge">Sent: ${h.successful}</div>
-                    <div class="badge" style="background:rgba(248,113,113,.1);color:var(--error);border-color:rgba(248,113,113,.2)">Fail: ${h.failed}</div>
+                <div class="hist-card-msg">${h.message}</div>
+                
+                <div class="status-rail">
+                    <div class="status-bar-ok" style="width: ${okPerf}%"></div>
+                    <div class="status-bar-err" style="width: ${errPerf}%"></div>
+                </div>
+
+                <div class="hist-card-stats">
+                    <div class="hist-stat-item">
+                        <span style="opacity:0.5">Total</span>
+                        <span class="hist-stat-val">${h.total}</span>
+                    </div>
+                    <div class="hist-stat-item">
+                        <span style="color:#10b981">●</span>
+                        <span style="opacity:0.5">Sent</span>
+                        <span class="hist-stat-val">${h.successful}</span>
+                    </div>
+                    <div class="hist-stat-item">
+                        <span style="color:#ef4444">●</span>
+                        <span style="opacity:0.5">Fail</span>
+                        <span class="hist-stat-val">${h.failed}</span>
+                    </div>
+                </div>
+
+                <div class="hist-card-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); repeatBroadcast(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px;">
+                        RE-USE BROADCAST
+                    </button>
                 </div>
             </div>
-        </div>
-        `;
-    }).join('');
+            `;
+        });
+        html += `</div>`;
+    }
+
+    list.innerHTML = html;
+};
+
+window.showHistoryDetails = function(index) {
+    const h = historyData[index];
+    if(!h) return;
+
+    document.getElementById('mdl-msg').textContent = h.message;
+    document.getElementById('mdl-date').textContent = new Date(h.date).toLocaleString();
+    document.getElementById('mdl-op').textContent = h.sentBy || 'Operator';
+    
+    // format recipients list
+    const recs = h.recipients ? h.recipients.split('\n').join('<br>') : 'No recipients data';
+    document.getElementById('mdl-recipients').innerHTML = recs;
+
+    // setup repeat button
+    const repeatBtn = document.getElementById('mdl-repeat');
+    repeatBtn.onclick = () => {
+        closeHistoryDetails();
+        repeatBroadcast(index);
+    };
+
+    document.getElementById('hist-modal').style.display = 'flex';
+};
+
+window.closeHistoryDetails = function() {
+    document.getElementById('hist-modal').style.display = 'none';
 };
 
 window.repeatBroadcast = function(index) {

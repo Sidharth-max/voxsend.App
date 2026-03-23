@@ -107,7 +107,8 @@
 
         input::placeholder,
         textarea::placeholder {
-            color: var(--text3)
+            color: var(--text3);
+            font-size: 0.9286rem;
         }
 
         textarea {
@@ -562,7 +563,7 @@
         /* ── RESPONSIVE OVERRIDES ───────────────── */
         @media(max-width: 599px) {
             input[type=text], input[type=password], select, textarea {
-                font-size: 16px !important;
+                font-size: 1.1429rem !important;
             }
             .btn {
                 min-height: 44px;
@@ -628,5 +629,246 @@
             .metric:last-child {
                 border-right: 1px solid var(--border) !important;
             }
+            .form-row {
+                flex-direction: column !important;
+                gap: 12px !important;
+            }
+            .form-row > * {
+                width: 100% !important;
+            }
+            .header-actions {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+            .header-actions .btn {
+                flex: 1 !important;
+                white-space: nowrap !important;
+                justify-content: center !important;
+            }
+            .table-wrap {
+                margin: 0 -14px !important;
+                padding: 0 14px !important;
+                width: calc(100% + 28px) !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            #contacts-table th, #contacts-table td {
+                min-width: 100px !important;
+                white-space: nowrap !important;
+            }
+            #contacts-table td:nth-child(2) { /* Phone column */
+                min-width: 140px !important;
+            }
+        }
+
+        /* ── HISTORY REDESIGN ───────────────────── */
+        .hist-date-group {
+            margin-bottom: 24px;
+        }
+
+        .hist-date-label {
+            font-size: 0.7857rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text3);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        .hist-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: transform .2s, border-color .2s;
+            cursor: default;
+        }
+
+        .hist-card:hover {
+            border-color: var(--border2);
+        }
+
+        .hist-card-hd {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .hist-card-time {
+            font-size: 0.8571rem;
+            color: var(--text2);
+        }
+
+        .hist-card-op {
+            font-size: 0.7857rem;
+            color: var(--text3);
+        }
+
+        .hist-card-msg {
+            font-size: 1rem;
+            color: var(--text);
+            line-height: 1.5;
+            margin-bottom: 16px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .status-rail {
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            display: flex;
+        }
+
+        .status-bar-ok {
+            height: 100%;
+            background: #10b981; /* Success Green */
+        }
+
+        .status-bar-err {
+            height: 100%;
+            background: #ef4444; /* Error Red */
+        }
+
+        .hist-card-stats {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .hist-stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8571rem;
+            color: var(--text2);
+        }
+
+        .hist-stat-val {
+            font-weight: 500;
+            color: var(--text);
+            font-family: 'Geist Mono', monospace;
+        }
+
+        .hist-card-actions {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* ── MODAL ──────────────────────────────── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            animation: modalUp 0.3s ease-out;
+        }
+
+        @keyframes modalUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-hd {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.1429rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text3);
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-ft {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            background: var(--surface);
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+
+        .detail-item {
+            margin-bottom: 20px;
+        }
+
+        .detail-label {
+            font-size: 0.7143rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text3);
+            margin-bottom: 6px;
+        }
+
+        .detail-val {
+            font-size: 1rem;
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .recipient-list {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Geist Mono', monospace;
+            font-size: 0.9286rem;
+            line-height: 1.6;
+            color: var(--text2);
         }
 
