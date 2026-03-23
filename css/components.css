@@ -586,31 +586,44 @@
             .controls-row > * {
                 width: 100%;
             }
-            .block-head {
-                flex-wrap: wrap;
-                gap: 10px;
-                justify-content: flex-start;
-            }
-            .block-head > .badge, .block-head > .hint {
-                margin-left: 0 !important;
-                width: 100%;
-            }
             #fab-settings {
                 bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + 10px) !important;
             }
             #theme-pop {
                 bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + 60px) !important;
             }
+            .block-head {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 12px !important;
+                padding: 14px !important;
+            }
+            .block-head > * {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+            .lang-pills {
+                display: flex !important;
+                width: 100% !important;
+            }
+            .lang-pill {
+                flex: 1 !important;
+                text-align: center !important;
+            }
             .metrics {
-                grid-template-columns: 1fr !important;
+                display: flex !important;
+                flex-direction: column !important;
                 border: none !important;
                 gap: 10px !important;
+                grid-template-columns: none !important;
             }
             .metric {
-                padding: 12px 18px !important;
+                width: 100% !important;
+                padding: 14px 18px !important;
                 border: 1px solid var(--border) !important;
                 border-radius: 8px !important;
                 border-right: 1px solid var(--border) !important;
+                background: var(--surface) !important;
             }
             .metric:last-child {
                 border-right: 1px solid var(--border) !important;
