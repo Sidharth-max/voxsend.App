@@ -560,10 +560,6 @@
 
         /* ── RESPONSIVE OVERRIDES ───────────────── */
         @media(max-width: 599px) {
-            #tab-contacts .table th:nth-child(4),
-            #tab-contacts .table td:nth-child(4) {
-                display: none;
-            }
             input[type=text], input[type=password], select, textarea {
                 font-size: 16px !important;
             }

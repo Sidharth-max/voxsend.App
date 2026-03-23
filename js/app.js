@@ -27,6 +27,10 @@ function go(name) {
         if (bn) bn.classList.toggle('active', t === name);
     });
     
+    if (name === 'history' && window.loadHistory) {
+        window.loadHistory();
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

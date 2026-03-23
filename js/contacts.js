@@ -88,6 +88,8 @@ window.handleCSV = function(event) {
     reader.readAsText(file);
 };
 
+let editingPhone = null;
+
 window.renderContacts = function() {
     const filterGroup = document.getElementById('filter-group');
     const searchQ = document.getElementById('search-contacts');
@@ -107,7 +109,7 @@ window.renderContacts = function() {
     document.getElementById('check-all').checked = filtered.length > 0 && filtered.every(c => c.selected);
     
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty">No contacts found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No contacts found.</td></tr>';
         return;
     }
     
@@ -118,8 +120,24 @@ window.renderContacts = function() {
             <td><div style="font-weight:500;color:var(--text)">${c.name || '—'}</div></td>
             <td><div class="mono" style="color:var(--text2)">${c.phone}</div></td>
             <td>${c.group ? `<span class="badge">${c.group}</span>` : '—'}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="editContact('${c.phone}')" style="width:auto; padding:4px 10px; font-size:10px;">EDIT</button>
+            </td>
         </tr>
     `).join('');
+};
+
+window.editContact = function(phone) {
+    const c = contacts.find(c => c.phone === phone);
+    if (!c) return;
+
+    editingPhone = phone;
+    document.getElementById('man-name').value = c.name || '';
+    document.getElementById('man-phone').value = c.phone || '';
+    document.getElementById('man-group').value = c.group || '';
+
+    const btn = document.querySelector('button[onclick="addManualContact()"]');
+    if (btn) btn.textContent = 'Update';
 };
 
 window.toggleContact = function(phone, isChecked) {
@@ -213,14 +231,24 @@ window.addManualContact = function() {
     let p = phoneInput.replace(/\s+/g, '');
     const phone = p.startsWith('+') ? p : '+' + p;
     
-    const existing = contacts.find(c => c.phone === phone);
-    let updated = false;
-    if (existing) {
-        if (name) existing.name = name;
-        if (group) existing.group = group;
-        updated = true;
+    if (editingPhone) {
+        const existing = contacts.find(c => c.phone === editingPhone);
+        if (existing) {
+            existing.name = name;
+            existing.phone = phone;
+            existing.group = group;
+        }
+        editingPhone = null;
+        const btn = document.querySelector('button[onclick="addManualContact()"]');
+        if (btn) btn.textContent = 'Add';
     } else {
-        contacts.push({ name, phone, group, selected: false });
+        const existing = contacts.find(c => c.phone === phone);
+        if (existing) {
+            if (name) existing.name = name;
+            if (group) existing.group = group;
+        } else {
+            contacts.push({ name, phone, group, selected: false });
+        }
     }
     
     document.getElementById('man-name').value = '';
@@ -228,7 +256,7 @@ window.addManualContact = function() {
     document.getElementById('man-group').value = '';
     
     window.saveContacts();
-    alert(updated ? "Updated existing contact." : "Added manual contact.");
+    alert("Saved contact.");
 };
 
 document.addEventListener('DOMContentLoaded', () => {

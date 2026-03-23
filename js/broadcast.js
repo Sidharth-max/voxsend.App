@@ -160,6 +160,7 @@ window.blast = async function() {
             total: nums.length,
             successful: ok,
             failed: fail,
+            recipients: nums.join('\n'),
             sentBy: window.currentUser ? window.currentUser.username : 'Unknown'
         });
     }
