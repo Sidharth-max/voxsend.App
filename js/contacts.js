@@ -111,9 +111,10 @@ window.renderContacts = function() {
         return;
     }
     
-    tbody.innerHTML = filtered.map(c => `
+    tbody.innerHTML = filtered.map((c, i) => `
         <tr>
             <td><input type="checkbox" class="checkbox" ${c.selected ? 'checked' : ''} onchange="toggleContact('${c.phone}', this.checked)" /></td>
+            <td><div class="mono" style="color:var(--text3); font-size: 0.8rem;">${i + 1}</div></td>
             <td><div style="font-weight:500;color:var(--text)">${c.name || '—'}</div></td>
             <td><div class="mono" style="color:var(--text2)">${c.phone}</div></td>
             <td>${c.group ? `<span class="badge">${c.group}</span>` : '—'}</td>
