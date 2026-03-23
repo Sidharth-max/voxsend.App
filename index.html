@@ -225,11 +225,17 @@
                                         </svg>
                                         Send to All Members
                                     </button>
-                                    <div class="prog-wrap" id="prog-wrap">
+                                    <div class="prog-wrap" id="prog-wrap" style="margin-top:24px;">
                                         <div class="prog-track">
                                             <div class="prog-fill" id="prog-fill"></div>
                                         </div>
-                                        <div class="prog-lbl" id="prog-lbl">Initializing...</div>
+                                        <div
+                                            style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                            <div class="prog-lbl" id="prog-lbl">0 / 0</div>
+                                            <button class="btn btn-danger btn-sm" onclick="stopBroadcast()"
+                                                style="width:auto; padding:4px 12px; font-size:0.75rem;">Stop
+                                                Broadcast</button>
+                                        </div>
                                     </div>
                                     <div class="log" id="log"></div>
                                 </div>
@@ -549,7 +555,8 @@
                                     </select>
                                 </div>
                             </div>
-                            <button class="btn btn-secondary btn-sm" onclick="saveAppSettings()" style="width:auto; margin-top:20px;">Save Behavior</button>
+                            <button class="btn btn-secondary btn-sm" onclick="saveAppSettings()"
+                                style="width:auto; margin-top:20px;">Save Behavior</button>
                         </div>
                     </div>
 
@@ -625,8 +632,10 @@
                     </div>
 
                     <!-- Logout for Mobile -->
-                    <div class="block" style="margin-top: 40px; border: none; background: transparent; box-shadow: none;">
-                        <button class="btn btn-danger" onclick="logout()" style="width: 100%; padding: 14px;">Logout</button>
+                    <div class="block"
+                        style="margin-top: 40px; border: none; background: transparent; box-shadow: none;">
+                        <button class="btn btn-danger" onclick="logout()"
+                            style="width: 100%; padding: 14px;">Logout</button>
                     </div>
                 </div>
 

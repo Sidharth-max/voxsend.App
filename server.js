@@ -23,6 +23,116 @@ app.post('/api/contacts', (req, res) => {
     res.json({ success: true });
 });
 
+let activeBroadcast = null;
+
+app.get('/api/broadcast/status', (req, res) => {
+    res.json(activeBroadcast || { active: false });
+});
+
+app.post('/api/broadcast/stop', (req, res) => {
+    if (activeBroadcast) {
+        activeBroadcast.active = false;
+        res.json({ success: true, message: "Broadcast stopping..." });
+    } else {
+        res.json({ success: false, message: "No active broadcast." });
+    }
+});
+
+app.post('/api/broadcast', async (req, res) => {
+    const { nums, msg, credentials, lang, sentBy } = req.body;
+
+    if (activeBroadcast && activeBroadcast.active) {
+        return res.status(400).json({ success: false, message: "A broadcast is already in progress." });
+    }
+
+    activeBroadcast = {
+        active: true,
+        total: nums.length,
+        current: 0,
+        successful: 0,
+        failed: 0,
+        logs: [],
+        startTime: new Date().toISOString(),
+        msg: msg,
+        lang: lang,
+        sentBy: sentBy
+    };
+
+    res.json({ success: true, message: "Broadcast started in background." });
+
+    // Background Processing
+    const runBroadcast = async () => {
+        const { sid, token, from } = credentials;
+        const auth = Buffer.from(`${sid}:${token}`).toString('base64');
+        const ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
+
+        for (let i = 0; i < nums.length; i++) {
+            if (!activeBroadcast || !activeBroadcast.active) break;
+
+            let n = nums[i].trim();
+            if (!n.startsWith('+')) n = '+' + n;
+
+            try {
+                const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Basic ${auth}`,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({ To: n, From: from, Url: ttsUrl })
+                });
+
+                const rjson = await twilioRes.json();
+
+                if (twilioRes.ok) {
+                    activeBroadcast.successful++;
+                    activeBroadcast.logs.push({ type: 'ok', text: `Call queued to ${n}`, time: new Date().toLocaleTimeString() });
+                } else {
+                    activeBroadcast.failed++;
+                    activeBroadcast.logs.push({ type: 'err', text: `Failed ${n}: ${rjson.message}`, time: new Date().toLocaleTimeString() });
+                }
+            } catch (err) {
+                activeBroadcast.failed++;
+                activeBroadcast.logs.push({ type: 'err', text: `Network error to ${n}`, time: new Date().toLocaleTimeString() });
+            }
+
+            activeBroadcast.current = i + 1;
+            // Limit logs to last 50 for performance
+            if (activeBroadcast.logs.length > 50) activeBroadcast.logs.shift();
+
+            // Artificial delay to respect rate limits
+            await new Promise(r => setTimeout(r, 600));
+        }
+
+        // Finalize
+        if (activeBroadcast) {
+            const entry = {
+                date: activeBroadcast.startTime,
+                message: msg,
+                total: activeBroadcast.total,
+                successful: activeBroadcast.successful,
+                failed: activeBroadcast.failed,
+                recipients: nums.join('\n'),
+                sentBy: sentBy || 'System'
+            };
+
+            // Save to history.json
+            try {
+                let hist = [];
+                if (fs.existsSync('history.json')) {
+                    hist = JSON.parse(fs.readFileSync('history.json', 'utf8'));
+                }
+                hist.unshift(entry);
+                fs.writeFileSync('history.json', JSON.stringify(hist, null, 2));
+            } catch (e) { console.error("Error saving history:", e); }
+
+            activeBroadcast.active = false;
+        }
+    };
+
+    runBroadcast();
+});
+
 app.use(express.static(__dirname));
 
 app.get('/api/credentials', (req, res) => {

@@ -84,86 +84,97 @@ window.addLog = function(type, text) {
     log.prepend(el);
 };
 
-window.blast = async function() {
-    window.addLog('info', 'Starting broadcast sequence...');
-    const btn = document.getElementById('send-btn');
-    btn.disabled = true;
+let pollInterval = null;
+
+window.checkActiveBroadcast = function() {
+    fetch('/api/broadcast/status').then(res => res.json()).then(status => {
+        if (status.active) {
+            window.startPolling();
+            document.getElementById('msg').value = status.msg;
+            window.preview();
+            window.addLog('info', 'Reconnected to active background broadcast.');
+        }
+    });
+};
+
+window.startPolling = function() {
+    if (pollInterval) clearInterval(pollInterval);
+    document.getElementById('send-btn').disabled = true;
     document.getElementById('prog-wrap').classList.add('show');
     
+    pollInterval = setInterval(() => {
+        fetch('/api/broadcast/status').then(res => res.json()).then(status => {
+            if (!status.active) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+                document.getElementById('send-btn').disabled = false;
+                window.addLog('info', `Broadcast finished. Success: ${status.successful}, Failed: ${status.failed}`);
+                if (window.loadHistory) window.loadHistory();
+                return;
+            }
+
+            const pct = Math.round((status.current / status.total) * 100);
+            document.getElementById('prog-fill').style.width = pct + '%';
+            document.getElementById('prog-lbl').textContent = `${status.current} / ${status.total}`;
+            
+            // Sync logs
+            if (status.logs && status.logs.length > 0) {
+                const lastLog = status.logs[status.logs.length - 1];
+                // Only add if it's new (simple check by text/time)
+                // For simplicity, we just show the latest few in the UI log
+                const logEl = document.getElementById('log');
+                if (logEl) {
+                    // This is a bit naive but works for a single active broadcast
+                    if (!window.lastLogTime || window.lastLogTime !== lastLog.time) {
+                        window.addLog(lastLog.type, lastLog.text);
+                        window.lastLogTime = lastLog.time;
+                    }
+                }
+            }
+        });
+    }, 2000);
+};
+
+window.stopBroadcast = function() {
+    if (confirm("Stop the current background broadcast?")) {
+        fetch('/api/broadcast/stop', { method: 'POST' }).then(res => res.json()).then(res => {
+            window.addLog('info', 'Stop request sent.');
+        });
+    }
+};
+
+window.blast = async function() {
     const nums = getNums();
     const msg = document.getElementById('msg').value.trim();
     const c = await window.getCfg();
 
     if (!c.sid || !c.token || !c.from) {
         window.addLog('err', 'Missing Twilio credentials! Check Settings.');
-        btn.disabled = false;
         return;
     }
 
-    const ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
+    const payload = {
+        nums,
+        msg,
+        credentials: c,
+        lang: lang,
+        sentBy: window.currentUser ? window.currentUser.username : 'Unknown'
+    };
 
-    let ok = 0, fail = 0;
-    
-    for (let i = 0; i < nums.length; i++) {
-        let n = nums[i];
-        if (!n.startsWith('+')) n = '+' + n;
-        
-        try {
-            const fd = new URLSearchParams();
-            fd.append('To', n);
-            fd.append('From', c.from);
-            fd.append('Url', ttsUrl);
-
-            const auth = btoa(c.sid + ':' + c.token);
-
-            const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${c.sid}/Calls.json`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Basic ${auth}`,
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: fd
-            });
-            
-            const rjson = await res.json();
-            
-            if (res.ok) {
-                ok++;
-                window.addLog('ok', `Call queued to ${n} (SID: ${rjson.sid.substr(0,8)}...)`);
-            } else {
-                fail++;
-                window.addLog('err', `Failed ${n}: ${rjson.message}`);
-                if (rjson.code === 21212 || rjson.code === 20003) {
-                    window.addLog('err', 'CRITICAL ERROR: Twilio configuration invalid or unverified number.');
-                    break;
-                }
-            }
-        } catch (err) {
-            fail++;
-            window.addLog('err', `Network error to ${n}`);
+    fetch('/api/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(res => res.json()).then(res => {
+        if (res.success) {
+            window.addLog('info', 'Broadcast initiated on server. You can safely close this page.');
+            window.startPolling();
+        } else {
+            window.addLog('err', 'Error: ' + res.message);
         }
-
-        const pct = Math.round(((i + 1) / nums.length) * 100);
-        document.getElementById('prog-fill').style.width = pct + '%';
-        document.getElementById('prog-lbl').textContent = `${i + 1} / ${nums.length}`;
-        
-        await new Promise(r => setTimeout(r, 600));
-    }
-
-    window.addLog('info', `Broadcast complete. Success: ${ok}, Failed: ${fail}`);
-    btn.disabled = false;
-    
-    if (window.saveHistoryEntry) {
-        window.saveHistoryEntry({
-            date: new Date().toISOString(),
-            message: msg,
-            total: nums.length,
-            successful: ok,
-            failed: fail,
-            recipients: nums.join('\n'),
-            sentBy: window.currentUser ? window.currentUser.username : 'Unknown'
-        });
-    }
+    }).catch(err => {
+        window.addLog('err', 'Network error starting broadcast.');
+    });
 };
 
 window.renderBroadcastContacts = function() {
@@ -272,4 +283,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const numsEl = document.getElementById('numbers');
     if(msgEl) msgEl.addEventListener('input', window.preview);
     if(numsEl) numsEl.addEventListener('input', () => { window.preview(); if(window.renderBroadcastContacts) window.renderBroadcastContacts(); });
+    
+    window.checkActiveBroadcast();
 });

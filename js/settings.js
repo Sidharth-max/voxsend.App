@@ -1,4 +1,4 @@
-window.toggleThemePop = function() {
+window.toggleThemePop = function () {
     const pop = document.getElementById('theme-pop');
     if (pop.style.display === 'none') {
         pop.style.display = 'block';
@@ -7,7 +7,7 @@ window.toggleThemePop = function() {
     }
 };
 
-window.setThemeMode = function(isLight) {
+window.setThemeMode = function (isLight) {
     if (isLight) {
         document.documentElement.setAttribute('data-theme', 'light');
         localStorage.setItem('theme', 'light');
@@ -17,24 +17,24 @@ window.setThemeMode = function(isLight) {
     }
 };
 
-window.setFontSize = function(size) {
+window.setFontSize = function (size) {
     document.documentElement.style.fontSize = size + 'px';
     localStorage.setItem('font-size', size);
 };
 
-window.saveTrustName = function() {
+window.saveTrustName = function () {
     const name = document.getElementById('trust-name-input').value.trim();
     if (!name) return alert("Name cannot be empty");
     window.applyTrustName(name);
     window.saveAppSettings();
 };
 
-window.applyTrustName = function(name) {
+window.applyTrustName = function (name) {
     const display = document.getElementById('display-trust-name');
     if (display) display.textContent = name;
 };
 
-window.saveAppSettings = function() {
+window.saveAppSettings = function () {
     const settings = {
         trust_name: document.getElementById('trust-name-input').value.trim(),
         parallel_calls: document.getElementById('parallel-calls').value,
@@ -54,7 +54,7 @@ window.saveAppSettings = function() {
     }).catch(e => console.error("Error saving settings:", e));
 };
 
-window.loadAppSettings = function() {
+window.loadAppSettings = function () {
     fetch('/api/settings').then(res => res.json()).then(s => {
         if (s.trust_name) {
             document.getElementById('trust-name-input').value = s.trust_name;
@@ -74,15 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (theme === 'light') {
         document.documentElement.setAttribute('data-theme', 'light');
         const tog = document.getElementById('theme-toggle');
-        if(tog) tog.checked = true;
+        if (tog) tog.checked = true;
     }
-    
+
     // init font
     const fs = localStorage.getItem('font-size') || 14;
     document.documentElement.style.fontSize = fs + 'px';
     const sld = document.getElementById('font-slider');
-    if(sld) sld.value = fs;
-    
+    if (sld) sld.value = fs;
+
     // click outside theme pop to close
     document.addEventListener('click', (e) => {
         const pop = document.getElementById('theme-pop');
