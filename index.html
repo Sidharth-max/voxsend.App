@@ -465,8 +465,9 @@
                         <div class="block-body">
                             <div class="field">
                                 <label class="field-label">Trust name</label>
-                                <input type="text" value="Shri Jain Shwetamber Parasali Twilio Call Broadcast" />
+                                <input type="text" id="trust-name-input" value="Call Broadcast" />
                             </div>
+                            <button class="btn btn-secondary btn-sm" onclick="saveTrustName()" style="width:auto">Save Name</button>
                         </div>
                     </div>
 
@@ -533,7 +534,7 @@
                         <div class="block-head"><span class="block-title">About</span></div>
                         <div class="block-body">
                             <p style="font-size: 0.9286rem;color:var(--text2);line-height:1.7">
-                                Built for <strong style="color:var(--text)">Shri Jain Shwetamber Parasali Twilio Call Broadcast</strong>.<br>
+                                Built for <strong style="color:var(--text)" id="display-trust-name">Call Broadcast</strong>.<br>
                                 Powered by Twilio Voice API + Amazon Polly (Hindi TTS).<br>
                                 Host this file on GitHub Pages — no server needed.
                             </p>
