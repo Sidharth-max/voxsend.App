@@ -1,11 +1,6 @@
-const TABS = ['broadcast', 'contacts', 'history', 'api', 'settings', 'users'];
+const TABS = ['broadcast', 'contacts', 'history', 'api', 'settings'];
 
 function go(name) {
-    // If not operator, block users tab
-    if (name === 'users' && (!window.currentUser || window.currentUser.role !== 'operator')) {
-        return alert("Access denied");
-    }
-    
     // content tabs
     TABS.forEach(t => {
         const el = document.getElementById('tab-' + t);

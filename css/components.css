@@ -83,20 +83,26 @@
         input[type=password],
         input[type=tel],
         input[type=datetime-local],
+        input[type=number],
         select,
         textarea {
             width: 100%;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 2rem;
             color: var(--text);
             font-family: 'Geist', sans-serif;
             font-size: 0.9286rem;
-            padding: 9px 12px;
+            padding: 10px 18px;
             outline: none;
-            transition: border-color .15s;
+            transition: all 0.2s ease;
             -webkit-appearance: none;
             appearance: none;
+        }
+
+        textarea {
+            border-radius: 1.25rem;
+            padding: 14px 18px;
         }
 
         input:focus,
@@ -156,8 +162,9 @@
         .lang-pills {
             display: inline-flex;
             border: 1px solid var(--border);
-            border-radius: 5px;
+            border-radius: 2rem;
             overflow: hidden;
+            background: var(--surface);
         }
 
         .lang-pill {
@@ -185,10 +192,10 @@
             display: flex;
             flex-wrap: wrap;
             gap: 12px 20px;
-            padding: 10px 14px;
+            padding: 10px 18px;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 1.25rem;
             margin-top: 12px;
         }
 
@@ -509,6 +516,38 @@
             min-width: 150px;
         }
 
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: var(--text);
+            color: var(--bg);
+            border: none;
+            border-radius: 2rem;
+            font-size: 0.9286rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: .25;
+            cursor: not-allowed
+        }
+
         .btn-secondary {
             background: var(--surface2);
             color: var(--text);
@@ -520,25 +559,59 @@
         }
 
         .btn-danger {
-            background: rgba(248, 113, 113, 0.1);
-            color: var(--error);
-            border: 1px solid rgba(248, 113, 113, 0.2);
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
         .btn-danger:hover {
-            background: rgba(248, 113, 113, 0.2);
+            background: #ef4444;
+            color: #fff;
         }
 
         .btn-sm {
-            padding: 8px 14px;
-            font-size: 0.8571rem;
+            padding: 6px 16px;
+            font-size: 0.7857rem;
+            border-radius: 2rem;
             width: auto;
+        }
+
+        .search-wrap {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 2rem;
+            padding: 12px 20px 12px 48px;
+            color: var(--text);
+            font-size: 0.9286rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--text3);
+            background: var(--surface2);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text3);
+            pointer-events: none;
+            opacity: 0.7;
         }
 
         .file-drop {
             display: block;
             border: 1px dashed var(--border2);
-            border-radius: 8px;
+            border-radius: 1.25rem;
             padding: 30px 20px;
             text-align: center;
             background: var(--surface);

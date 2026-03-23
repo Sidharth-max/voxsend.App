@@ -72,12 +72,10 @@ window.togglePass = function(id) {
 function applyRoleRestrictions() {
     const r = window.currentUser.role;
     
-    // Admin tabs visibility
+    // Admin features in Settings
     const showAdmin = r === 'operator';
-    ['snav-users', 'snav-users-lbl', 'tnav-users', 'bnav-users'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = showAdmin ? '' : 'none';
-    });
+    const adminSec = document.getElementById('admin-section');
+    if (adminSec) adminSec.style.display = showAdmin ? 'block' : 'none';
 
     // Sender features
     const canSend = r === 'operator' || r === 'sender';

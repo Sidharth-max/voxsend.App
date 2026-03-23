@@ -55,30 +55,43 @@ window.closeLibrary = function() {
     document.getElementById('lib-modal').style.display = 'none';
 };
 
-window.renderLibrary = function() {
-    const list = document.getElementById('lib-list');
+window.renderLibrary = function(filtered) {
+    const list = document.getElementById('lib-items');
     if (!list) return;
 
-    if (!libraryData.length) {
-        list.innerHTML = '<div class="empty">No saved messages yet.</div>';
+    const data = filtered || libraryData;
+
+    if (!data.length) {
+        list.innerHTML = '<div class="empty">No messages found.</div>';
         return;
     }
 
-    list.innerHTML = libraryData.map((msg, i) => {
+    list.innerHTML = data.map((msg, i) => {
+        // Find original index if filtered
+        const originalIndex = filtered ? libraryData.indexOf(msg) : i;
         return `
-        <div class="hist-card" style="padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 8px;">
-            <div onclick="useLibraryMessage(${i})" style="flex: 1; font-size: 0.9286rem; line-height: 1.4; color: var(--text);">
+        <div class="hist-card" style="padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; margin-bottom:12px; border-radius:12px;">
+            <div onclick="useLibraryMessage(${originalIndex})" style="flex: 1; font-size: 0.9286rem; line-height: 1.4; color: var(--text);">
                 ${msg}
             </div>
             <div style="display: flex; justify-content: flex-end;">
-                <button class="btn btn-secondary btn-sm" onclick="deleteLibraryMessage(${i})" 
-                    style="width: auto; height: 24px; font-size: 9px; padding: 0 8px; color: var(--error); border-radius: 4px;">
+                <button class="btn btn-secondary btn-sm" onclick="deleteLibraryMessage(${originalIndex})" 
+                    style="width: auto; height: 24px; font-size: 9px; padding: 0 8px; color: var(--error); border-radius: 2rem;">
                     DELETE
                 </button>
             </div>
         </div>
         `;
     }).join('');
+};
+
+window.filterLibrary = function(query) {
+    if (!query) {
+        window.renderLibrary();
+        return;
+    }
+    const filtered = libraryData.filter(m => m.toLowerCase().includes(query.toLowerCase()));
+    window.renderLibrary(filtered);
 };
 
 window.useLibraryMessage = function(index) {

@@ -167,25 +167,26 @@
 
                             <!-- Message -->
                             <div class="block">
-                                <div class="block-head">
+                                <div class="block-head" style="justify-content: space-between;">
                                     <span class="block-title">Message</span>
-                                    <div class="lang-pills">
-                                        <button class="lang-pill active" onclick="setLang('hi')"
-                                            id="pill-hi">Hindi</button>
-                                        <button class="lang-pill" onclick="setLang('en')" id="pill-en">English</button>
+                                    <div style="display:flex; gap:12px; align-items:center;">
+                                        <div style="display:flex; gap:6px;">
+                                            <button class="btn btn-secondary btn-sm" onclick="openLibrary()"
+                                                style="width:auto; height:26px; font-size:10px; padding:0 12px; border-radius: 2rem;">LIBRARY</button>
+                                            <button class="btn btn-secondary btn-sm" onclick="saveToLibrary()"
+                                                style="width:auto; height:26px; font-size:10px; padding:0 12px; border-radius: 2rem;">SAVE</button>
+                                        </div>
+                                        <div class="lang-pills">
+                                            <button class="lang-pill active" onclick="setLang('hi')"
+                                                id="pill-hi">Hindi</button>
+                                            <button class="lang-pill" onclick="setLang('en')"
+                                                id="pill-en">English</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="block-body">
                                     <div class="field">
-                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                                            <label class="field-label" style="margin-bottom:0">Voice message text</label>
-                                            <div style="display:flex; gap:8px;">
-                                                <button class="btn btn-secondary btn-sm" onclick="openLibrary()"
-                                                    style="width:auto; height:24px; font-size:10px; padding:0 8px; font-weight:600">LIBRARY</button>
-                                                <button class="btn btn-secondary btn-sm" onclick="saveToLibrary()"
-                                                    style="width:auto; height:24px; font-size:10px; padding:0 8px; font-weight:600">SAVE</button>
-                                            </div>
-                                        </div>
+                                        <label class="field-label">Voice message text</label>
                                         <textarea id="msg" class="hindi"
                                             placeholder="नमस्ते! हमारा कार्यक्रम कल 11 बजे है। कृपया समय पर पधारें। धन्यवाद।"
                                             oninput="preview()"></textarea>
@@ -570,59 +571,62 @@
                             </p>
                         </div>
                     </div>
-                </div>
 
-                <!-- USERS TAB -->
-                <div class="tab-section" id="tab-users">
-                    <div class="page-hd">
-                        <div class="page-title">Users</div>
-                        <div class="page-desc">Manage access for operators, senders, and viewers.</div>
-                    </div>
-
-                    <div class="users-grid">
-                        <div class="block">
-                            <div class="block-head"><span class="block-title">Add User</span></div>
-                            <div class="block-body">
-                                <form id="add-user-form" onsubmit="addUser(event)">
-                                    <div class="field">
-                                        <label class="field-label">Full Name</label>
-                                        <input type="text" id="add-u-name" required />
-                                    </div>
-                                    <div class="field">
-                                        <label class="field-label">Username / Email</label>
-                                        <input type="text" id="add-u-email" required />
-                                    </div>
-                                    <div class="field">
-                                        <label class="field-label">Password</label>
-                                        <input type="text" id="add-u-pass" required />
-                                    </div>
-                                    <div class="field">
-                                        <label class="field-label">Role</label>
-                                        <select id="add-u-role">
-                                            <option value="sender">Sender (Broadcast + History)</option>
-                                            <option value="viewer">Viewer (History only)</option>
-                                        </select>
-                                    </div>
-                                    <button type="submit" class="btn">Add User</button>
-                                </form>
-                            </div>
+                    <!-- USER MANAGEMENT (Merged) -->
+                    <div id="admin-section" style="display:none">
+                        <div class="page-hd"
+                            style="margin-top:40px; border-top:1px solid var(--border); padding-top:40px;">
+                            <div class="page-title">User Management</div>
+                            <div class="page-desc">Manage access for operators, senders, and viewers.</div>
                         </div>
 
-                        <div class="block">
-                            <div class="block-head"><span class="block-title">Active Users</span></div>
-                            <div class="block-body">
-                                <div class="table-wrap">
-                                    <table class="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Name</th>
-                                                <th>Username</th>
-                                                <th>Role</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="users-tbody"></tbody>
-                                    </table>
+                        <div class="users-grid">
+                            <div class="block">
+                                <div class="block-head"><span class="block-title">Add User</span></div>
+                                <div class="block-body">
+                                    <form id="add-user-form" onsubmit="addUser(event)">
+                                        <div class="field">
+                                            <label class="field-label">Full Name</label>
+                                            <input type="text" id="add-u-name" required />
+                                        </div>
+                                        <div style="display:flex; gap:16px;">
+                                            <div class="field" style="flex:1">
+                                                <label class="field-label">Username / Email</label>
+                                                <input type="text" id="add-u-email" required />
+                                            </div>
+                                            <div class="field" style="flex:1">
+                                                <label class="field-label">Password</label>
+                                                <input type="text" id="add-u-pass" required />
+                                            </div>
+                                        </div>
+                                        <div class="field">
+                                            <label class="field-label">Role</label>
+                                            <select id="add-u-role">
+                                                <option value="sender">Sender (Broadcast + History)</option>
+                                                <option value="viewer">Viewer (History only)</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="btn">Add User</button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <div class="block">
+                                <div class="block-head"><span class="block-title">Active Users</span></div>
+                                <div class="block-body">
+                                    <div class="table-wrap">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Username</th>
+                                                    <th>Role</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="users-tbody"></tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -707,13 +711,6 @@
                     </svg>
                     Settings
                 </div>
-                <div class="bn-item" id="bnav-users" onclick="go('users')">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="8" cy="5" r="3" />
-                        <path d="M2 14c0-3 3-4 6-4s6 1 6 4" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    Users
-                </div>
             </div>
         </nav>
 
@@ -766,9 +763,20 @@
                     </svg>
                 </button>
             </div>
-            <div class="modal-body" id="lib-list" style="padding: 10px;">
-                <!-- Messages will be rendered here -->
-                <div class="empty">No saved messages yet.</div>
+            <div class="modal-body" style="padding: 20px;">
+                <div class="search-wrap">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <input type="text" class="search-input" placeholder="       Search saved messages..."
+                        oninput="filterLibrary(this.value)">
+                </div>
+                <div id="lib-items">
+                    <!-- Messages will be rendered here -->
+                    <div class="empty">No saved messages yet.</div>
+                </div>
             </div>
             <div class="modal-ft">
                 <button class="btn btn-primary btn-sm" onclick="closeLibrary()" style="width:auto">Close</button>
