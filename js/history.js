@@ -1,44 +1,44 @@
 let historyData = [];
 
-window.loadHistory = async function() {
+window.loadHistory = async function () {
     try {
         const res = await fetch('/api/history');
         if (res.ok) {
             historyData = await res.json();
             const badge = document.getElementById('hist-badge');
-            if(badge) badge.style.display = 'none';
+            if (badge) badge.style.display = 'none';
         } else {
             throw new Error('API error');
         }
-    } catch(e) {
+    } catch (e) {
         historyData = JSON.parse(localStorage.getItem('cast_hist') || '[]');
         const badge = document.getElementById('hist-badge');
-        if(badge) badge.style.display = 'inline-block';
+        if (badge) badge.style.display = 'inline-block';
     }
     window.renderHistory();
 };
 
-window.saveHistoryEntry = async function(entry) {
+window.saveHistoryEntry = async function (entry) {
     historyData.unshift(entry);
-    if(historyData.length > 50) historyData.pop();
-    
+    if (historyData.length > 50) historyData.pop();
+
     try {
         const res = await fetch('/api/history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(entry)
         });
-        if(!res.ok) throw new Error('API failure');
-    } catch(e) {
+        if (!res.ok) throw new Error('API failure');
+    } catch (e) {
         localStorage.setItem('cast_hist', JSON.stringify(historyData));
     }
     window.renderHistory();
 };
 
-window.renderHistory = function() {
+window.renderHistory = function () {
     const list = document.getElementById('hist-list');
-    if(!list) return;
-    
+    if (!list) return;
+
     if (!historyData.length) {
         list.innerHTML = '<div class="empty">No broadcasts found.</div>';
         return;
@@ -63,12 +63,12 @@ window.renderHistory = function() {
     }).join('');
 };
 
-window.repeatMsg = function(msgEncoded) {
+window.repeatMsg = function (msgEncoded) {
     const msg = decodeURIComponent(msgEncoded);
     const msgEl = document.getElementById('msg');
-    if(msgEl) {
+    if (msgEl) {
         msgEl.value = msg;
-        if(window.preview) window.preview();
+        if (window.preview) window.preview();
     }
     go('broadcast');
 };
