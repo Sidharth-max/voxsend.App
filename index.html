@@ -177,7 +177,15 @@
                                 </div>
                                 <div class="block-body">
                                     <div class="field">
-                                        <label class="field-label">Voice message text</label>
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                                            <label class="field-label" style="margin-bottom:0">Voice message text</label>
+                                            <div style="display:flex; gap:8px;">
+                                                <button class="btn btn-secondary btn-sm" onclick="openLibrary()"
+                                                    style="width:auto; height:24px; font-size:10px; padding:0 8px; font-weight:600">LIBRARY</button>
+                                                <button class="btn btn-secondary btn-sm" onclick="saveToLibrary()"
+                                                    style="width:auto; height:24px; font-size:10px; padding:0 8px; font-weight:600">SAVE</button>
+                                            </div>
+                                        </div>
                                         <textarea id="msg" class="hindi"
                                             placeholder="नमस्ते! हमारा कार्यक्रम कल 11 बजे है। कृपया समय पर पधारें। धन्यवाद।"
                                             oninput="preview()"></textarea>
@@ -748,9 +756,30 @@
         </div>
     </div>
 
+    <div id="lib-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-hd">
+                <div class="modal-title">Message Library</div>
+                <button class="modal-close" onclick="closeLibrary()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="lib-list" style="padding: 10px;">
+                <!-- Messages will be rendered here -->
+                <div class="empty">No saved messages yet.</div>
+            </div>
+            <div class="modal-ft">
+                <button class="btn btn-primary btn-sm" onclick="closeLibrary()" style="width:auto">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/app.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/history.js"></script>
+    <script src="js/library.js"></script>
     <script src="js/contacts.js"></script>
     <script src="js/broadcast.js"></script>
     <script src="js/settings.js"></script>
