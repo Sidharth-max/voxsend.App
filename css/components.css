@@ -429,6 +429,10 @@
         /* ── TABS (content sections) ────────────── */
         .tab-section {
             display: none !important;
+            position: absolute;
+            inset: 0;
+            overflow-y: auto;
+            padding: 40px 48px 60px;
         }
 
         .tab-section.active {
@@ -545,8 +549,8 @@
 
         /* ── RESPONSIVE OVERRIDES ───────────────── */
         @media(max-width: 599px) {
-            .table th:nth-child(4),
-            .table td:nth-child(4) {
+            #tab-contacts .table th:nth-child(4),
+            #tab-contacts .table td:nth-child(4) {
                 display: none;
             }
             input[type=text], input[type=password], select, textarea {

@@ -1,7 +1,13 @@
         /* ── LAYOUT ─────────────────────────────── */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
         .app {
             display: flex;
-            min-height: 100vh
+            height: 100%;
         }
 
         /* ── SIDEBAR (desktop ≥1024px) ───────────── */
@@ -224,13 +230,20 @@
         .main {
             margin-left: var(--sidebar-w);
             flex: 1;
-            min-height: 100vh;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .content {
+            flex: 1;
             max-width: 1000px;
-            padding: 40px 48px 60px;
+            width: 100%;
+            padding: 0;
             margin: 0 auto;
+            position: relative;
+            overflow: hidden;
         }
 
         /* ── PAGE HEADER ────────────────────────── */
@@ -276,8 +289,11 @@
             }
 
             .content {
-                padding: calc(var(--topbar-h) + 28px) 28px 40px;
+                padding: 0;
                 max-width: 100%;
+            }
+            .tab-section {
+                padding: calc(var(--topbar-h) + 28px) 28px 40px !important;
             }
 
             .metrics {
@@ -304,8 +320,11 @@
             }
 
             .content {
-                padding: 20px 16px calc(var(--bottomnav-h) + 20px);
+                padding: 0;
                 max-width: 100%;
+            }
+            .tab-section {
+                padding: 20px 16px calc(var(--bottomnav-h) + 20px) !important;
             }
 
             .page-title {
@@ -376,14 +395,22 @@
 
         /* Extra large: cap content width nicely */
         @media(min-width:1400px) {
-            .content {
-                padding-left: 64px;
-                padding-right: 64px
+            .tab-section {
+                padding-left: 64px !important;
+                padding-right: 64px !important;
             }
         }
 
-/* ── CONTACTS GRID ──────────────────────── */
-.contacts-grid {
+/* ── CONTACTS & USERS GRID ──────────────────────── */
+.contacts-grid,
+.users-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.broadcast-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 20px;
@@ -391,8 +418,12 @@
 }
 
 @media(min-width: 1024px) {
-    .contacts-grid {
+    .contacts-grid,
+    .users-grid {
         grid-template-columns: 320px 1fr;
+    }
+    .broadcast-grid {
+        grid-template-columns: 1fr 320px;
     }
 }
 

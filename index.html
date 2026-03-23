@@ -147,7 +147,9 @@
                         <div class="page-desc">Compose a voice message and send to all members.</div>
                     </div>
 
-                    <div class="metrics">
+                    <div class="broadcast-grid">
+                        <div class="broadcast-main">
+                            <div class="metrics">
                         <div class="metric">
                             <div class="metric-val" id="m-total">0</div>
                             <div class="metric-lbl">Total Sent</div>
@@ -228,6 +230,38 @@
                             <div class="log" id="log"></div>
                         </div>
                     </div>
+                        </div> <!-- end broadcast-main -->
+                        
+                        <div class="broadcast-side">
+                            <div class="block dir-block">
+                                <div class="block-head">
+                                    <span class="block-title">Select Contacts</span>
+                                    <span class="badge" id="b-contacts-count">0 total</span>
+                                </div>
+                                <div class="block-body" style="padding:10px;">
+                                    <div class="controls-row" style="margin-bottom:10px;">
+                                        <input type="text" id="b-search-contacts" placeholder="Search..." oninput="renderBroadcastContacts()" style="margin-bottom:8px;" />
+                                        <select id="b-filter-group" onchange="renderBroadcastContacts()">
+                                            <option value="">All Groups</option>
+                                        </select>
+                                    </div>
+                                    <div class="table-wrap" style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table" style="font-size: 0.85rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:30px; padding: 8px;"><input type="checkbox" class="checkbox" id="b-check-all" onclick="toggleBroadcastSelectAll(this.checked)" /></th>
+                                                    <th style="padding: 8px;">Contact</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="b-contacts-tbody">
+                                                <tr><td colspan="2" class="empty">Loading...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div> <!-- end broadcast-grid -->
                 </div>
 
                 <!-- CONTACTS TAB -->
@@ -291,8 +325,8 @@
                                 <div style="display:flex;gap:8px">
                                     <button class="btn btn-secondary btn-sm" onclick="toggleSelectAll()">Select
                                         All</button>
-                                    <button class="btn btn-secondary btn-sm" onclick="useSelected()">Use
-                                        Selected</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="useSelected()">Send to
+                                        Broadcast</button>
                                 </div>
                                 <div style="display:flex;gap:8px">
                                     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">Export</button>
@@ -498,49 +532,51 @@
                         <div class="page-desc">Manage access for operators, senders, and viewers.</div>
                     </div>
 
-                    <div class="block">
-                        <div class="block-head"><span class="block-title">Add User</span></div>
-                        <div class="block-body">
-                            <form id="add-user-form" onsubmit="addUser(event)">
-                                <div class="field">
-                                    <label class="field-label">Full Name</label>
-                                    <input type="text" id="add-u-name" required />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">Username / Email</label>
-                                    <input type="text" id="add-u-email" required />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">Password</label>
-                                    <input type="text" id="add-u-pass" required />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">Role</label>
-                                    <select id="add-u-role">
-                                        <option value="sender">Sender (Broadcast + History)</option>
-                                        <option value="viewer">Viewer (History only)</option>
-                                    </select>
-                                </div>
-                                <button type="submit" class="btn">Add User</button>
-                            </form>
+                    <div class="users-grid">
+                        <div class="block">
+                            <div class="block-head"><span class="block-title">Add User</span></div>
+                            <div class="block-body">
+                                <form id="add-user-form" onsubmit="addUser(event)">
+                                    <div class="field">
+                                        <label class="field-label">Full Name</label>
+                                        <input type="text" id="add-u-name" required />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Username / Email</label>
+                                        <input type="text" id="add-u-email" required />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Password</label>
+                                        <input type="text" id="add-u-pass" required />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Role</label>
+                                        <select id="add-u-role">
+                                            <option value="sender">Sender (Broadcast + History)</option>
+                                            <option value="viewer">Viewer (History only)</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn">Add User</button>
+                                </form>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="block">
-                        <div class="block-head"><span class="block-title">Active Users</span></div>
-                        <div class="block-body">
-                            <div class="table-wrap">
-                                <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Username</th>
-                                            <th>Role</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="users-tbody"></tbody>
-                                </table>
+                        <div class="block">
+                            <div class="block-head"><span class="block-title">Active Users</span></div>
+                            <div class="block-body">
+                                <div class="table-wrap">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Username</th>
+                                                <th>Role</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="users-tbody"></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>

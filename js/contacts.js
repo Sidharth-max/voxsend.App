@@ -1,20 +1,31 @@
 let contacts = [];
 
-window.loadContacts = function() {
+window.loadContacts = async function() {
     try {
-        contacts = JSON.parse(localStorage.getItem('contacts') || '[]');
+        const res = await fetch('/api/contacts');
+        contacts = await res.json();
         contacts.forEach(c => c.selected = false);
     } catch (e) {
         contacts = [];
     }
     window.updateGroups();
     window.renderContacts();
+    if(window.renderBroadcastContacts) window.renderBroadcastContacts();
 };
 
-window.saveContacts = function() {
-    localStorage.setItem('contacts', JSON.stringify(contacts));
+window.saveContacts = async function() {
+    try {
+        await fetch('/api/contacts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(contacts)
+        });
+    } catch (e) {
+        console.error("Failed to save contacts", e);
+    }
     window.updateGroups();
     window.renderContacts();
+    if(window.renderBroadcastContacts) window.renderBroadcastContacts();
 };
 
 window.updateGroups = function() {
@@ -158,6 +169,8 @@ window.useSelected = function() {
     if (!selected.length) return alert("Select at least one contact to use.");
     
     const numbersEl = document.getElementById('numbers');
+    if (!numbersEl) return;
+    
     const existing = numbersEl.value.trim();
     const existingArr = existing ? existing.split('\n').map(n => n.trim()).filter(Boolean) : [];
     
@@ -168,8 +181,13 @@ window.useSelected = function() {
         numbersEl.value = updatedArr.join('\n');
     }
     
-    if (window.preview) window.preview();
-    go('broadcast');
+    if (typeof window.preview === 'function') window.preview();
+    
+    if (typeof window.go === 'function') {
+        window.go('broadcast');
+    } else if (typeof go === 'function') {
+        go('broadcast');
+    }
 };
 
 window.downloadTemplate = function(e) {

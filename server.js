@@ -7,6 +7,22 @@ const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
+
+app.get('/api/contacts', (req, res) => {
+    try {
+        if (fs.existsSync('contacts.json')) {
+            res.json(JSON.parse(fs.readFileSync('contacts.json', 'utf8')));
+        } else {
+            res.json([]);
+        }
+    } catch(e) { res.json([]); }
+});
+
+app.post('/api/contacts', (req, res) => {
+    fs.writeFileSync('contacts.json', JSON.stringify(req.body, null, 2));
+    res.json({ success: true });
+});
+
 app.use(express.static(__dirname));
 
 app.get('/api/credentials', (req, res) => {
