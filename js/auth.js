@@ -159,3 +159,9 @@ window.changePwd = function(username) {
         alert("Password updated.");
     }
 };
+
+window.verifySessionPassword = function(pass) {
+    if (!window.currentUser) return false;
+    const user = appUsers.find(u => u.username === window.currentUser.username);
+    return user && user.pass === pass;
+};

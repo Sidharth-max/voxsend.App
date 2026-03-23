@@ -15,7 +15,7 @@ app.get('/api/contacts', (req, res) => {
         } else {
             res.json([]);
         }
-    } catch(e) { res.json([]); }
+    } catch (e) { res.json([]); }
 });
 
 app.post('/api/contacts', (req, res) => {
@@ -48,7 +48,7 @@ app.get('/api/history', (req, res) => {
         } else {
             res.json([]);
         }
-    } catch(e) {
+    } catch (e) {
         res.json([]);
     }
 });

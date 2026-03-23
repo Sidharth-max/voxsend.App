@@ -39,7 +39,26 @@ window.getCfg = async function() {
     }
 }
 
+window.unlockApi = function() {
+    const pass = document.getElementById('api-unlock-pass').value;
+    if (window.verifySessionPassword && window.verifySessionPassword(pass)) {
+        document.getElementById('api-lock-overlay').style.display = 'none';
+        const wrap = document.getElementById('api-fields-wrap');
+        wrap.style.opacity = '1';
+        wrap.style.pointerEvents = 'auto';
+        wrap.style.filter = 'none';
+        document.getElementById('api-unlock-err').style.display = 'none';
+    } else {
+        document.getElementById('api-unlock-err').style.display = 'block';
+    }
+};
+
 window.saveCfg = function() {
+    // Extra safety check
+    if (document.getElementById('api-lock-overlay').style.display !== 'none') {
+        return alert("Unlock required");
+    }
+
     const credentials = {
         sid: document.getElementById('sid').value,
         token: document.getElementById('token').value,
