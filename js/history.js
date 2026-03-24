@@ -185,7 +185,11 @@ window.updateMetrics = async function() {
     if (c.provider === 'vobiz' && c.vobiz_id) {
         const walletWrap = document.getElementById('wallet-wrap');
         const walletBal = document.getElementById('wallet-balance');
+        const mWalletWrap = document.getElementById('mobile-wallet-wrap');
+        const mWalletBal = document.getElementById('mobile-wallet-balance');
+
         if (walletWrap) walletWrap.style.display = 'flex';
+        if (mWalletWrap) mWalletWrap.style.display = 'flex';
         
         try {
             const res = await fetch('/api/vobiz/balance', {
@@ -194,15 +198,19 @@ window.updateMetrics = async function() {
                 body: JSON.stringify({ sid: c.vobiz_id, token: c.vobiz_token })
             });
             const data = await res.json();
-            if (walletBal && data.balance) {
-                walletBal.textContent = `₹${parseFloat(data.balance).toFixed(2)}`;
+            if (data.balance !== undefined) {
+                const formatted = `₹${Number(data.balance).toFixed(2)}`;
+                if (walletBal) walletBal.textContent = formatted;
+                if (mWalletBal) mWalletBal.textContent = formatted;
             }
         } catch (e) {
-            console.error('Balance update failed:', e);
+            console.error('Failed to fetch balance:', e);
         }
     } else {
         const walletWrap = document.getElementById('wallet-wrap');
+        const mWalletWrap = document.getElementById('mobile-wallet-wrap');
         if (walletWrap) walletWrap.style.display = 'none';
+        if (mWalletWrap) mWalletWrap.style.display = 'none';
     }
 };
 

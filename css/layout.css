@@ -696,3 +696,13 @@ body {
         display: none !important;
     }
 }
+/* ── WALLET VISIBILITY ───────────────────── */
+.mobile-only {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: flex !important;
+    }
+}

@@ -106,7 +106,16 @@
 
             </nav>
 
-            <div class="sidebar-footer" style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="sidebar-footer">
+                <div id="wallet-wrap" style="display:none; align-items:center; justify-content:space-between; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:12px; margin-bottom:12px;">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <span style="font-size:10px; color:var(--text3); text-transform:uppercase;">Vobiz Balance</span>
+                        <span id="wallet-balance" style="font-family:'Geist Mono'; font-size:14px; font-weight:600; color:var(--success);">₹0.00</span>
+                    </div>
+                    <button onclick="window.updateMetrics()" class="btn-refresh" style="background:none; border:none; color:var(--text3); cursor:pointer; padding:4px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                    </button>
+                </div>
                 <div class="status-row">
                     <span class="dot"></span>
                     <span class="status-txt">API Online</span>
@@ -124,18 +133,23 @@
                 <div class="topbar-tab" id="tnav-api" onclick="go('api')">API Config</div>
                 <div class="topbar-tab" id="tnav-settings" onclick="go('settings')">Settings</div>
             </div>
-            <div id="wallet-wrap" style="display:none; align-items:center; gap:8px; padding:4px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:1rem; margin-right: 20px;">
-                <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.05em;">Wallet</div>
-                <div id="wallet-balance" style="font-family:'Geist Mono'; font-size:13px; font-weight:600; color:var(--success);">₹0.00</div>
-                <button onclick="window.updateMetrics()" style="background:none; border:none; color:var(--text3); cursor:pointer; padding:0; display:flex; align-items:center; margin-left:4px;">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                </button>
             </div>
         </header>
 
         <!-- ── MAIN ──────────────────────────── -->
         <main class="main">
             <div class="content">
+
+                <!-- MOBILE BALANCE (visible only on mobile via CSS) -->
+                <div id="mobile-wallet-wrap" class="mobile-only" style="display:none; align-items:center; justify-content:space-between; padding:12px 20px; border-bottom:1px solid var(--border); background:var(--bg);">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; color:var(--text3); text-transform:uppercase;">Balance</span>
+                        <span id="mobile-wallet-balance" style="font-family:'Geist Mono'; font-size:15px; font-weight:600; color:var(--success);">₹0.00</span>
+                    </div>
+                    <button onclick="window.updateMetrics()" style="background:none; border:none; color:var(--text3); cursor:pointer;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                    </button>
+                </div>
 
                 <!-- BROADCAST TAB -->
                 <div class="tab-section active" id="tab-broadcast">
