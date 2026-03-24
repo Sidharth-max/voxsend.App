@@ -2,25 +2,85 @@ require("dotenv").config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const fs = require('fs');
+const Database = require('better-sqlite3');
 const app = express();
+
+const db = new Database('voxsend.db');
+
+// Create tables
+db.exec(`
+  CREATE TABLE IF NOT EXISTS contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    phone TEXT UNIQUE NOT NULL,
+    group_name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message TEXT,
+    language TEXT,
+    total INTEGER,
+    successful INTEGER,
+    results TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    parallel_calls INTEGER DEFAULT 10,
+    retry_failed INTEGER DEFAULT 0,
+    default_language TEXT DEFAULT 'hi-IN',
+    delay_ms INTEGER DEFAULT 200,
+    org_name TEXT
+  );
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT,
+    language TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// Initialize settings if not exists
+const settingsExists = db.prepare('SELECT id FROM settings WHERE id=1').get();
+if (!settingsExists) {
+    db.prepare('INSERT INTO settings (id) VALUES (1)').run();
+}
 
 app.use(cors());
 app.use(bodyParser.json());
 
 app.get('/api/contacts', (req, res) => {
     try {
-        if (fs.existsSync('contacts.json')) {
-            res.json(JSON.parse(fs.readFileSync('contacts.json', 'utf8')));
-        } else {
-            res.json([]);
-        }
+        const contacts = db.prepare('SELECT * FROM contacts').all();
+        res.json(contacts);
     } catch (e) { res.json([]); }
 });
 
 app.post('/api/contacts', (req, res) => {
-    fs.writeFileSync('contacts.json', JSON.stringify(req.body, null, 2));
-    res.json({ success: true });
+    const contacts = Array.isArray(req.body) ? req.body : [req.body];
+    const insert = db.prepare('INSERT OR REPLACE INTO contacts (name, phone, group_name) VALUES (?, ?, ?)');
+    const insertMany = db.transaction((list) => {
+        for (const contact of list) {
+            insert.run(contact.name || '', contact.phone, contact.group_name || '');
+        }
+    });
+    try {
+        insertMany(contacts);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/contacts', (req, res) => {
+    const { phone } = req.body;
+    try {
+        db.prepare('DELETE FROM contacts WHERE phone=?').run(phone);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 let activeBroadcast = null;
@@ -60,7 +120,6 @@ app.post('/api/broadcast', async (req, res) => {
 
     res.json({ success: true, message: "Broadcast started in background." });
 
-    // Background Processing
     const runBroadcast = async () => {
         const { sid, token, from } = credentials;
         const auth = Buffer.from(`${sid}:${token}`).toString('base64');
@@ -97,35 +156,23 @@ app.post('/api/broadcast', async (req, res) => {
             }
 
             activeBroadcast.current = i + 1;
-            // Limit logs to last 50 for performance
             if (activeBroadcast.logs.length > 50) activeBroadcast.logs.shift();
-
-            // Artificial delay to respect rate limits
             await new Promise(r => setTimeout(r, 600));
         }
 
-        // Finalize
         if (activeBroadcast) {
-            const entry = {
-                date: activeBroadcast.startTime,
-                message: msg,
-                total: activeBroadcast.total,
-                successful: activeBroadcast.successful,
-                failed: activeBroadcast.failed,
-                recipients: nums.join('\n'),
-                sentBy: sentBy || 'System'
-            };
-
-            // Save to history.json
             try {
-                let hist = [];
-                if (fs.existsSync('history.json')) {
-                    hist = JSON.parse(fs.readFileSync('history.json', 'utf8'));
-                }
-                hist.unshift(entry);
-                fs.writeFileSync('history.json', JSON.stringify(hist, null, 2));
-            } catch (e) { console.error("Error saving history:", e); }
-
+                db.prepare('INSERT INTO history (message, language, total, successful, results, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+                    msg,
+                    lang,
+                    activeBroadcast.total,
+                    activeBroadcast.successful,
+                    JSON.stringify(activeBroadcast.logs),
+                    activeBroadcast.startTime
+                );
+            } catch (e) {
+                console.error("Error saving history:", e);
+            }
             activeBroadcast.active = false;
         }
     };
@@ -145,6 +192,7 @@ app.get('/api/credentials', (req, res) => {
 
 app.post('/api/credentials', (req, res) => {
     const { sid, token, from } = req.body;
+    const fs = require('fs');
     const envContent = `TWILIO_ACCOUNT_SID=${sid}\nTWILIO_AUTH_TOKEN=${token}\nTWILIO_FROM=${from}\n`;
     fs.writeFileSync('.env', envContent);
     require('dotenv').config({ override: true });
@@ -153,49 +201,69 @@ app.post('/api/credentials', (req, res) => {
 
 app.get('/api/history', (req, res) => {
     try {
-        if (fs.existsSync('history.json')) {
-            res.json(JSON.parse(fs.readFileSync('history.json', 'utf8')));
-        } else {
-            res.json([]);
-        }
+        const history = db.prepare('SELECT * FROM history ORDER BY created_at DESC').all();
+        res.json(history);
     } catch (e) {
         res.json([]);
     }
 });
 
 app.post('/api/history', (req, res) => {
-    fs.writeFileSync('history.json', JSON.stringify(req.body, null, 2));
-    res.json({ success: true });
+    const { message, language, total, successful, results, created_at } = req.body;
+    try {
+        db.prepare('INSERT INTO history (message, language, total, successful, results, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+            message, language, total, successful, JSON.stringify(results), created_at || new Date().toISOString()
+        );
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 app.get('/api/messages', (req, res) => {
     try {
-        if (fs.existsSync('messages.json')) {
-            res.json(JSON.parse(fs.readFileSync('messages.json', 'utf8')));
-        } else {
-            res.json([]);
-        }
+        const messages = db.prepare('SELECT * FROM messages ORDER BY created_at DESC').all();
+        res.json(messages);
     } catch (e) { res.json([]); }
 });
 
 app.post('/api/messages', (req, res) => {
-    fs.writeFileSync('messages.json', JSON.stringify(req.body, null, 2));
-    res.json({ success: true });
+    const { content, language } = req.body;
+    try {
+        db.prepare('INSERT INTO messages (content, language) VALUES (?, ?)').run(content, language);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/messages', (req, res) => {
+    const { id } = req.body;
+    try {
+        db.prepare('DELETE FROM messages WHERE id=?').run(id);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 app.get('/api/settings', (req, res) => {
     try {
-        if (fs.existsSync('settings.json')) {
-            res.json(JSON.parse(fs.readFileSync('settings.json', 'utf8')));
-        } else {
-            res.json({});
-        }
+        const settings = db.prepare('SELECT * FROM settings WHERE id=1').get();
+        res.json(settings || {});
     } catch (e) { res.json({}); }
 });
 
 app.post('/api/settings', (req, res) => {
-    fs.writeFileSync('settings.json', JSON.stringify(req.body, null, 2));
-    res.json({ success: true });
+    const { parallel_calls, retry_failed, default_language, delay_ms, org_name } = req.body;
+    try {
+        db.prepare('UPDATE settings SET parallel_calls=?, retry_failed=?, default_language=?, delay_ms=?, org_name=? WHERE id=1').run(
+            parallel_calls, retry_failed, default_language, delay_ms, org_name
+        );
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 const PORT = 3000;

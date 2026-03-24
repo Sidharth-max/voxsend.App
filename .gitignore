@@ -17,3 +17,5 @@ contacts.json
 messages.json
 settings.json
 history.json
+voxsend.db
+*.json

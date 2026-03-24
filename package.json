@@ -19,6 +19,8 @@
   },
   "homepage": "https://github.com/Sidharth-max/WH#readme",
   "dependencies": {
+    "@google/genai": "^1.46.0",
+    "better-sqlite3": "^12.8.0",
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
