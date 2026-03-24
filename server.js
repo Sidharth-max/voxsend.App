@@ -35,11 +35,18 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
     content TEXT,
     language TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+try {
+  db.prepare('ALTER TABLE messages ADD COLUMN name TEXT').run();
+} catch (e) {
+  // Ignore if column already exists
+}
 
 // Initialize settings if not exists
 const settingsExists = db.prepare('SELECT id FROM settings WHERE id=1').get();
@@ -228,9 +235,9 @@ app.get('/api/messages', (req, res) => {
 });
 
 app.post('/api/messages', (req, res) => {
-    const { content, language } = req.body;
+    const { name, content, language } = req.body;
     try {
-        db.prepare('INSERT INTO messages (content, language) VALUES (?, ?)').run(content, language);
+        db.prepare('INSERT INTO messages (name, content, language) VALUES (?, ?, ?)').run(name || 'Saved Message', content, language);
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });

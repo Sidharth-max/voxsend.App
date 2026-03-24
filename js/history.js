@@ -4,14 +4,24 @@ window.loadHistory = async function() {
     try {
         const res = await fetch('/api/history');
         if (res.ok) {
-            historyData = await res.json();
+            let data = await res.json();
+            historyData = data.map(h => ({
+                ...h,
+                date: h.created_at || h.date,
+                failed: typeof h.failed !== 'undefined' ? h.failed : (h.total - h.successful)
+            }));
             const badge = document.getElementById('hist-badge');
             if(badge) badge.style.display = 'none';
         } else {
             throw new Error('API error');
         }
     } catch(e) {
-        historyData = JSON.parse(localStorage.getItem('cast_hist') || '[]');
+        let localData = JSON.parse(localStorage.getItem('cast_hist') || '[]');
+        historyData = localData.map(h => ({
+            ...h,
+            date: h.created_at || h.date,
+            failed: typeof h.failed !== 'undefined' ? h.failed : (h.total - h.successful)
+        }));
         const badge = document.getElementById('hist-badge');
         if(badge) badge.style.display = 'inline-block';
     }
@@ -38,17 +48,13 @@ window.saveHistoryEntry = async function(entry) {
 };
 
 window.updateMetrics = function() {
-    const today = new Date().toDateString();
-    
     let total = 0;
     let ok = 0;
     let cost = 0;
 
     historyData.forEach(h => {
-        if (new Date(h.date).toDateString() === today) {
-            total += h.total || 0;
-            ok += h.successful || 0;
-        }
+        total += h.total || 0;
+        ok += h.successful || 0;
     });
     
     cost = ok * 0.70;

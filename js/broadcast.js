@@ -281,8 +281,19 @@ window.toggleBroadcastSelectAll = function(isChecked) {
 document.addEventListener('DOMContentLoaded', () => {
     const msgEl = document.getElementById('msg');
     const numsEl = document.getElementById('numbers');
+    
     if(msgEl) msgEl.addEventListener('input', window.preview);
-    if(numsEl) numsEl.addEventListener('input', () => { window.preview(); if(window.renderBroadcastContacts) window.renderBroadcastContacts(); });
+    if(numsEl) {
+        numsEl.addEventListener('input', function(e) {
+            // Remove any character that is not a digit, plus sign, space, tab, or newline
+            const cleanVal = this.value.replace(/[^0-9+\s\n\r]/g, '');
+            if (this.value !== cleanVal) {
+                this.value = cleanVal;
+            }
+            window.preview();
+            if(window.renderBroadcastContacts) window.renderBroadcastContacts();
+        });
+    }
     
     window.checkActiveBroadcast();
 });
