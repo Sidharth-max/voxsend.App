@@ -269,12 +269,12 @@ app.post('/api/vobiz/logs', async (req, res) => {
     if (!sid || !token) return res.status(400).json({ error: 'Missing Vobiz credentials' });
 
     try {
-        const url = `https://api.vobiz.ai/api/v1/account/${sid}/cdr/recent`;
+        // Fetch more logs (per_page=100 instead of default 20 recent)
+        const url = `https://api.vobiz.ai/api/v1/account/${sid}/cdr?per_page=100&page=1`;
         const response = await fetch(url, {
             headers: { 'Authorization': `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}` }
         });
         const data = await response.json();
-        // Vobiz might return an array or an object with a 'cdrs' key depending on version
         res.json(data);
     } catch (err) {
         res.status(500).json({ error: err.message });
