@@ -57,27 +57,38 @@ window.loadVobizLogs = async function() {
             body: JSON.stringify({ sid: c.vobiz_id, token: c.vobiz_token })
         });
         const data = await res.json();
-        const logs = Array.isArray(data) ? data : (data.cdrs || []);
+        // Vobiz API returns logs in 'data' array
+        const logs = data.data || data.cdrs || (Array.isArray(data) ? data : []);
         
         const list = document.getElementById('vobiz-logs-list');
         const empty = document.getElementById('vobiz-logs-empty');
-        
-        if (!logs.length) {
-            list.innerHTML = '';
-            empty.style.display = 'block';
+        if (!list) return;
+
+        list.innerHTML = '';
+        if (logs.length === 0) {
+            if (empty) empty.style.display = 'block';
             return;
         }
+        if (empty) empty.style.display = 'none';
 
-        empty.style.display = 'none';
-        list.innerHTML = logs.map(l => `
-            <tr>
-                <td class="mono" style="font-size:11px">${new Date(l.start_time).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</td>
-                <td class="mono">${l.to_number}</td>
-                <td>${l.duration}s</td>
-                <td><span class="badge" style="background:${l.status === 'completed' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color:${l.status === 'completed' ? '#10b981' : '#ef4444'}">${l.status}</span></td>
-                <td class="mono" style="font-weight:600">₹${l.cost || '0.00'}</td>
-            </tr>
-        `).join('');
+        logs.forEach(l => {
+            const row = document.createElement('tr');
+            // Mapping Vobiz fields: destination_number, start_time, duration, hangup_cause, total_cost
+            const num = l.destination_number || l.to_number || 'Unknown';
+            const time = l.start_time ? new Date(l.start_time).toLocaleString() : 'N/A';
+            const dur = l.duration || 0;
+            const status = l.hangup_cause || l.status || 'N/A';
+            const cost = l.total_cost || l.cost || 0;
+            
+            row.innerHTML = `
+                <td style="font-size:12px; color:var(--text2)">${time}</td>
+                <td class="mono">${num}</td>
+                <td>${dur}s</td>
+                <td><span class="badge ${status === 'NORMAL_CLEARING' || status === 'completed' ? 'badge-success' : 'badge-danger'}">${status}</span></td>
+                <td class="mono">₹${Number(cost).toFixed(2)}</td>
+            `;
+            list.appendChild(row);
+        });
     } catch (e) {
         console.error('Failed to load Vobiz logs:', e);
     }
