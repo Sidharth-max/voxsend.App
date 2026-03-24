@@ -246,6 +246,41 @@ app.post('/api/broadcast', async (req, res) => {
     runBroadcast();
 });
 
+// ── VOBIZ DASHBOARD APIS ─────────────────────
+
+app.post('/api/vobiz/balance', async (req, res) => {
+    const { sid, token } = req.body;
+    if (!sid || !token) return res.status(400).json({ error: 'Missing Vobiz credentials' });
+
+    try {
+        const url = `https://api.vobiz.ai/api/v1/account/${sid}/balance/INR`;
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}` }
+        });
+        const data = await response.json();
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/vobiz/logs', async (req, res) => {
+    const { sid, token } = req.body;
+    if (!sid || !token) return res.status(400).json({ error: 'Missing Vobiz credentials' });
+
+    try {
+        const url = `https://api.vobiz.ai/api/v1/account/${sid}/cdr/recent`;
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}` }
+        });
+        const data = await response.json();
+        // Vobiz might return an array or an object with a 'cdrs' key depending on version
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.all('/api/vobiz/xml', (req, res) => {
     const msg = req.query.msg || req.body.msg || 'Hello';
     const voice = req.query.voice || req.body.voice || 'Polly.Aditi';

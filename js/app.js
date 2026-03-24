@@ -77,6 +77,8 @@ window.toggleProviderFields = function() {
     // Also toggle the voice selector on the broadcast tab
     const vWrap = document.getElementById('vobiz-voice-wrap');
     if (vWrap) vWrap.style.display = (provider === 'vobiz') ? 'block' : 'none';
+
+    if (window.updateMetrics) window.updateMetrics();
 };
 
 window.saveCfg = function() {
@@ -238,4 +240,7 @@ window.showPrompt = function(message, inputType = 'text', defaultVal = '') {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     if (window.initAuth) window.initAuth();
+    
+    const lastTab = localStorage.getItem('last_active_tab') || 'broadcast';
+    go(lastTab);
 });

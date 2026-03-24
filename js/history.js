@@ -12,8 +12,6 @@ window.loadHistory = async function() {
             }));
             const badge = document.getElementById('hist-badge');
             if(badge) badge.style.display = 'none';
-        } else {
-            throw new Error('API error');
         }
     } catch(e) {
         let localData = JSON.parse(localStorage.getItem('cast_hist') || '[]');
@@ -22,11 +20,67 @@ window.loadHistory = async function() {
             date: h.created_at || h.date,
             failed: typeof h.failed !== 'undefined' ? h.failed : (h.total - h.successful)
         }));
-        const badge = document.getElementById('hist-badge');
-        if(badge) badge.style.display = 'inline-block';
     }
     window.renderHistory();
     window.updateMetrics();
+    window.loadVobizLogs();
+};
+
+window.setHistTab = function(tab) {
+    const bBtn = document.getElementById('sub-broadcast');
+    const vBtn = document.getElementById('sub-vobiz');
+    const bCont = document.getElementById('hist-broadcast-content');
+    const vCont = document.getElementById('hist-vobiz-content');
+
+    if (tab === 'vobiz') {
+        bBtn.classList.remove('active');
+        vBtn.classList.add('active');
+        bCont.style.display = 'none';
+        vCont.style.display = 'block';
+        window.loadVobizLogs();
+    } else {
+        bBtn.classList.add('active');
+        vBtn.classList.remove('active');
+        bCont.style.display = 'block';
+        vCont.style.display = 'none';
+    }
+};
+
+window.loadVobizLogs = async function() {
+    const c = await window.getCfg();
+    if (c.provider !== 'vobiz') return;
+
+    try {
+        const res = await fetch('/api/vobiz/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sid: c.vobiz_auth_id, token: c.vobiz_auth_token })
+        });
+        const data = await res.json();
+        const logs = Array.isArray(data) ? data : (data.cdrs || []);
+        
+        const list = document.getElementById('vobiz-logs-list');
+        const empty = document.getElementById('vobiz-logs-empty');
+        
+        if (!logs.length) {
+            list.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+
+        empty.style.display = 'none';
+        list.innerHTML = logs.map(l => `
+            <tr>
+                <td class="mono" style="font-size:11px">${new Date(l.start_time).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</td>
+                <td class="mono">${l.to_number}</td>
+                <td>${l.duration}s</td>
+                <td><span class="badge" style="background:${l.status === 'completed' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color:${l.status === 'completed' ? '#10b981' : '#ef4444'}">${l.status}</span></td>
+                <td class="mono" style="font-weight:600">₹${l.cost || '0.00'}</td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load Vobiz logs:', e);
+    }
 };
 
 window.saveHistoryEntry = async function(entry) {
@@ -95,7 +149,7 @@ window.deleteAllHistory = async function() {
     window.updateMetrics();
 };
 
-window.updateMetrics = function() {
+window.updateMetrics = async function() {
     let total = 0;
     let ok = 0;
     let cost = 0;
@@ -114,6 +168,31 @@ window.updateMetrics = function() {
     if (totalEl) totalEl.textContent = total;
     if (okEl) okEl.textContent = ok;
     if (costEl) costEl.textContent = '₹' + cost.toFixed(2);
+
+    // Update wallet balance if Vobiz
+    const c = await window.getCfg();
+    if (c.provider === 'vobiz' && c.vobiz_auth_id) {
+        const walletWrap = document.getElementById('wallet-wrap');
+        const walletBal = document.getElementById('wallet-balance');
+        if (walletWrap) walletWrap.style.display = 'flex';
+        
+        try {
+            const res = await fetch('/api/vobiz/balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sid: c.vobiz_auth_id, token: c.vobiz_auth_token })
+            });
+            const data = await res.json();
+            if (walletBal && data.balance) {
+                walletBal.textContent = `₹${parseFloat(data.balance).toFixed(2)}`;
+            }
+        } catch (e) {
+            console.error('Balance update failed:', e);
+        }
+    } else {
+        const walletWrap = document.getElementById('wallet-wrap');
+        if (walletWrap) walletWrap.style.display = 'none';
+    }
 };
 
 window.renderHistory = function() {

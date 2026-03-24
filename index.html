@@ -124,6 +124,13 @@
                 <div class="topbar-tab" id="tnav-api" onclick="go('api')">API Config</div>
                 <div class="topbar-tab" id="tnav-settings" onclick="go('settings')">Settings</div>
             </div>
+            <div id="wallet-wrap" style="display:none; align-items:center; gap:8px; padding:4px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:1rem; margin-right: 20px;">
+                <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.05em;">Wallet</div>
+                <div id="wallet-balance" style="font-family:'Geist Mono'; font-size:13px; font-weight:600; color:var(--success);">₹0.00</div>
+                <button onclick="window.updateMetrics()" style="background:none; border:none; color:var(--text3); cursor:pointer; padding:0; display:flex; align-items:center; margin-left:4px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                </button>
+            </div>
         </header>
 
         <!-- ── MAIN ──────────────────────────── -->
@@ -172,6 +179,7 @@
                                             <button class="lang-pill" onclick="setLang('en')"
                                                 id="pill-en">English</button>
                                         </div>
+
                                         <div id="vobiz-voice-wrap" style="display:none; margin-left:12px;">
                                             <select id="vobiz-voice" class="lang-pill" style="height:28px; border:1px solid var(--border); border-radius:2rem; padding:0 24px 0 12px; background-position: right 8px center; width:auto; -webkit-appearance:none; appearance:none; background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 9l6 6 6-6%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat;">
                                                 <option value="Polly.Aditi">Polly Aditi (Hindi)</option>
@@ -390,21 +398,36 @@
 
                 <!-- HISTORY TAB -->
                 <div class="tab-section" id="tab-history">
-                    <div class="page-hd flex-between">
-                        <div>
-                            <div class="page-title">History</div>
-                            <div class="page-desc">Recent outgoing broadcasts and delivery statuses.</div>
-                        </div>
-                        <div style="display:flex; gap:12px; align-items:center;">
-                            <span id="hist-badge" class="badge"
-                                style="background:rgba(240,173,78,.1); color:#f0ad4e; border-color:rgba(240,173,78,.3); display:none;">Local
-                                Fallback</span>
-                            <button class="btn btn-danger btn-sm" onclick="deleteAllHistory()" style="width:auto">Clear
-                                History</button>
-                        </div>
+                    <div class="page-hd">
+                        <div class="page-title">History & Logs</div>
+                        <div class="page-desc">Track your broadcast performance and detailed call logs.</div>
                     </div>
-                    <div id="hist-list" class="history-list">
-                        <div class="empty">No broadcasts yet. Send your first one.</div>
+
+                    <div class="lang-pills" style="margin-bottom:20px;">
+                        <button class="lang-pill active" id="sub-broadcast" onclick="setHistTab('broadcast')">Broadcast History</button>
+                        <button class="lang-pill" id="sub-vobiz" onclick="setHistTab('vobiz')">Vobiz Call Logs</button>
+                    </div>
+
+                    <div id="hist-broadcast-content">
+                        <div id="history-list" class="history-list"></div>
+                    </div>
+
+                    <div id="hist-vobiz-content" style="display:none;">
+                        <div class="table-wrap">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Number</th>
+                                        <th>Duration</th>
+                                        <th>Status</th>
+                                        <th>Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vobiz-logs-list"></tbody>
+                            </table>
+                        </div>
+                        <div id="vobiz-logs-empty" class="empty" style="display:none;">No recent Vobiz logs found.</div>
                     </div>
                 </div>
 
@@ -695,10 +718,9 @@
                         </div>
                     </div>
 
-                </div>
-
-            </div>
-        </main>
+                </div> <!-- end tab-settings -->
+            </div> <!-- end content -->
+        </main> <!-- end main -->
 
         <!-- SETTINGS FAB -->
         <div id="settings-fab" onclick="toggleThemePop()"
