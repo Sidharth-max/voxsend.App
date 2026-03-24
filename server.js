@@ -133,6 +133,7 @@ app.post('/api/broadcast', async (req, res) => {
         lang: lang,
         sentBy: sentBy,
         provider: provider || 'twilio',
+        voice: req.body.voice || 'Polly.Aditi',
         recipients: nums.join('\n')
     };
 
@@ -146,13 +147,23 @@ app.post('/api/broadcast', async (req, res) => {
         let auth;
         
         if (currentProvider === 'vobiz') {
-             // For Vobiz, we need a public URL for the XML. 
-             // If public_url is not provided, we might fail or try best guess, but for now assume it's passed.
              const baseUrl = public_url ? public_url.replace(/\/$/, '') : '';
-             ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}`;
+             const voice = activeBroadcast.voice || 'Polly.Aditi';
+             const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
+             
+             ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}`;
         } else {
              auth = Buffer.from(`${sid}:${token}`).toString('base64');
-             ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
+             // For Twilio, we also want to use the same XML endpoint if public_url is available
+             if (public_url) {
+                 const baseUrl = public_url.replace(/\/$/, '');
+                 const voice = activeBroadcast.voice || 'Polly.Aditi';
+                 const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
+                 ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}`;
+             } else {
+                 // Fallback to twimlets if no public_url
+                 ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
+             }
         }
 
         for (let i = 0; i < nums.length; i++) {
@@ -238,10 +249,13 @@ app.post('/api/broadcast', async (req, res) => {
 
 app.all('/api/vobiz/xml', (req, res) => {
     const msg = req.query.msg || req.body.msg;
+    const voice = req.query.voice || req.body.voice || 'Polly.Aditi';
+    const lang = req.query.lang || req.body.lang || 'hi-IN';
+
     res.set('Content-Type', 'application/xml');
     res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak>${msg || 'Start talking'}</Speak>
+    <Say language="${lang}" voice="${voice}">${msg || 'Start talking'}</Say>
 </Response>`);
 });
 

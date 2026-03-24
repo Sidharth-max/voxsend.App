@@ -92,7 +92,7 @@
                         <rect x="2" y="2" width="12" height="12" rx="2" />
                         <path d="M6 6l-2 2 2 2M10 6l2 2-2 2M9 5l-2 6" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    Twilio API
+                    API Config
                 </div>
 
                 <div class="nav-item" id="snav-settings" onclick="go('settings')">
@@ -121,7 +121,7 @@
                 <div class="topbar-tab active" id="tnav-broadcast" onclick="go('broadcast')">Send</div>
                 <div class="topbar-tab" id="tnav-contacts" onclick="go('contacts')">Contacts</div>
                 <div class="topbar-tab" id="tnav-history" onclick="go('history')">History</div>
-                <div class="topbar-tab" id="tnav-api" onclick="go('api')">API</div>
+                <div class="topbar-tab" id="tnav-api" onclick="go('api')">API Config</div>
                 <div class="topbar-tab" id="tnav-settings" onclick="go('settings')">Settings</div>
             </div>
         </header>
@@ -171,6 +171,14 @@
                                                 id="pill-hi">Hindi</button>
                                             <button class="lang-pill" onclick="setLang('en')"
                                                 id="pill-en">English</button>
+                                        </div>
+                                        <div id="vobiz-voice-wrap" style="display:none; margin-left:12px;">
+                                            <select id="vobiz-voice" class="lang-pill" style="height:28px; border:1px solid var(--border); border-radius:2rem; padding:0 24px 0 12px; background-position: right 8px center; width:auto; -webkit-appearance:none; appearance:none; background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 9l6 6 6-6%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat;">
+                                                <option value="Polly.Aditi">Polly Aditi (Hindi)</option>
+                                                <option value="Polly.Kajal">Polly Kajal (Hindi)</option>
+                                                <option value="Polly.Raveena">Polly Raveena (Eng Indian)</option>
+                                                <option value="Polly.Joanna">Polly Joanna (Eng US)</option>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -403,7 +411,7 @@
                 <!-- API TAB -->
                 <div class="tab-section" id="tab-api">
                     <div class="page-hd">
-                        <div class="page-title">Twilio API</div>
+                        <div class="page-title">API Config</div>
                         <div class="page-desc">Credentials are saved locally in your browser only.</div>
                     </div>
 
@@ -757,7 +765,7 @@
                         <rect x="2" y="2" width="12" height="12" rx="2" />
                         <path d="M6 6l-2 2 2 2M10 6l2 2-2 2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    <span>API</span>
+                    <span>Config</span>
                 </div>
                 <div class="bn-item" id="bnav-settings" onclick="go('settings')">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">

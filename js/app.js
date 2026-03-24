@@ -73,6 +73,10 @@ window.toggleProviderFields = function() {
         twilioFields.style.display = 'block';
         vobizFields.style.display = 'none';
     }
+
+    // Also toggle the voice selector on the broadcast tab
+    const vWrap = document.getElementById('vobiz-voice-wrap');
+    if (vWrap) vWrap.style.display = (provider === 'vobiz') ? 'block' : 'none';
 };
 
 window.saveCfg = function() {

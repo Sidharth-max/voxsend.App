@@ -86,13 +86,18 @@ window.addLog = function(type, text) {
 
 let pollInterval = null;
 
-window.checkActiveBroadcast = function() {
+window.checkActiveBroadcast = async function() {
+    const c = await window.getCfg();
+    const isVobiz = c.provider === 'vobiz';
+    const vWrap = document.getElementById('vobiz-voice-wrap');
+    if (vWrap) vWrap.style.display = isVobiz ? 'block' : 'none';
+
     fetch('/api/broadcast/status').then(res => res.json()).then(status => {
         if (status.active) {
             window.startPolling();
             document.getElementById('msg').value = status.msg;
             window.preview();
-            window.addLog('info', 'Reconnected to active background broadcast.');
+            window.addLog('info', `Reconnected to active background ${status.provider} broadcast.`);
         }
     });
 };
@@ -169,13 +174,17 @@ window.blast = async function() {
         }
     }
 
+    const voiceEl = document.getElementById('vobiz-voice');
+    const selectedVoice = voiceEl ? voiceEl.value : (lang === 'hi' ? 'Polly.Aditi' : 'Polly.Joanna');
+
     const payload = {
         nums,
         msg,
         credentials: c,
         lang: lang,
         sentBy: window.currentUser ? window.currentUser.username : 'Unknown',
-        provider: provider
+        provider: provider,
+        voice: selectedVoice
     };
 
     fetch('/api/broadcast', {
