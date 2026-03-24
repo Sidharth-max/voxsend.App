@@ -151,15 +151,14 @@ app.post('/api/broadcast', async (req, res) => {
              const voice = activeBroadcast.voice || 'Polly.Aditi';
              const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
              
-             ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}`;
+             ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=vobiz`;
         } else {
              auth = Buffer.from(`${sid}:${token}`).toString('base64');
-             // For Twilio, we also want to use the same XML endpoint if public_url is available
              if (public_url) {
                  const baseUrl = public_url.replace(/\/$/, '');
                  const voice = activeBroadcast.voice || 'Polly.Aditi';
                  const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
-                 ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}`;
+                 ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=twilio`;
              } else {
                  // Fallback to twimlets if no public_url
                  ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
@@ -248,15 +247,38 @@ app.post('/api/broadcast', async (req, res) => {
 });
 
 app.all('/api/vobiz/xml', (req, res) => {
-    const msg = req.query.msg || req.body.msg;
+    const msg = req.query.msg || req.body.msg || 'Hello';
     const voice = req.query.voice || req.body.voice || 'Polly.Aditi';
     const lang = req.query.lang || req.body.lang || 'hi-IN';
+    const provider = req.query.p || req.body.p || 'vobiz';
 
+    // XML Escape helper
+    const escapeXml = (unsafe) => unsafe.replace(/[<>&"']/g, (c) => {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '"': return '&quot;';
+            case "'": return '&apos;';
+        }
+        return c;
+    });
+
+    const safeMsg = escapeXml(msg);
     res.set('Content-Type', 'application/xml');
-    res.send(`<?xml version="1.0" encoding="UTF-8"?>
+
+    if (provider === 'vobiz') {
+        const vobizVoice = voice.toLowerCase().includes('man') ? 'MAN' : 'WOMAN';
+        res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="${lang}" voice="${voice}">${msg || 'Start talking'}</Say>
+    <Speak voice="${vobizVoice}" language="${lang}">${safeMsg}</Speak>
 </Response>`);
+    } else {
+        res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="${lang}" voice="${voice}">${safeMsg}</Say>
+</Response>`);
+    }
 });
 
 app.use(express.static(__dirname));
