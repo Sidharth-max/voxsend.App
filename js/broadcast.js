@@ -151,9 +151,22 @@ window.blast = async function() {
     const logEl = document.getElementById('log');
     if (logEl) logEl.innerHTML = '';
     
-    if (!c.sid || !c.token || !c.from) {
-        window.addLog('err', 'Missing Twilio credentials! Check Settings.');
-        return;
+    const provider = c.provider || 'twilio';
+    
+    if (provider === 'vobiz') {
+        if (!c.vobiz_id || !c.vobiz_token || !c.vobiz_from) {
+            window.addLog('err', 'Missing Vobiz credentials! Check API tab.');
+            return;
+        }
+        if (!c.public_url) {
+            window.addLog('err', 'Missing Public URL! Required for Vobiz callbacks.');
+            return;
+        }
+    } else {
+        if (!c.sid || !c.token || !c.from) {
+            window.addLog('err', 'Missing Twilio credentials! Check API tab.');
+            return;
+        }
     }
 
     const payload = {
@@ -161,7 +174,8 @@ window.blast = async function() {
         msg,
         credentials: c,
         lang: lang,
-        sentBy: window.currentUser ? window.currentUser.username : 'Unknown'
+        sentBy: window.currentUser ? window.currentUser.username : 'Unknown',
+        provider: provider
     };
 
     fetch('/api/broadcast', {
@@ -170,7 +184,7 @@ window.blast = async function() {
         body: JSON.stringify(payload)
     }).then(res => res.json()).then(res => {
         if (res.success) {
-            window.addLog('info', 'Broadcast initiated on server. You can safely close this page.');
+             window.addLog('info', `Broadcast initiated via ${provider === 'vobiz' ? 'Vobiz.ai' : 'Twilio'}. You can safely close this page.`);
             window.startPolling();
         } else {
             window.addLog('err', 'Error: ' + res.message);

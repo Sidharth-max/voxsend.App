@@ -61,6 +61,20 @@ window.unlockApi = function() {
     }
 };
 
+window.toggleProviderFields = function() {
+    const provider = document.getElementById('provider-select').value;
+    const twilioFields = document.getElementById('twilio-fields');
+    const vobizFields = document.getElementById('vobiz-fields');
+    
+    if (provider === 'vobiz') {
+        twilioFields.style.display = 'none';
+        vobizFields.style.display = 'block';
+    } else {
+        twilioFields.style.display = 'block';
+        vobizFields.style.display = 'none';
+    }
+};
+
 window.saveCfg = function() {
     // Extra safety check
     if (document.getElementById('api-lock-overlay').style.display !== 'none') {
@@ -70,7 +84,12 @@ window.saveCfg = function() {
     const credentials = {
         sid: document.getElementById('sid').value,
         token: document.getElementById('token').value,
-        from: document.getElementById('from').value
+        from: document.getElementById('from').value,
+        vobiz_id: document.getElementById('vobiz-id').value,
+        vobiz_token: document.getElementById('vobiz-token').value,
+        vobiz_from: document.getElementById('vobiz-from').value,
+        public_url: document.getElementById('public-url').value,
+        provider: document.getElementById('provider-select').value
     };
 
     fetch('/api/credentials', {
@@ -88,10 +107,33 @@ window.saveCfg = function() {
 
 window.loadCfg = function() {
     fetch('/api/credentials').then(res => res.json()).then(c => {
+        // Load Twilio values
         if (c.sid) document.getElementById('sid').value = c.sid;
         if (c.token) document.getElementById('token').value = c.token;
         if (c.from) document.getElementById('from').value = c.from;
+        
+        // Load Vobiz values
+        if (c.vobiz_id) document.getElementById('vobiz-id').value = c.vobiz_id;
+        if (c.vobiz_token) document.getElementById('vobiz-token').value = c.vobiz_token;
+        if (c.vobiz_from) document.getElementById('vobiz-from').value = c.vobiz_from;
+        if (c.public_url) document.getElementById('public-url').value = c.public_url;
+        
+        // Set provider
+        if (c.provider) {
+            document.getElementById('provider-select').value = c.provider;
+        }
+        
+        // Update UI
+        window.toggleProviderFields();
+        
     }).catch(e => console.error('Error fetching credentials:', e));
+};
+
+window.copyPublicUrl = function() {
+    const url = document.getElementById('public-url').value;
+    if (!url) return window.showToast("Public URL is empty", "error");
+    navigator.clipboard.writeText(url);
+    window.showToast("Public URL copied!");
 };
 
 // ── CUSTOM DIALOGS ──────────────────────────────────

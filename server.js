@@ -115,7 +115,7 @@ app.post('/api/broadcast/stop', (req, res) => {
 });
 
 app.post('/api/broadcast', async (req, res) => {
-    const { nums, msg, credentials, lang, sentBy } = req.body;
+    const { nums, msg, credentials, lang, sentBy, provider } = req.body;
 
     if (activeBroadcast && activeBroadcast.active) {
         return res.status(400).json({ success: false, message: "A broadcast is already in progress." });
@@ -132,15 +132,28 @@ app.post('/api/broadcast', async (req, res) => {
         msg: msg,
         lang: lang,
         sentBy: sentBy,
+        provider: provider || 'twilio',
         recipients: nums.join('\n')
     };
 
     res.json({ success: true, message: "Broadcast started in background." });
 
     const runBroadcast = async () => {
-        const { sid, token, from } = credentials;
-        const auth = Buffer.from(`${sid}:${token}`).toString('base64');
-        const ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
+        const { sid, token, from, vobiz_id, vobiz_token, vobiz_from, public_url } = credentials;
+        const currentProvider = provider || 'twilio';
+        
+        let ttsUrl;
+        let auth;
+        
+        if (currentProvider === 'vobiz') {
+             // For Vobiz, we need a public URL for the XML. 
+             // If public_url is not provided, we might fail or try best guess, but for now assume it's passed.
+             const baseUrl = public_url ? public_url.replace(/\/$/, '') : '';
+             ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}`;
+        } else {
+             auth = Buffer.from(`${sid}:${token}`).toString('base64');
+             ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
+        }
 
         for (let i = 0; i < nums.length; i++) {
             if (!activeBroadcast || !activeBroadcast.active) break;
@@ -149,23 +162,48 @@ app.post('/api/broadcast', async (req, res) => {
             if (!n.startsWith('+')) n = '+' + n;
 
             try {
-                const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Basic ${auth}`,
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: new URLSearchParams({ To: n, From: from, Url: ttsUrl })
-                });
+                let resOk = false;
+                let resMsg = '';
 
-                const rjson = await twilioRes.json();
+                if (currentProvider === 'vobiz') {
+                    const vobizRes = await fetch(`https://api.vobiz.ai/api/v1/Account/${vobiz_id}/Call/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Auth-ID': vobiz_id,
+                            'X-Auth-Token': vobiz_token,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            from: vobiz_from,
+                            to: n,
+                            answer_url: ttsUrl,
+                            answer_method: 'GET' 
+                        })
+                    });
+                    const rjson = await vobizRes.json();
+                    resOk = vobizRes.ok;
+                    resMsg = resOk ? `Call UUID: ${rjson.call_uuid}` : (rjson.message || JSON.stringify(rjson));
 
-                if (twilioRes.ok) {
+                } else {
+                    const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Basic ${auth}`,
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams({ To: n, From: from, Url: ttsUrl })
+                    });
+                    const rjson = await twilioRes.json();
+                    resOk = twilioRes.ok;
+                    resMsg = resOk ? 'Call queued' : rjson.message;
+                }
+
+                if (resOk) {
                     activeBroadcast.successful++;
-                    activeBroadcast.logs.push({ type: 'ok', text: `Call queued to ${n}`, time: new Date().toLocaleTimeString() });
+                    activeBroadcast.logs.push({ type: 'ok', text: `[${currentProvider}] Queued to ${n}`, time: new Date().toLocaleTimeString() });
                 } else {
                     activeBroadcast.failed++;
-                    activeBroadcast.logs.push({ type: 'err', text: `Failed ${n}: ${rjson.message}`, time: new Date().toLocaleTimeString() });
+                    activeBroadcast.logs.push({ type: 'err', text: `[${currentProvider}] Failed ${n}: ${resMsg}`, time: new Date().toLocaleTimeString() });
                 }
             } catch (err) {
                 activeBroadcast.failed++;
@@ -198,24 +236,44 @@ app.post('/api/broadcast', async (req, res) => {
     runBroadcast();
 });
 
+app.all('/api/vobiz/xml', (req, res) => {
+    const msg = req.query.msg || req.body.msg;
+    res.set('Content-Type', 'application/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Speak>${msg || 'Start talking'}</Speak>
+</Response>`);
+});
+
 app.use(express.static(__dirname));
 
 app.get('/api/credentials', (req, res) => {
     res.json({
         sid: process.env.TWILIO_ACCOUNT_SID,
         token: process.env.TWILIO_AUTH_TOKEN,
-        from: process.env.TWILIO_FROM
+        from: process.env.TWILIO_FROM,
+        vobiz_id: process.env.VOBIZ_AUTH_ID,
+        vobiz_token: process.env.VOBIZ_AUTH_TOKEN,
+        vobiz_from: process.env.VOBIZ_FROM,
+        provider: process.env.PROVIDER || 'twilio',
+        public_url: process.env.PUBLIC_URL
     });
 });
 
 app.post('/api/credentials', (req, res) => {
-    const { sid, token, from } = req.body;
+    const { sid, token, from, vobiz_id, vobiz_token, vobiz_from, provider, public_url } = req.body;
     const fs = require('fs');
-    const envContent = `TWILIO_ACCOUNT_SID=${sid}\nTWILIO_AUTH_TOKEN=${token}\nTWILIO_FROM=${from}\n`;
+    let envContent = `TWILIO_ACCOUNT_SID=${sid || ''}\nTWILIO_AUTH_TOKEN=${token || ''}\nTWILIO_FROM=${from || ''}\n`;
+    envContent += `VOBIZ_AUTH_ID=${vobiz_id || ''}\nVOBIZ_AUTH_TOKEN=${vobiz_token || ''}\nVOBIZ_FROM=${vobiz_from || ''}\n`;
+    envContent += `PROVIDER=${provider || 'twilio'}\n`;
+    envContent += `PUBLIC_URL=${public_url || ''}\n`;
+    
     fs.writeFileSync('.env', envContent);
     require('dotenv').config({ override: true });
     res.json({ success: true });
 });
+
+
 
 app.get('/api/history', (req, res) => {
     try {

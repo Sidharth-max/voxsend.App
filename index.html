@@ -429,21 +429,62 @@
 
                             <div id="api-fields-wrap"
                                 style="opacity: 0.3; pointer-events: none; filter: blur(3px); transition: all 0.4s ease;">
+                                
                                 <div class="field">
-                                    <label class="field-label">Account SID</label>
-                                    <input type="text" id="sid" class="mono" placeholder="REMOVED_SID"
-                                        autocomplete="new-password" />
+                                    <label class="field-label">Provider</label>
+                                    <select id="provider-select" onchange="toggleProviderFields()">
+                                        <option value="twilio">Twilio</option>
+                                        <option value="vobiz">Vobiz.ai</option>
+                                    </select>
                                 </div>
-                                <div class="field">
-                                    <label class="field-label">Auth Token</label>
-                                    <input type="password" id="token" class="mono"
-                                        placeholder="••••••••••••••••••••••••••••••••" autocomplete="new-password" />
+
+                                <!-- Twilio Fields -->
+                                <div id="twilio-fields">
+                                    <div class="field">
+                                        <label class="field-label">Account SID</label>
+                                        <input type="text" id="sid" class="mono" placeholder="REMOVED_SID"
+                                            autocomplete="new-password" />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Auth Token</label>
+                                        <input type="password" id="token" class="mono"
+                                            placeholder="••••••••••••••••••••••••••••••••" autocomplete="new-password" />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">From Number</label>
+                                        <input type="text" id="from" class="mono" placeholder="+1XXXXXXXXXX"
+                                            autocomplete="new-password" />
+                                    </div>
                                 </div>
-                                <div class="field">
-                                    <label class="field-label">From Number</label>
-                                    <input type="text" id="from" class="mono" placeholder="+1XXXXXXXXXX"
-                                        autocomplete="new-password" />
+
+                                <!-- Vobiz Fields -->
+                                <div id="vobiz-fields" style="display:none">
+                                    <div class="field">
+                                        <label class="field-label">Account ID</label>
+                                        <input type="text" id="vobiz-id" class="mono" placeholder="Vobiz Account ID"
+                                            autocomplete="new-password" />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Auth Token</label>
+                                        <input type="password" id="vobiz-token" class="mono"
+                                            placeholder="••••••••••••••••••••••••••••••••" autocomplete="new-password" />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">From Number</label>
+                                        <input type="text" id="vobiz-from" class="mono" placeholder="+1XXXXXXXXXX"
+                                            autocomplete="new-password" />
+                                    </div>
+<div class="field">
+    <label class="field-label">Public URL (for callbacks)</label>
+    <div style="display:flex; gap:10px;">
+        <input type="text" id="public-url" class="mono" placeholder="https://your-app.com"
+            autocomplete="off" style="flex:1" />
+        <button class="btn btn-secondary btn-sm" onclick="copyPublicUrl()" style="width:auto; margin:0">Copy</button>
+    </div>
+    <p class="hint">Required for Vobiz/Twilio to fetch voice instructions. In production, use your domain (e.g., <code>https://broadcast.yourcompany.com</code>). For local testing, use <code>npx localtunnel --port 3000</code>.</p>
+</div>
                                 </div>
+
                                 <button class="btn" id="save-btn" onclick="saveCfg()">Save Credentials</button>
                             </div>
                         </div>
