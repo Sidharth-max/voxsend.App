@@ -1,4 +1,4 @@
-        /* ── METRICS ────────────────────────────── */
+/* ── METRICS ────────────────────────────── */
         .metrics {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -529,6 +529,8 @@
         /* ── CONTACTS TABLE ─────────────────────── */
         .table-wrap {
             overflow-x: auto;
+            overflow-y: auto;
+            max-height: calc(100vh - 240px);
             border: 1px solid var(--border);
             border-radius: 8px;
             background: var(--surface);
@@ -549,6 +551,9 @@
         }
 
         .table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
             font-weight: 500;
             color: var(--text2);
             background: var(--surface2);
@@ -968,4 +973,49 @@
             line-height: 1.6;
             color: var(--text2);
         }
+
+/* ── COMPONENT DEVICE RESPONSIVENESS (MOBILE) ───────────────────────── */
+
+/* 1. Small Mobile (320px - 360px): Older or budget devices */
+@media (max-width: 360px) {
+    .btn { min-height: 38px !important; padding: 6px 12px !important; font-size: 0.8rem !important; }
+    .btn-sm { font-size: 0.7rem !important; padding: 4px 8px !important; }
+    .metric-val { font-size: 1.1rem !important; }
+    .metric-lbl { font-size: 0.75rem !important; }
+    .metric { padding: 10px 12px !important; }
+    .block-head { padding: 8px 10px !important; gap: 8px !important; }
+    .block-body { padding: 10px !important; }
+    input[type=text], input[type=password], select, textarea { font-size: 1rem !important; padding: 8px 12px !important; }
+    .table th, .table td { padding: 8px 10px !important; font-size: 0.8rem !important; }
+    .hist-card-time { font-size: 0.8rem !important; }
+    .hist-card-msg { font-size: 0.85rem !important; }
+    .hist-stat-item { font-size: 0.65rem !important; }
+    .form-row { gap: 8px !important; }
+    .controls-row { gap: 6px !important; }
+    .detail-val { font-size: 0.9rem !important; }
+}
+
+/* 2. Medium/Large Mobile (375px - 414px): Standard smartphones */
+@media (min-width: 361px) and (max-width: 414px) {
+    .btn { min-height: 42px !important; padding: 8px 16px !important; font-size: 0.85rem !important; }
+    .btn-sm { font-size: 0.75rem !important; }
+    .metric-val { font-size: 1.2rem !important; }
+    .metric { padding: 12px 14px !important; }
+    .block-head { padding: 10px 12px !important; }
+    .block-body { padding: 12px !important; }
+    input[type=text], input[type=password], select, textarea { font-size: 1.05rem !important; }
+    .table th, .table td { padding: 10px 12px !important; font-size: 0.85rem !important; }
+    .hist-stat-item { font-size: 0.7rem !important; }
+}
+
+/* 3. Extra Large / Foldable (428px - 480px+): Pro Max and foldables */
+@media (min-width: 415px) and (max-width: 599px) {
+    .btn { min-height: 46px !important; font-size: 0.9286rem !important; }
+    .metric-val { font-size: 1.3rem !important; }
+    .metric { padding: 14px 18px !important; }
+    .block-head { padding: 14px 16px !important; }
+    .block-body { padding: 16px !important; }
+    input[type=text], input[type=password], select, textarea { font-size: 1.1429rem !important; }
+    .table th, .table td { padding: 12px 14px !important; font-size: 0.9rem !important; }
+}
 

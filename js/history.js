@@ -47,6 +47,52 @@ window.saveHistoryEntry = async function(entry) {
     window.updateMetrics();
 };
 
+window.deleteHistoryEntry = async function(index, id) {
+    if(!confirm('Are you sure you want to delete this history record?')) return;
+    
+    historyData.splice(index, 1);
+    
+    try {
+        if(id) {
+            await fetch('/api/history', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+        }
+    } catch(e) {
+        console.error('Failed to delete history on server:', e);
+        localStorage.setItem('cast_hist', JSON.stringify(historyData));
+    }
+    
+    window.renderHistory();
+    window.updateMetrics();
+};
+
+window.deleteAllHistory = async function() {
+    if(!historyData.length) {
+        alert("History is already empty.");
+        return;
+    }
+    if(!confirm("Are you sure you want to delete ALL history? This cannot be undone.")) return;
+
+    historyData = [];
+    localStorage.removeItem('cast_hist');
+
+    try {
+        await fetch('/api/history', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}) // No id clears all
+        });
+    } catch(e) {
+        console.error('Failed to clear history on server:', e);
+    }
+    
+    window.renderHistory();
+    window.updateMetrics();
+};
+
 window.updateMetrics = function() {
     let total = 0;
     let ok = 0;
@@ -141,9 +187,12 @@ window.renderHistory = function() {
                     </div>
                 </div>
 
-                <div class="hist-card-actions">
+                <div class="hist-card-actions" style="display:flex; justify-content:space-between; align-items:center;">
                     <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); repeatBroadcast(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px;">
                         RE-USE BROADCAST
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); deleteHistoryEntry(${h._index}, ${h.id ? h.id : 'null'})" style="width:auto; height:32px; font-size:11px; padding:0 12px; color:var(--error);">
+                        DELETE
                     </button>
                 </div>
             </div>

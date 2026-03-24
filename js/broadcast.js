@@ -101,6 +101,7 @@ window.startPolling = function() {
     if (pollInterval) clearInterval(pollInterval);
     document.getElementById('send-btn').disabled = true;
     document.getElementById('prog-wrap').classList.add('show');
+    window.seenLogs = new Set();
     
     pollInterval = setInterval(() => {
         fetch('/api/broadcast/status').then(res => res.json()).then(status => {
@@ -108,7 +109,8 @@ window.startPolling = function() {
                 clearInterval(pollInterval);
                 pollInterval = null;
                 document.getElementById('send-btn').disabled = false;
-                window.addLog('info', `Broadcast finished. Success: ${status.successful}, Failed: ${status.failed}`);
+                document.getElementById('prog-wrap').classList.remove('show');
+                window.addLog('info', `Broadcast finished. Success: ${status.successful || 0}, Failed: ${status.failed || 0}`);
                 if (window.loadHistory) window.loadHistory();
                 return;
             }
@@ -119,17 +121,13 @@ window.startPolling = function() {
             
             // Sync logs
             if (status.logs && status.logs.length > 0) {
-                const lastLog = status.logs[status.logs.length - 1];
-                // Only add if it's new (simple check by text/time)
-                // For simplicity, we just show the latest few in the UI log
-                const logEl = document.getElementById('log');
-                if (logEl) {
-                    // This is a bit naive but works for a single active broadcast
-                    if (!window.lastLogTime || window.lastLogTime !== lastLog.time) {
-                        window.addLog(lastLog.type, lastLog.text);
-                        window.lastLogTime = lastLog.time;
+                status.logs.forEach(log => {
+                    const logId = log.time + '|' + log.text;
+                    if (!window.seenLogs.has(logId)) {
+                        window.seenLogs.add(logId);
+                        window.addLog(log.type, log.text);
                     }
-                }
+                });
             }
         });
     }, 2000);
@@ -148,6 +146,10 @@ window.blast = async function() {
     const msg = document.getElementById('msg').value.trim();
     const c = await window.getCfg();
 
+    // Clear previous logs
+    const logEl = document.getElementById('log');
+    if (logEl) logEl.innerHTML = '';
+    
     if (!c.sid || !c.token || !c.from) {
         window.addLog('err', 'Missing Twilio credentials! Check Settings.');
         return;

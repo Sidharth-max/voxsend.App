@@ -384,9 +384,12 @@
                             <div class="page-title">History</div>
                             <div class="page-desc">Recent outgoing broadcasts and delivery statuses.</div>
                         </div>
-                        <span id="hist-badge" class="badge"
-                            style="background:rgba(240,173,78,.1); color:#f0ad4e; border-color:rgba(240,173,78,.3); display:none;">Local
-                            Fallback</span>
+                        <div style="display:flex; gap:12px; align-items:center;">
+                            <span id="hist-badge" class="badge"
+                                style="background:rgba(240,173,78,.1); color:#f0ad4e; border-color:rgba(240,173,78,.3); display:none;">Local
+                                Fallback</span>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAllHistory()" style="width:auto">Clear History</button>
+                        </div>
                     </div>
                     <div id="hist-list">
                         <div class="empty">No broadcasts yet. Send your first one.</div>

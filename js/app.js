@@ -1,6 +1,8 @@
 const TABS = ['broadcast', 'contacts', 'history', 'api', 'settings'];
 
 function go(name) {
+    localStorage.setItem('last_active_tab', name);
+    window.location.hash = name;
     // content tabs
     TABS.forEach(t => {
         const el = document.getElementById('tab-' + t);
@@ -24,6 +26,12 @@ function go(name) {
     
     if (name === 'history' && window.loadHistory) {
         window.loadHistory();
+    }
+    if (name === 'contacts' && window.loadContacts) {
+        window.loadContacts();
+    }
+    if (name === 'settings' && window.loadSettings) {
+        window.loadSettings();
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });

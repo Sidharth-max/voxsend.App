@@ -69,9 +69,10 @@ window.saveToLibrary = async function () {
     }
 };
 
-window.openLibrary = function () {
-    window.renderLibrary();
+window.openLibrary = async function () {
     document.getElementById('lib-modal').style.display = 'flex';
+    // Load fresh messages from the server every time the library opens
+    await window.loadMessages();
 };
 
 window.closeLibrary = function () {

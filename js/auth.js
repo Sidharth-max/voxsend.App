@@ -57,6 +57,7 @@ window.handleLogin = function(e) {
 
 window.logout = function() {
     sessionStorage.removeItem('active_user');
+    localStorage.removeItem('last_active_tab');
     window.location.reload();
 };
 
@@ -85,9 +86,20 @@ function applyRoleRestrictions() {
     });
 
     if (r === 'viewer') {
-        go('history');
+        const last = window.location.hash.substring(1) || localStorage.getItem('last_active_tab');
+        if (last === 'settings' || last === 'history') {
+            go(last);
+        } else {
+            go('history');
+        }
     } else {
-        go('broadcast');
+        const last = window.location.hash.substring(1) || localStorage.getItem('last_active_tab');
+        const validTabs = ['broadcast', 'contacts', 'history', 'api', 'settings'];
+        if (last && validTabs.includes(last)) {
+            go(last);
+        } else {
+            go('broadcast');
+        }
     }
 }
 

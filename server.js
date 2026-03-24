@@ -227,6 +227,20 @@ app.post('/api/history', (req, res) => {
     }
 });
 
+app.delete('/api/history', (req, res) => {
+    const { id } = req.body;
+    try {
+        if (id) {
+            db.prepare('DELETE FROM history WHERE id=?').run(id);
+        } else {
+            db.prepare('DELETE FROM history').run(); // Clear all
+        }
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.get('/api/messages', (req, res) => {
     try {
         const messages = db.prepare('SELECT * FROM messages ORDER BY created_at DESC').all();
