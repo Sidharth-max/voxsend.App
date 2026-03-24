@@ -54,7 +54,7 @@ window.loadVobizLogs = async function() {
         const res = await fetch('/api/vobiz/logs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sid: c.vobiz_auth_id, token: c.vobiz_auth_token })
+            body: JSON.stringify({ sid: c.vobiz_id, token: c.vobiz_token })
         });
         const data = await res.json();
         const logs = Array.isArray(data) ? data : (data.cdrs || []);
@@ -171,7 +171,7 @@ window.updateMetrics = async function() {
 
     // Update wallet balance if Vobiz
     const c = await window.getCfg();
-    if (c.provider === 'vobiz' && c.vobiz_auth_id) {
+    if (c.provider === 'vobiz' && c.vobiz_id) {
         const walletWrap = document.getElementById('wallet-wrap');
         const walletBal = document.getElementById('wallet-balance');
         if (walletWrap) walletWrap.style.display = 'flex';
@@ -180,7 +180,7 @@ window.updateMetrics = async function() {
             const res = await fetch('/api/vobiz/balance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sid: c.vobiz_auth_id, token: c.vobiz_auth_token })
+                body: JSON.stringify({ sid: c.vobiz_id, token: c.vobiz_token })
             });
             const data = await res.json();
             if (walletBal && data.balance) {
