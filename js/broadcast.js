@@ -133,8 +133,9 @@ window.startPolling = function() {
     }, 2000);
 };
 
-window.stopBroadcast = function() {
-    if (confirm("Stop the current background broadcast?")) {
+window.stopBroadcast = async function() {
+    const confirmed = await window.showConfirm("Stop the current background broadcast?");
+    if (confirmed) {
         fetch('/api/broadcast/stop', { method: 'POST' }).then(res => res.json()).then(res => {
             window.addLog('info', 'Stop request sent.');
         });

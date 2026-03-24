@@ -51,14 +51,14 @@ window.handleCSV = function(event) {
     reader.onload = (e) => {
         const text = e.target.result;
         const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
-        if (lines.length < 2) return alert("File appears empty or missing headers.");
+        if (lines.length < 2) return window.showToast("File appears empty or missing headers.", "error");
         
         const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
         const nameIdx = headers.indexOf('name');
         const phoneIdx = headers.indexOf('phone');
         const groupIdx = headers.indexOf('group');
         
-        if (phoneIdx === -1) return alert("CSV must contain a 'phone' column.");
+        if (phoneIdx === -1) return window.showToast("CSV must contain a 'phone' column.", "error");
         
         let added = 0, updated = 0;
         for (let i = 1; i < lines.length; i++) {
@@ -83,7 +83,7 @@ window.handleCSV = function(event) {
         
         window.saveContacts();
         event.target.value = '';
-        alert(`Imported successfully.\nAdded: ${added}\nUpdated: ${updated}`);
+        window.showToast(`Imported successfully. Added: ${added}, Updated: ${updated}`, "success");
     };
     reader.readAsText(file);
 };
@@ -161,17 +161,18 @@ window.toggleSelectAll = function(forceCheck) {
     window.renderContacts();
 };
 
-window.deleteSelected = function() {
+window.deleteSelected = async function() {
     const toDelete = contacts.filter(c => c.selected);
-    if (!toDelete.length) return alert("No contacts selected.");
-    if (confirm(`Delete ${toDelete.length} selected contact(s)?`)) {
+    if (!toDelete.length) return window.showToast("No contacts selected.", "error");
+    const confirmed = await window.showConfirm(`Delete ${toDelete.length} selected contact(s)?`);
+    if (confirmed) {
         contacts = contacts.filter(c => !c.selected);
         window.saveContacts();
     }
 };
 
 window.exportCSV = function() {
-    if (!contacts.length) return alert("Nothing to export.");
+    if (!contacts.length) return window.showToast("Nothing to export.", "info");
     const header = "name,phone,group\n";
     const rows = contacts.map(c => `"${c.name}","${c.phone}","${c.group}"`).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
@@ -185,7 +186,7 @@ window.exportCSV = function() {
 
 window.useSelected = function() {
     const selected = contacts.filter(c => c.selected).map(c => c.phone);
-    if (!selected.length) return alert("Select at least one contact to use.");
+    if (!selected.length) return window.showToast("Select at least one contact to use.", "warning");
     
     const numbersEl = document.getElementById('numbers');
     if (!numbersEl) return;
@@ -226,7 +227,7 @@ window.addManualContact = function() {
     const phoneInput = document.getElementById('man-phone').value.trim();
     const group = document.getElementById('man-group').value.trim();
     
-    if (!phoneInput) return alert("Phone number is required.");
+    if (!phoneInput) return window.showToast("Phone number is required.", "error");
     
     let p = phoneInput.replace(/\s+/g, '');
     const phone = p.startsWith('+') ? p : '+' + p;
@@ -256,7 +257,7 @@ window.addManualContact = function() {
     document.getElementById('man-group').value = '';
     
     window.saveContacts();
-    alert("Saved contact.");
+    window.showToast("Saved contact.", "success");
 };
 
 document.addEventListener('DOMContentLoaded', () => {

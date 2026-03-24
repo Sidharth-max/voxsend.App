@@ -57,6 +57,10 @@ if (!settingsExists) {
 app.use(cors());
 app.use(bodyParser.json());
 
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
 app.get('/api/contacts', (req, res) => {
     try {
         const contacts = db.prepare('SELECT * FROM contacts').all();

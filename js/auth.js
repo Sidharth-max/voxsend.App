@@ -132,7 +132,7 @@ window.addUser = function(e) {
     const role = document.getElementById('add-u-role').value;
     
     if (appUsers.find(u => u.username.toLowerCase() === username.toLowerCase())) {
-        return alert("Username already exists!");
+        return window.showToast("Username already exists!", "error");
     }
     
     appUsers.push({ name, username, pass, role, date: new Date().toLocaleDateString() });
@@ -142,31 +142,32 @@ window.addUser = function(e) {
     document.getElementById('add-u-name').value = '';
     document.getElementById('add-u-email').value = '';
     document.getElementById('add-u-pass').value = '';
-    alert("User added!");
+    window.showToast("User added!", "success");
 };
 
-window.deleteUser = function(username) {
-    if (confirm(`Delete user ${username}?`)) {
+window.deleteUser = async function(username) {
+    const confirmed = await window.showConfirm(`Delete user ${username}?`);
+    if (confirmed) {
         appUsers = appUsers.filter(u => u.username !== username);
         saveUsersData();
         renderUsers();
     }
 };
 
-window.changePwd = function(username) {
+window.changePwd = async function(username) {
     const user = appUsers.find(u => u.username === username);
     if (!user) return;
     
     if (user.role === 'operator') {
-        const cur = prompt("Enter current operator password to authorize change:");
-        if (cur !== user.pass) return alert("Incorrect current password.");
+        const cur = await window.showPrompt("Enter current operator password to authorize change:", "password");
+        if (cur !== user.pass) return window.showToast("Incorrect current password.", "error");
     }
     
-    const next = prompt(`Enter new password for ${username}:`);
+    const next = await window.showPrompt(`Enter new password for ${username}:`, "password");
     if (next && next.trim()) {
         user.pass = next.trim();
         saveUsersData();
-        alert("Password updated.");
+        window.showToast("Password updated.", "success");
     }
 };
 

@@ -66,7 +66,7 @@
                         <circle cx="8" cy="8" r="6" />
                         <path d="M8 5v3l2 1.5" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    Broadcast
+                    <span>Broadcast</span>
                 </div>
 
                 <div class="nav-item" id="snav-contacts" onclick="go('contacts')">
@@ -101,18 +101,16 @@
                         <path
                             d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
                     </svg>
-                    Settings
+                    <span>Settings</span>
                 </div>
 
             </nav>
 
             <div class="sidebar-footer" style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
+                <div class="status-row">
                     <span class="dot"></span>
-                    <span class="status-txt">Ready</span>
+                    <span class="status-txt">API Online</span>
                 </div>
-                <button onclick="logout()"
-                    style="background:none; border:none; color:var(--text2); font-size: 0.7857rem; cursor:pointer; text-transform:uppercase; letter-spacing:.05em;">Logout</button>
             </div>
         </aside>
 
@@ -157,8 +155,9 @@
                             </div>
 
                             <!-- Message -->
-                            <div class="block">
-                                <div class="block-head" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <div class="block panel">
+                                <div class="block-head"
+                                    style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                                     <span class="block-title">Message</span>
                                     <div style="display:flex; flex-wrap: wrap; gap:12px; align-items:center;">
                                         <div style="display:flex; gap:6px;">
@@ -190,7 +189,7 @@
                             </div>
 
                             <!-- Recipients -->
-                            <div class="block">
+                            <div class="block panel">
                                 <div class="block-head">
                                     <span class="block-title">Recipients</span>
                                     <span class="hint mono" id="num-count" style="margin:0">0 numbers</span>
@@ -213,7 +212,7 @@
                             </div>
 
                             <!-- Deploy -->
-                            <div class="block">
+                            <div class="block panel">
                                 <div class="block-head"><span class="block-title">Deploy</span></div>
                                 <div class="block-body">
                                     <button class="btn" id="send-btn" onclick="blast()">
@@ -242,7 +241,7 @@
                         </div> <!-- end broadcast-main -->
 
                         <div class="broadcast-side">
-                            <div class="block dir-block">
+                            <div class="block dir-block panel">
                                 <div class="block-head">
                                     <span class="block-title">Select Contacts</span>
                                     <span class="badge" id="b-contacts-count">0 total</span>
@@ -255,7 +254,7 @@
                                             <option value="">All Groups</option>
                                         </select>
                                     </div>
-                                    <div class="table-wrap" style="max-height: 550px; overflow-y: auto;">
+                                    <div class="table-wrap" style="max-height: 607px; overflow-y: auto;">
                                         <table class="table" style="font-size: 0.85rem;">
                                             <thead>
                                                 <tr>
@@ -351,7 +350,7 @@
                                     </div>
                                 </div>
 
-                                <div class="table-wrap">
+                                <div class="table-wrap contacts-list">
                                     <table class="table">
                                         <thead>
                                             <tr>
@@ -388,10 +387,11 @@
                             <span id="hist-badge" class="badge"
                                 style="background:rgba(240,173,78,.1); color:#f0ad4e; border-color:rgba(240,173,78,.3); display:none;">Local
                                 Fallback</span>
-                            <button class="btn btn-danger btn-sm" onclick="deleteAllHistory()" style="width:auto">Clear History</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAllHistory()" style="width:auto">Clear
+                                History</button>
                         </div>
                     </div>
-                    <div id="hist-list">
+                    <div id="hist-list" class="history-list">
                         <div class="empty">No broadcasts yet. Send your first one.</div>
                     </div>
                 </div>
@@ -484,16 +484,25 @@
 
                 <!-- SETTINGS TAB -->
                 <div class="tab-section" id="tab-settings">
-                    <div class="page-hd">
-                        <div class="page-title">Settings</div>
-                        <div class="page-desc">Configure call behavior and preferences.</div>
+                    <div class="page-hd" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h1 class="page-title">Settings</h1>
+                            <p class="page-desc">System configuration and user management</p>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="logout()" style="width:auto; gap:8px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                style="width:16px;height:16px">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                            </svg>
+                            <span>Logout</span>
+                        </button>
                     </div>
 
                     <div class="block">
                         <div class="block-head"><span class="block-title">Organization</span></div>
                         <div class="block-body">
                             <div class="field">
-                                <label class="field-label">Trust name</label>
+                                <label class="field-label">Company Name </label>
                                 <input type="text" id="trust-name-input" value="Call Broadcast" />
                             </div>
                             <button class="btn btn-secondary btn-sm" onclick="saveTrustName()" style="width:auto">Save
@@ -633,12 +642,6 @@
                         </div>
                     </div>
 
-                    <!-- Logout for Mobile -->
-                    <div class="block"
-                        style="margin-top: 40px; border: none; background: transparent; box-shadow: none;">
-                        <button class="btn btn-danger" onclick="logout()"
-                            style="width: 100%; padding: 14px;">Logout</button>
-                    </div>
                 </div>
 
             </div>
@@ -688,28 +691,28 @@
                         <circle cx="8" cy="8" r="6" />
                         <path d="M8 5v3l2 1.5" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    Send
+                    <span>Send</span>
                 </div>
                 <div class="bn-item" id="bnav-contacts" onclick="go('contacts')">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M10.5 5.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM3.5 13a4.5 4.5 0 019 0"
                             stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    Contacts
+                    <span>Contacts</span>
                 </div>
                 <div class="bn-item" id="bnav-history" onclick="go('history')">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <rect x="2" y="3" width="12" height="10" rx="1.5" />
                         <path d="M5 7h6M5 10h4" stroke-linecap="round" />
                     </svg>
-                    History
+                    <span>History</span>
                 </div>
                 <div class="bn-item" id="bnav-api" onclick="go('api')">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <rect x="2" y="2" width="12" height="12" rx="2" />
                         <path d="M6 6l-2 2 2 2M10 6l2 2-2 2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    API
+                    <span>API</span>
                 </div>
                 <div class="bn-item" id="bnav-settings" onclick="go('settings')">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -717,7 +720,7 @@
                         <path
                             d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
                     </svg>
-                    Settings
+                    <span>Settings</span>
                 </div>
             </div>
         </nav>
@@ -799,6 +802,27 @@
     <script src="js/contacts.js"></script>
     <script src="js/broadcast.js"></script>
     <script src="js/settings.js"></script>
+    <script>
+        async function checkHealth() {
+            try {
+                const res = await fetch('/api/health');
+                const dot = document.querySelector('.dot');
+                const txt = document.querySelector('.status-txt');
+                if (res.ok) {
+                    dot.style.background = 'var(--success)';
+                    txt.textContent = 'API Online';
+                } else {
+                    dot.style.background = 'var(--danger)';
+                    txt.textContent = 'API Error';
+                }
+            } catch (e) {
+                document.querySelector('.dot').style.background = 'var(--danger)';
+                document.querySelector('.status-txt').textContent = 'API Offline';
+            }
+        }
+        setInterval(checkHealth, 5000);
+        checkHealth();
+    </script>
 </body>
 
 </html>

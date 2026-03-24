@@ -1,4 +1,6 @@
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0
@@ -15,7 +17,8 @@
     --text3: #444;
     --success: #3ecf8e;
     --error: #f87171;
-    --sidebar-w: 220px;
+    --sidebar-w: 180px;
+    --sidebar-w-collapsed: 60px;
     --topbar-h: 52px;
     --bottomnav-h: 60px;
 }
@@ -32,4 +35,61 @@ body {
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden
+}
+
+/* Modern custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* Smooth scroll behavior */
+* {
+    scroll-behavior: smooth;
+}
+
+/* Momentum scrolling on iOS */
+.tab-section,
+.contacts-list,
+.history-list,
+.panel {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+}
+
+/* Scroll fade effect at bottom of panels */
+.scroll-fade {
+    position: relative;
+}
+
+.scroll-fade::after {
+    content: '';
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, var(--bg));
+    pointer-events: none;
+    display: block;
 }

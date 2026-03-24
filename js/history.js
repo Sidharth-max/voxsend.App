@@ -48,7 +48,8 @@ window.saveHistoryEntry = async function(entry) {
 };
 
 window.deleteHistoryEntry = async function(index, id) {
-    if(!confirm('Are you sure you want to delete this history record?')) return;
+    const confirmed = await window.showConfirm('Are you sure you want to delete this history record?');
+    if(!confirmed) return;
     
     historyData.splice(index, 1);
     
@@ -71,10 +72,11 @@ window.deleteHistoryEntry = async function(index, id) {
 
 window.deleteAllHistory = async function() {
     if(!historyData.length) {
-        alert("History is already empty.");
+        window.showToast("History is already empty.", "info");
         return;
     }
-    if(!confirm("Are you sure you want to delete ALL history? This cannot be undone.")) return;
+    const confirmed = await window.showConfirm("Are you sure you want to delete ALL history? This cannot be undone.");
+    if(!confirmed) return;
 
     historyData = [];
     localStorage.removeItem('cast_hist');

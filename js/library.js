@@ -24,20 +24,20 @@ window.loadMessages = async function () {
     window.renderLibrary();
 };
 
-window.saveToLibrary = async function () {
+window.saveToLibrary = async function() {
     const msgEl = document.getElementById('msg');
     if (!msgEl || !msgEl.value.trim()) {
-        alert('Please enter a message to save.');
+        window.showToast('Please enter a message to save.', 'error');
         return;
     }
 
     const text = msgEl.value.trim();
     if (libraryData.some(m => m.content === text)) {
-        alert('This message is already in your library.');
+        window.showToast('This message is already in your library.', 'error');
         return;
     }
 
-    const title = prompt('Enter a name for this saved message:');
+    const title = await window.showPrompt('Enter a name for this saved message:');
     if (title === null) {
         return; // User cancelled
     }
@@ -60,12 +60,12 @@ window.saveToLibrary = async function () {
             body: JSON.stringify(msgObj)
         });
         if (res.ok) {
-            alert('Message saved to library!');
+            window.showToast('Message saved to library!', 'success');
             window.loadMessages(); // Sync with server for real ID
         }
     } catch (e) {
         console.error('Failed to save message to server:', e);
-        alert('Message saved to library (Local Browser Cache). Please restart server for full persistence.');
+        window.showToast('Message saved to library (Local Browser Cache). Please restart server for full persistence.', 'info');
     }
 };
 
@@ -136,7 +136,8 @@ window.useLibraryMessage = function (index) {
 };
 
 window.deleteLibraryMessage = async function (index) {
-    if (!confirm('Are you sure you want to delete this message?')) return;
+    const confirmed = await window.showConfirm('Are you sure you want to delete this message?');
+    if (!confirmed) return;
 
     const msgObj = libraryData[index];
     libraryData.splice(index, 1);

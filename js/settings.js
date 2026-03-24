@@ -24,7 +24,7 @@ window.setFontSize = function (size) {
 
 window.saveTrustName = function () {
     const name = document.getElementById('trust-name-input').value.trim();
-    if (!name) return alert("Name cannot be empty");
+    if (!name) return window.showToast("Name cannot be empty", "error");
     window.applyTrustName(name);
     window.saveAppSettings();
 };
@@ -49,7 +49,7 @@ window.saveAppSettings = function () {
         body: JSON.stringify(settings)
     }).then(res => res.json()).then(res => {
         if (res.success) {
-            alert("Settings saved successfully!");
+            window.showToast("Settings saved successfully!", "success");
         }
     }).catch(e => console.error("Error saving settings:", e));
 };

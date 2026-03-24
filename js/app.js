@@ -64,7 +64,7 @@ window.unlockApi = function() {
 window.saveCfg = function() {
     // Extra safety check
     if (document.getElementById('api-lock-overlay').style.display !== 'none') {
-        return alert("Unlock required");
+        return window.showToast("Unlock required", "error");
     }
 
     const credentials = {
@@ -92,6 +92,101 @@ window.loadCfg = function() {
         if (c.token) document.getElementById('token').value = c.token;
         if (c.from) document.getElementById('from').value = c.from;
     }).catch(e => console.error('Error fetching credentials:', e));
+};
+
+// ── CUSTOM DIALOGS ──────────────────────────────────
+window.showToast = function(msg, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+};
+
+window.showConfirm = function(message) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.style.zIndex = '99999';
+
+        overlay.innerHTML = `
+            <div class="modal" style="max-width: 400px;">
+                <div class="modal-hd">
+                    <div class="modal-title">Confirm</div>
+                </div>
+                <div class="modal-body" style="font-size: 1rem; color: var(--text); padding: 20px;">
+                    ${message}
+                </div>
+                <div class="modal-ft">
+                    <button class="btn btn-secondary" id="confirm-no">Cancel</button>
+                    <button class="btn btn-danger" id="confirm-yes">Confirm</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const close = (val) => {
+            overlay.remove();
+            resolve(val);
+        };
+
+        overlay.querySelector('#confirm-no').onclick = () => close(false);
+        overlay.querySelector('#confirm-yes').onclick = () => close(true);
+    });
+};
+
+window.showPrompt = function(message, inputType = 'text', defaultVal = '') {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.style.zIndex = '99999';
+
+        overlay.innerHTML = `
+            <div class="modal" style="max-width: 400px;">
+                <div class="modal-hd">
+                    <div class="modal-title">${message}</div>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <input type="${inputType}" id="prompt-input" value="${defaultVal}" style="width: 100%;" />
+                </div>
+                <div class="modal-ft">
+                    <button class="btn btn-secondary" id="prompt-cancel">Cancel</button>
+                    <button class="btn" id="prompt-ok">OK</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('#prompt-input');
+        input.focus();
+
+        const close = (val) => {
+            overlay.remove();
+            resolve(val);
+        };
+
+        overlay.querySelector('#prompt-cancel').onclick = () => close(null);
+        overlay.querySelector('#prompt-ok').onclick = () => close(input.value);
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') close(input.value);
+            if (e.key === 'Escape') close(null);
+        };
+    });
 };
 
 // Initialize
