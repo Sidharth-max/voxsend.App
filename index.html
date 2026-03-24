@@ -158,16 +158,16 @@
 
                             <!-- Message -->
                             <div class="block">
-                                <div class="block-head" style="justify-content: space-between;">
+                                <div class="block-head" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                                     <span class="block-title">Message</span>
-                                    <div style="display:flex; gap:12px; align-items:center;">
+                                    <div style="display:flex; flex-wrap: wrap; gap:12px; align-items:center;">
                                         <div style="display:flex; gap:6px;">
                                             <button class="btn btn-secondary btn-sm" onclick="openLibrary()"
                                                 style="width:auto; height:26px; font-size:10px; padding:0 12px; border-radius: 2rem;">LIBRARY</button>
                                             <button class="btn btn-secondary btn-sm" onclick="saveToLibrary()"
                                                 style="width:auto; height:26px; font-size:10px; padding:0 12px; border-radius: 2rem;">SAVE</button>
                                         </div>
-                                        <div class="lang-pills">
+                                        <div class="lang-pills" style="display: flex; flex-wrap: wrap;">
                                             <button class="lang-pill active" onclick="setLang('hi')"
                                                 id="pill-hi">Hindi</button>
                                             <button class="lang-pill" onclick="setLang('en')"
