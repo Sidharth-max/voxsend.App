@@ -22,6 +22,7 @@ db.exec(`
     language TEXT,
     total INTEGER,
     successful INTEGER,
+    recipients TEXT,
     results TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -47,6 +48,10 @@ try {
 } catch (e) {
   // Ignore if column already exists
 }
+
+try {
+  db.prepare('ALTER TABLE history ADD COLUMN recipients TEXT').run();
+} catch (e) {}
 
 // Initialize settings if not exists
 const settingsExists = db.prepare('SELECT id FROM settings WHERE id=1').get();
@@ -126,7 +131,8 @@ app.post('/api/broadcast', async (req, res) => {
         startTime: new Date().toISOString(),
         msg: msg,
         lang: lang,
-        sentBy: sentBy
+        sentBy: sentBy,
+        recipients: nums.join('\n')
     };
 
     res.json({ success: true, message: "Broadcast started in background." });
@@ -173,11 +179,12 @@ app.post('/api/broadcast', async (req, res) => {
 
         if (activeBroadcast) {
             try {
-                db.prepare('INSERT INTO history (message, language, total, successful, results, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+                db.prepare('INSERT INTO history (message, language, total, successful, recipients, results, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
                     msg,
                     lang,
                     activeBroadcast.total,
                     activeBroadcast.successful,
+                    activeBroadcast.recipients,
                     JSON.stringify(activeBroadcast.logs),
                     activeBroadcast.startTime
                 );

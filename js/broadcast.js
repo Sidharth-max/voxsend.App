@@ -246,6 +246,15 @@ window.toggleBroadcastContact = function(phone, isChecked) {
     window.preview();
 };
 
+window.clearNumbers = function() {
+    const numsEl = document.getElementById('numbers');
+    if (numsEl) {
+        numsEl.value = '';
+        window.preview();
+        if (window.renderBroadcastContacts) window.renderBroadcastContacts();
+    }
+};
+
 window.toggleBroadcastSelectAll = function(isChecked) {
     const numsEl = document.getElementById('numbers');
     if (!numsEl) return;

@@ -190,16 +190,20 @@
 
                             <!-- Recipients -->
                             <div class="block panel">
-                                <div class="block-head">
-                                    <span class="block-title">Recipients</span>
-                                    <span class="hint mono" id="num-count" style="margin:0">0 numbers</span>
+                                <div class="block-head" style="justify-content: space-between;">
+                                    <div style="display:flex; gap:12px; align-items:center;">
+                                        <span class="block-title">Recipients</span>
+                                        <span class="hint mono" id="num-count" style="margin:0">0 numbers</span>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="clearNumbers()"
+                                        style="width:auto; height:26px; font-size:10px; padding:0 12px; border-radius: 2rem; color:var(--error);">CLEAR</button>
                                 </div>
                                 <div class="block-body">
                                     <div class="field">
                                         <label class="field-label">Phone numbers — one per line, with country
                                             code</label>
                                         <textarea class="mono" id="numbers" style="min-height:100px" inputmode="tel"
-                                            placeholder="+919876543210&#10;+919876543211&#10;+919876543212"></textarea>
+                                            placeholder="Phone numbers — one per line, with country code"></textarea>
                                         <p class="hint">e.g. +91XXXXXXXXXX for India</p>
                                     </div>
                                     <div class="cost-strip" id="cost-strip" style="display:none">
