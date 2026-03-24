@@ -294,9 +294,9 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div> <!-- end broadcast-grid -->
-                </div>
+                            </div> <!-- end broadcast-side -->
+                        </div> <!-- end broadcast-grid -->
+                    </div> <!-- end tab-broadcast -->
 
                 <!-- CONTACTS TAB -->
                 <div class="tab-section" id="tab-contacts">
@@ -392,15 +392,21 @@
                                     </table>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
+                        </div> <!-- end block directory -->
+                    </div> <!-- end contacts-grid -->
+                </div> <!-- end tab-contacts -->
 
                 <!-- HISTORY TAB -->
                 <div class="tab-section" id="tab-history">
-                    <div class="page-hd">
-                        <div class="page-title">History & Logs</div>
-                        <div class="page-desc">Track your broadcast performance and detailed call logs.</div>
+                    <div class="page-hd" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div class="page-title">History & Logs</div>
+                            <div class="page-desc">Track your broadcast performance and detailed call logs.</div>
+                        </div>
+                        <div style="display:flex; gap:12px; align-items:center;">
+                            <span id="hist-badge" class="badge" style="background:rgba(240,173,78,.1); color:#f0ad4e; border-color:rgba(240,173,78,.3); display:none;">Local Fallback</span>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAllHistory()" style="width:auto">Clear History</button>
+                        </div>
                     </div>
 
                     <div class="lang-pills" style="margin-bottom:20px;">
@@ -409,7 +415,7 @@
                     </div>
 
                     <div id="hist-broadcast-content">
-                        <div id="history-list" class="history-list"></div>
+                        <div id="hist-list" class="history-list"></div>
                     </div>
 
                     <div id="hist-vobiz-content" style="display:none;">
