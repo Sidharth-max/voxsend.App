@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+@media (max-width: 768px) {
+    .mobile-only {
+        display: flex !important;
+    }
+}
+</style>
+</head>
+<body>
+<div id="test" class="mobile-only" style="display:none;">HELLO</div>
+<script>
+console.log(window.getComputedStyle(document.getElementById('test')).display);
+</script>
+</body>
+</html>
