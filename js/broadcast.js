@@ -1,4 +1,50 @@
 let lang = 'hi';
+window.lastNumStats = { total: 0, unique: 0, duplicatesRemoved: 0 };
+
+const cleanNumberEntry = (value = '') => {
+    if (!value) return '';
+    let cleaned = value.trim();
+    cleaned = cleaned.replace(/\s+/g, '');
+    cleaned = cleaned.replace(/(?!^)\+/g, '');
+    return cleaned;
+};
+
+const normalizeNumberKey = (value = '') => cleanNumberEntry(value).replace(/[^0-9]/g, '');
+
+const buildUniqueNumberList = (entries = []) => {
+    const seen = new Set();
+    const unique = [];
+    let duplicates = 0;
+    entries.forEach(entry => {
+        const cleaned = cleanNumberEntry(entry);
+        if (!cleaned) return;
+        const key = normalizeNumberKey(cleaned);
+        if (!key) return;
+        if (seen.has(key)) {
+            duplicates++;
+            return;
+        }
+        seen.add(key);
+        unique.push(cleaned);
+    });
+    return { unique, duplicates };
+};
+
+const updateRecipientsField = (list, options = {}) => {
+    const numsEl = document.getElementById('numbers');
+    if (!numsEl) return [];
+    const { unique } = buildUniqueNumberList(Array.isArray(list) ? list : []);
+    let newValue = unique.join('\n');
+    if (options.preserveTrailingNewline && unique.length) {
+        newValue += '\n';
+    }
+    if (numsEl.value !== newValue) numsEl.value = newValue;
+    if (!options.skipPreview) {
+        if (typeof window.preview === 'function') window.preview();
+        if (typeof window.renderBroadcastContacts === 'function') window.renderBroadcastContacts();
+    }
+    return unique;
+};
 
 window.setLang = function(l) {
     lang = l;
