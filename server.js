@@ -68,7 +68,14 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/contacts', (req, res) => {
     try {
-        const contacts = db.prepare('SELECT * FROM contacts').all();
+        const contacts = db.prepare('SELECT * FROM contacts').all().map(row => ({
+            id: row.id,
+            name: row.name || '',
+            phone: row.phone,
+            group: row.group_name || '',
+            group_name: row.group_name || '',
+            created_at: row.created_at
+        }));
         res.json(contacts);
     } catch (e) { res.json([]); }
 });
@@ -78,7 +85,9 @@ app.post('/api/contacts', (req, res) => {
     const insert = db.prepare('INSERT OR REPLACE INTO contacts (name, phone, group_name) VALUES (?, ?, ?)');
     const insertMany = db.transaction((list) => {
         for (const contact of list) {
-            insert.run(contact.name || '', contact.phone, contact.group_name || '');
+            if (!contact || !contact.phone) continue;
+            const groupValue = contact.group ?? contact.group_name ?? '';
+            insert.run(contact.name || '', contact.phone, groupValue);
         }
     });
     try {

@@ -3,8 +3,13 @@ let contacts = [];
 window.loadContacts = async function() {
     try {
         const res = await fetch('/api/contacts');
-        contacts = await res.json();
-        contacts.forEach(c => c.selected = false);
+        const data = await res.json();
+        contacts = Array.isArray(data) ? data.map(c => ({
+            name: (c && c.name) ? c.name : '',
+            phone: c && c.phone ? c.phone : '',
+            group: c ? (c.group ?? c.group_name ?? '') : '',
+            selected: false
+        })).filter(c => c.phone) : [];
     } catch (e) {
         contacts = [];
     }
@@ -14,11 +19,16 @@ window.loadContacts = async function() {
 };
 
 window.saveContacts = async function() {
+    const payload = contacts.map(c => ({
+        name: c.name || '',
+        phone: c.phone,
+        group: c.group || ''
+    }));
     try {
         await fetch('/api/contacts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(contacts)
+            body: JSON.stringify(payload)
         });
     } catch (e) {
         console.error("Failed to save contacts", e);
