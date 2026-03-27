@@ -6,6 +6,7 @@ const cleanNumberEntry = (value = '') => {
     let cleaned = value.trim();
     cleaned = cleaned.replace(/\s+/g, '');
     cleaned = cleaned.replace(/(?!^)\+/g, '');
+    cleaned = cleaned.replace(/[^0-9+]/g, '');
     return cleaned;
 };
 
@@ -15,9 +16,12 @@ const buildUniqueNumberList = (entries = []) => {
     const seen = new Set();
     const unique = [];
     let duplicates = 0;
+    let total = 0;
+
     entries.forEach(entry => {
         const cleaned = cleanNumberEntry(entry);
         if (!cleaned) return;
+        total++;
         const key = normalizeNumberKey(cleaned);
         if (!key) return;
         if (seen.has(key)) {
@@ -25,26 +29,58 @@ const buildUniqueNumberList = (entries = []) => {
             return;
         }
         seen.add(key);
-        unique.push(cleaned);
+        const formatted = cleaned.startsWith('+') ? cleaned : '+' + cleaned.replace(/^\++/, '');
+        unique.push(formatted);
     });
-    return { unique, duplicates };
+
+    return { unique, duplicates, total };
+};
+
+const reflectNumberStats = (stats = {}) => {
+    const uniqueCount = Array.isArray(stats.unique) ? stats.unique.length : 0;
+    const total = stats.total || uniqueCount;
+    const duplicates = stats.duplicates || 0;
+    window.lastNumStats = { total, unique: uniqueCount, duplicatesRemoved: duplicates };
+
+    const dupHint = document.getElementById('dup-hint');
+    if (dupHint) {
+        if (duplicates > 0) {
+            dupHint.style.display = 'block';
+            dupHint.textContent = `Removed ${duplicates} duplicate ${duplicates === 1 ? 'number' : 'numbers'} automatically.`;
+        } else {
+            dupHint.style.display = 'none';
+        }
+    }
 };
 
 const updateRecipientsField = (list, options = {}) => {
     const numsEl = document.getElementById('numbers');
-    if (!numsEl) return [];
-    const { unique } = buildUniqueNumberList(Array.isArray(list) ? list : []);
-    let newValue = unique.join('\n');
-    if (options.preserveTrailingNewline && unique.length) {
+    if (!numsEl) return { unique: [], duplicates: 0, total: 0, changed: false };
+
+    const stats = buildUniqueNumberList(Array.isArray(list) ? list : []);
+    reflectNumberStats(stats);
+
+    const shouldKeepTrailing = typeof options.preserveTrailingNewline === 'boolean'
+        ? options.preserveTrailingNewline
+        : /\n$/.test(numsEl.value);
+
+    let newValue = stats.unique.join('\n');
+    if (shouldKeepTrailing && stats.unique.length) {
         newValue += '\n';
     }
-    if (numsEl.value !== newValue) numsEl.value = newValue;
+
+    const changed = numsEl.value !== newValue;
+    if (changed) numsEl.value = newValue;
+
     if (!options.skipPreview) {
         if (typeof window.preview === 'function') window.preview();
         if (typeof window.renderBroadcastContacts === 'function') window.renderBroadcastContacts();
     }
-    return unique;
+
+    return { ...stats, changed };
 };
+
+window.setRecipientNumbers = (list, options) => updateRecipientsField(list, options);
 
 window.setLang = function(l) {
     lang = l;
@@ -66,10 +102,11 @@ window.setLang = function(l) {
 };
 
 window.getNums = function() {
-    const raw = document.getElementById('numbers').value;
-    return raw.split('\n')
-        .map(n => n.trim().replace(/\s+/g, ''))
-        .filter(n => n.length > 5);
+    const numsEl = document.getElementById('numbers');
+    if (!numsEl) return [];
+    const stats = buildUniqueNumberList(numsEl.value.split('\n'));
+    reflectNumberStats(stats);
+    return stats.unique;
 };
 
 window.preview = function() {
@@ -86,7 +123,12 @@ window.preview = function() {
     const nums = getNums();
     
     const numCountEl = document.getElementById('num-count');
-    if (numCountEl) numCountEl.textContent = nums.length + ' numbers';
+    if (numCountEl) {
+        const dupRemoved = window.lastNumStats?.duplicatesRemoved || 0;
+        numCountEl.textContent = dupRemoved > 0
+            ? `${nums.length} numbers (removed ${dupRemoved} duplicates)`
+            : nums.length + ' numbers';
+    }
     
     const charCountEl = document.getElementById('char-count');
     if (charCountEl) charCountEl.textContent = msg.length + ' chars';
@@ -279,7 +321,8 @@ window.renderBroadcastContacts = function() {
     if (countEl) countEl.textContent = `${contacts.length} total`;
     
     const numsEl = document.getElementById('numbers');
-    const existingArr = numsEl ? (numsEl.value.trim() ? numsEl.value.trim().split('\n').map(n => n.trim()).filter(Boolean) : []) : [];
+    const existingStats = numsEl ? buildUniqueNumberList(numsEl.value.split('\n')) : { unique: [] };
+    const existingArr = existingStats.unique;
     
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="2" class="empty">No contacts found.</td></tr>';
