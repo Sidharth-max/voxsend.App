@@ -281,6 +281,9 @@ window.blast = async function() {
         body: JSON.stringify(payload)
     }).then(res => res.json()).then(res => {
         if (res.success) {
+            if (res.duplicatesRemoved) {
+                window.addLog('info', `Skipped ${res.duplicatesRemoved} duplicate ${res.duplicatesRemoved === 1 ? 'number' : 'numbers'} before sending.`);
+            }
              window.addLog('info', `Broadcast initiated via ${provider === 'vobiz' ? 'Vobiz.ai' : 'Twilio'}. You can safely close this page.`);
             window.startPolling();
         } else {
@@ -323,6 +326,7 @@ window.renderBroadcastContacts = function() {
     const numsEl = document.getElementById('numbers');
     const existingStats = numsEl ? buildUniqueNumberList(numsEl.value.split('\n')) : { unique: [] };
     const existingArr = existingStats.unique;
+    const existingKeys = new Set(existingArr.map(normalizeNumberKey));
     
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="2" class="empty">No contacts found.</td></tr>';
@@ -330,7 +334,7 @@ window.renderBroadcastContacts = function() {
     }
     
     tbody.innerHTML = filtered.map((c, i) => {
-        const isChecked = existingArr.includes(c.phone);
+        const isChecked = existingKeys.has(normalizeNumberKey(c.phone));
         return `
         <tr>
             <td style="padding: 8px;"><input type="checkbox" class="checkbox b-checkbox" ${isChecked ? 'checked' : ''} onchange="toggleBroadcastContact('${c.phone}', this.checked)" /></td>
@@ -346,32 +350,29 @@ window.renderBroadcastContacts = function() {
 window.toggleBroadcastContact = function(phone, isChecked) {
     const numsEl = document.getElementById('numbers');
     if (!numsEl) return;
-    const existing = numsEl.value.trim();
-    let existingArr = existing ? existing.split('\n').map(n => n.trim()).filter(Boolean) : [];
-    
+    let lines = numsEl.value ? numsEl.value.split('\n') : [];
+
     if (isChecked) {
-        if (!existingArr.includes(phone)) existingArr.push(phone);
+        lines.push(phone);
     } else {
-        existingArr = existingArr.filter(n => n !== phone);
+        const targetKey = normalizeNumberKey(phone);
+        lines = lines.filter(n => normalizeNumberKey(n) !== targetKey);
     }
-    numsEl.value = existingArr.join('\n');
-    window.preview();
+
+    updateRecipientsField(lines);
 };
 
 window.clearNumbers = function() {
     const numsEl = document.getElementById('numbers');
     if (numsEl) {
-        numsEl.value = '';
-        window.preview();
-        if (window.renderBroadcastContacts) window.renderBroadcastContacts();
+        updateRecipientsField([]);
     }
 };
 
 window.toggleBroadcastSelectAll = function(isChecked) {
     const numsEl = document.getElementById('numbers');
     if (!numsEl) return;
-    const existing = numsEl.value.trim();
-    let existingArr = existing ? existing.split('\n').map(n => n.trim()).filter(Boolean) : [];
+    let updatedArr = numsEl.value ? numsEl.value.split('\n') : [];
     
     const filterGroup = document.getElementById('b-filter-group');
     const searchQ = document.getElementById('b-search-contacts');
@@ -385,21 +386,18 @@ window.toggleBroadcastSelectAll = function(isChecked) {
         return true;
     });
 
-    filtered.forEach(c => {
-        if (isChecked) {
-            if (!existingArr.includes(c.phone)) existingArr.push(c.phone);
-        } else {
-            existingArr = existingArr.filter(n => n !== c.phone);
-        }
-    });
+    if (isChecked) {
+        updatedArr = updatedArr.concat(filtered.map(c => c.phone));
+    } else {
+        const removalKeys = new Set(filtered.map(c => normalizeNumberKey(c.phone)));
+        updatedArr = updatedArr.filter(n => !removalKeys.has(normalizeNumberKey(n)));
+    }
 
-    numsEl.value = existingArr.join('\n');
+    updateRecipientsField(updatedArr);
     
     document.querySelectorAll('.b-checkbox').forEach(cb => {
         cb.checked = isChecked;
     });
-    
-    window.preview();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -414,8 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.value !== cleanVal) {
                 this.value = cleanVal;
             }
-            window.preview();
-            if(window.renderBroadcastContacts) window.renderBroadcastContacts();
+            updateRecipientsField(this.value.split('\n'), { preserveTrailingNewline: /\n$/.test(cleanVal) });
         });
     }
     

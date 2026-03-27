@@ -7,6 +7,41 @@ const app = express();
 
 const db = new Database('voxsend.db');
 
+const sanitizePhoneNumber = (value = '') => {
+    if (!value) return '';
+    let normalized = String(value).trim().replace(/\s+/g, '');
+    normalized = normalized.replace(/(?!^)\+/g, '');
+    normalized = normalized.replace(/[^0-9+]/g, '');
+    if (!normalized) return '';
+    if (!normalized.startsWith('+')) {
+        normalized = '+' + normalized.replace(/^\++/, '');
+    }
+    return normalized;
+};
+
+const normalizePhoneKey = (value = '') => sanitizePhoneNumber(value).replace(/[^0-9]/g, '');
+
+const dedupeRecipients = (numbers = []) => {
+    const seen = new Set();
+    const unique = [];
+    let duplicates = 0;
+
+    (Array.isArray(numbers) ? numbers : []).forEach(num => {
+        const cleaned = sanitizePhoneNumber(num);
+        if (!cleaned) return;
+        const key = normalizePhoneKey(cleaned);
+        if (!key) return;
+        if (seen.has(key)) {
+            duplicates++;
+            return;
+        }
+        seen.add(key);
+        unique.push(cleaned);
+    });
+
+    return { unique, duplicates };
+};
+
 // Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS contacts (
@@ -125,14 +160,19 @@ app.post('/api/broadcast/stop', (req, res) => {
 
 app.post('/api/broadcast', async (req, res) => {
     const { nums, msg, credentials, lang, sentBy, provider } = req.body;
+    const { unique: recipientList, duplicates: duplicatesRemoved } = dedupeRecipients(nums || []);
 
     if (activeBroadcast && activeBroadcast.active) {
         return res.status(400).json({ success: false, message: "A broadcast is already in progress." });
     }
 
+    if (!recipientList.length) {
+        return res.status(400).json({ success: false, message: "No valid recipients provided." });
+    }
+
     activeBroadcast = {
         active: true,
-        total: nums.length,
+        total: recipientList.length,
         current: 0,
         successful: 0,
         failed: 0,
@@ -143,10 +183,14 @@ app.post('/api/broadcast', async (req, res) => {
         sentBy: sentBy,
         provider: provider || 'twilio',
         voice: req.body.voice || 'Polly.Aditi',
-        recipients: nums.join('\n')
+        recipients: recipientList.join('\n')
     };
 
-    res.json({ success: true, message: "Broadcast started in background." });
+    if (duplicatesRemoved) {
+        activeBroadcast.logs.push({ type: 'info', text: `Removed ${duplicatesRemoved} duplicate ${duplicatesRemoved === 1 ? 'number' : 'numbers'} before dialing.`, time: new Date().toLocaleTimeString() });
+    }
+
+    res.json({ success: true, message: "Broadcast started in background.", duplicatesRemoved });
 
     const runBroadcast = async () => {
         const { sid, token, from, vobiz_id, vobiz_token, vobiz_from, public_url } = credentials;
@@ -174,10 +218,10 @@ app.post('/api/broadcast', async (req, res) => {
              }
         }
 
-        for (let i = 0; i < nums.length; i++) {
+        for (let i = 0; i < recipientList.length; i++) {
             if (!activeBroadcast || !activeBroadcast.active) break;
 
-            let n = nums[i].trim();
+            let n = recipientList[i].trim();
             if (!n.startsWith('+')) n = '+' + n;
 
             try {

@@ -340,12 +340,20 @@ window.repeatBroadcast = function(index) {
     if(msgEl) {
         msgEl.value = h.message;
     }
+    let handledRecipients = false;
     if(numsEl && h.recipients) {
-        numsEl.value = h.recipients;
+        if (typeof window.setRecipientNumbers === 'function') {
+            window.setRecipientNumbers(h.recipients.split('\n'));
+            handledRecipients = true;
+        } else {
+            numsEl.value = h.recipients;
+        }
     }
 
-    if(window.preview) window.preview();
-    if(window.renderBroadcastContacts) window.renderBroadcastContacts();
+    if(!handledRecipients) {
+        if(window.preview) window.preview();
+        if(window.renderBroadcastContacts) window.renderBroadcastContacts();
+    }
     
     go('broadcast');
 };

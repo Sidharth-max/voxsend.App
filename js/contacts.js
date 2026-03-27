@@ -206,12 +206,19 @@ window.useSelected = function() {
     
     const toAdd = selected.filter(phone => !existingArr.includes(phone));
     
-    if (toAdd.length) {
-        const updatedArr = [...existingArr, ...toAdd];
+    const updatedArr = [...existingArr, ...toAdd];
+    let usedHelper = false;
+    if (typeof window.setRecipientNumbers === 'function') {
+        window.setRecipientNumbers(updatedArr);
+        usedHelper = true;
+    } else if (toAdd.length) {
         numbersEl.value = updatedArr.join('\n');
     }
     
-    if (typeof window.preview === 'function') window.preview();
+    if (!usedHelper) {
+        if (typeof window.preview === 'function') window.preview();
+        if (typeof window.renderBroadcastContacts === 'function') window.renderBroadcastContacts();
+    }
     
     if (typeof window.go === 'function') {
         window.go('broadcast');
