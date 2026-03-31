@@ -76,6 +76,13 @@ db.exec(`
     language TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS call_failures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT NOT NULL,
+    error TEXT,
+    broadcast_started_at TEXT,
+    failed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 try {
@@ -195,34 +202,68 @@ app.post('/api/broadcast', async (req, res) => {
     const runBroadcast = async () => {
         const { sid, token, from, vobiz_id, vobiz_token, vobiz_from, public_url } = credentials;
         const currentProvider = provider || 'twilio';
-        
+        const broadcastStartedAt = activeBroadcast.startTime;
+
         let ttsUrl;
         let auth;
-        
+
         if (currentProvider === 'vobiz') {
-             const baseUrl = public_url ? public_url.replace(/\/$/, '') : '';
-             const voice = activeBroadcast.voice || 'Polly.Aditi';
-             const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
-             
-             ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=vobiz`;
+            const baseUrl = public_url ? public_url.replace(/\/$/, '') : '';
+            const voice = activeBroadcast.voice || 'Polly.Aditi';
+            const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
+            ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=vobiz`;
         } else {
-             auth = Buffer.from(`${sid}:${token}`).toString('base64');
-             if (public_url) {
-                 const baseUrl = public_url.replace(/\/$/, '');
-                 const voice = activeBroadcast.voice || 'Polly.Aditi';
-                 const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
-                 ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=twilio`;
-             } else {
-                 // Fallback to twimlets if no public_url
-                 ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
-             }
+            auth = Buffer.from(`${sid}:${token}`).toString('base64');
+            if (public_url) {
+                const baseUrl = public_url.replace(/\/$/, '');
+                const voice = activeBroadcast.voice || 'Polly.Aditi';
+                const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
+                ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=twilio`;
+            } else {
+                ttsUrl = `http://twimlets.com/message?Message%5B0%5D=${encodeURIComponent(msg)}`;
+            }
         }
 
-        for (let i = 0; i < recipientList.length; i++) {
-            if (!activeBroadcast || !activeBroadcast.active) break;
+        // ── Semaphore: max 3 concurrent Vobiz calls ──────────────────────
+        const MAX_CONCURRENT = 3;
+        let activeSlots = 0;
+        const waiting = [];
 
-            let n = recipientList[i].trim();
-            if (!n.startsWith('+')) n = '+' + n;
+        const acquire = () => new Promise(resolve => {
+            if (activeSlots < MAX_CONCURRENT) {
+                activeSlots++;
+                resolve();
+            } else {
+                waiting.push(resolve);
+            }
+        });
+
+        const release = () => {
+            if (waiting.length > 0) {
+                waiting.shift()();   // hand slot directly to next waiter
+            } else {
+                activeSlots--;
+            }
+        };
+        // ─────────────────────────────────────────────────────────────────
+
+        const logFailure = (phone, errorMsg) => {
+            try {
+                db.prepare(
+                    'INSERT INTO call_failures (phone, error, broadcast_started_at) VALUES (?, ?, ?)'
+                ).run(phone, errorMsg, broadcastStartedAt);
+            } catch (e) {
+                console.error('Failed to log call failure to DB:', e.message);
+            }
+        };
+
+        const callOne = async (n, index) => {
+            await acquire();
+
+            if (!activeBroadcast || !activeBroadcast.active) {
+                release();
+                return;
+            }
 
             try {
                 let resOk = false;
@@ -240,13 +281,12 @@ app.post('/api/broadcast', async (req, res) => {
                             from: vobiz_from,
                             to: n,
                             answer_url: ttsUrl,
-                            answer_method: 'GET' 
+                            answer_method: 'GET'
                         })
                     });
                     const rjson = await vobizRes.json();
                     resOk = vobizRes.ok;
                     resMsg = resOk ? `Call UUID: ${rjson.call_uuid}` : (rjson.message || JSON.stringify(rjson));
-
                 } else {
                     const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
                         method: 'POST',
@@ -267,16 +307,27 @@ app.post('/api/broadcast', async (req, res) => {
                 } else {
                     activeBroadcast.failed++;
                     activeBroadcast.logs.push({ type: 'err', text: `[${currentProvider}] Failed ${n}: ${resMsg}`, time: new Date().toLocaleTimeString() });
+                    logFailure(n, resMsg);
                 }
             } catch (err) {
                 activeBroadcast.failed++;
-                activeBroadcast.logs.push({ type: 'err', text: `Network error to ${n}`, time: new Date().toLocaleTimeString() });
+                const errMsg = `Network error: ${err.message}`;
+                activeBroadcast.logs.push({ type: 'err', text: `${errMsg} for ${n}`, time: new Date().toLocaleTimeString() });
+                logFailure(n, errMsg);
+            } finally {
+                activeBroadcast.current++;
+                if (activeBroadcast.logs.length > 50) activeBroadcast.logs.shift();
+                release();
             }
+        };
 
-            activeBroadcast.current = i + 1;
-            if (activeBroadcast.logs.length > 50) activeBroadcast.logs.shift();
-            await new Promise(r => setTimeout(r, 600));
-        }
+        // Kick off all calls; semaphore keeps at most 3 in-flight at once
+        const tasks = recipientList.map((raw, i) => {
+            let n = raw.trim();
+            if (!n.startsWith('+')) n = '+' + n;
+            return callOne(n, i);
+        });
+        await Promise.all(tasks);
 
         if (activeBroadcast) {
             try {
@@ -292,6 +343,7 @@ app.post('/api/broadcast', async (req, res) => {
             } catch (e) {
                 console.error("Error saving history:", e);
             }
+            console.log(`Broadcast complete — sent: ${activeBroadcast.successful}, failed: ${activeBroadcast.failed}`);
             activeBroadcast.active = false;
         }
     };
@@ -480,7 +532,7 @@ app.post('/api/settings', (req, res) => {
     }
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
