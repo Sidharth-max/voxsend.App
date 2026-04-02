@@ -151,6 +151,7 @@ app.delete('/api/contacts', (req, res) => {
 });
 
 let activeBroadcast = null;
+const callCompletionResolvers = new Map();
 
 app.get('/api/broadcast/status', (req, res) => {
     res.json(activeBroadcast || { active: false });
@@ -206,16 +207,15 @@ app.post('/api/broadcast', async (req, res) => {
 
         let ttsUrl;
         let auth;
+        const baseUrl = public_url ? public_url.replace(/\/$/, '') : '';
 
         if (currentProvider === 'vobiz') {
-            const baseUrl = public_url ? public_url.replace(/\/$/, '') : '';
             const voice = activeBroadcast.voice || 'Polly.Aditi';
             const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
             ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=vobiz`;
         } else {
             auth = Buffer.from(`${sid}:${token}`).toString('base64');
             if (public_url) {
-                const baseUrl = public_url.replace(/\/$/, '');
                 const voice = activeBroadcast.voice || 'Polly.Aditi';
                 const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
                 ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=twilio`;
@@ -224,8 +224,9 @@ app.post('/api/broadcast', async (req, res) => {
             }
         }
 
-        // ── Semaphore: max 3 concurrent Vobiz calls ──────────────────────
-        const MAX_CONCURRENT = 3;
+        // ── Semaphore: limit concurrent calls to respect Vobiz plan ──────
+        // Vobiz free plan = 3 concurrent calls; use 2 to leave safety buffer
+        const MAX_CONCURRENT = currentProvider === 'vobiz' ? 2 : 10;
         let activeSlots = 0;
         const waiting = [];
 
@@ -257,6 +258,12 @@ app.post('/api/broadcast', async (req, res) => {
             }
         };
 
+        // Estimate how long a call takes based on message length
+        // ~750 chars/min speaking rate + 30s for ringing/buffer
+        const msgLen = (msg || '').length;
+        const estimatedCallSec = Math.ceil((msgLen / 750) * 60) + 30;
+        const callTimeoutMs = Math.max(estimatedCallSec * 1000, 60000); // at least 60s
+
         const callOne = async (n, index) => {
             await acquire();
 
@@ -265,11 +272,24 @@ app.post('/api/broadcast', async (req, res) => {
                 return;
             }
 
+            let waitForCallEnd = null;
             try {
                 let resOk = false;
                 let resMsg = '';
 
                 if (currentProvider === 'vobiz') {
+                    // Build call body with hangup_url so we know when the call finishes
+                    const callBody = {
+                        from: vobiz_from,
+                        to: n,
+                        answer_url: ttsUrl,
+                        answer_method: 'GET'
+                    };
+                    if (baseUrl) {
+                        callBody.hangup_url = `${baseUrl}/api/vobiz/hangup-callback`;
+                        callBody.hangup_method = 'POST';
+                    }
+
                     const vobizRes = await fetch(`https://api.vobiz.ai/api/v1/Account/${vobiz_id}/Call/`, {
                         method: 'POST',
                         headers: {
@@ -277,16 +297,21 @@ app.post('/api/broadcast', async (req, res) => {
                             'X-Auth-Token': vobiz_token,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            from: vobiz_from,
-                            to: n,
-                            answer_url: ttsUrl,
-                            answer_method: 'GET'
-                        })
+                        body: JSON.stringify(callBody)
                     });
                     const rjson = await vobizRes.json();
                     resOk = vobizRes.ok;
                     resMsg = resOk ? `Call UUID: ${rjson.call_uuid}` : (rjson.message || JSON.stringify(rjson));
+
+                    // If call was initiated, prepare to wait for it to actually finish
+                    // so we don't exceed the Vobiz concurrent call limit
+                    if (resOk && rjson.call_uuid) {
+                        const callUuid = rjson.call_uuid;
+                        waitForCallEnd = Promise.race([
+                            new Promise(resolve => callCompletionResolvers.set(callUuid, resolve)),
+                            new Promise(resolve => setTimeout(resolve, callTimeoutMs))
+                        ]).then(() => callCompletionResolvers.delete(callUuid));
+                    }
                 } else {
                     const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
                         method: 'POST',
@@ -317,11 +342,16 @@ app.post('/api/broadcast', async (req, res) => {
             } finally {
                 activeBroadcast.current++;
                 if (activeBroadcast.logs.length > 50) activeBroadcast.logs.shift();
+                // For Vobiz: wait until the call actually finishes before releasing
+                // the concurrency slot — prevents "Concurrent Call Limit Reached"
+                if (waitForCallEnd) {
+                    await waitForCallEnd;
+                }
                 release();
             }
         };
 
-        // Kick off all calls; semaphore keeps at most 3 in-flight at once
+        // Kick off all calls; semaphore waits for each call to finish (Vobiz)
         const tasks = recipientList.map((raw, i) => {
             let n = raw.trim();
             if (!n.startsWith('+')) n = '+' + n;
@@ -419,6 +449,19 @@ app.all('/api/vobiz/xml', (req, res) => {
     <Say language="${lang}" voice="${voice}">${safeMsg}</Say>
 </Response>`);
     }
+});
+
+// ── VOBIZ HANGUP CALLBACK ─────────────────────
+// Called by Vobiz when a call ends — releases the concurrency slot
+app.all('/api/vobiz/hangup-callback', (req, res) => {
+    const params = { ...req.query, ...req.body };
+    const callUuid = params.CallUUID || params.call_uuid;
+    console.log(`[Hangup Callback] CallUUID: ${callUuid}, Status: ${params.CallStatus || 'unknown'}`);
+    if (callUuid && callCompletionResolvers.has(callUuid)) {
+        callCompletionResolvers.get(callUuid)();
+        callCompletionResolvers.delete(callUuid);
+    }
+    res.status(200).send('OK');
 });
 
 app.use(express.static(__dirname));
