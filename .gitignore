@@ -1,18 +1,26 @@
 
+# Environment / secrets — never commit these
 .env
+.env.*
+.env.local
+.env.*.local
+*.env
+
+# Credentials
 credentials.json
+
+# Python
 __pycache__/
 *.pyc
-credentials.json
 gg.py
+
+# Dependencies
 node_modules/
-gg.py
-credentials.json
+
+# Misc
 replacements.txt
-.env
-.env
-credentials.json
-credentials.json
+
+# Data files
 contacts.json
 messages.json
 settings.json

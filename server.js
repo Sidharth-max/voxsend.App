@@ -63,7 +63,7 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY DEFAULT 1,
-    parallel_calls INTEGER DEFAULT 10,
+    parallel_calls INTEGER DEFAULT 3,
     retry_failed INTEGER DEFAULT 0,
     default_language TEXT DEFAULT 'hi-IN',
     delay_ms INTEGER DEFAULT 200,
