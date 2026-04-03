@@ -24,14 +24,20 @@ window.saveContacts = async function() {
         phone: c.phone,
         group: c.group || ''
     }));
+    const isLarge = contacts.length > 1000;
+    if (isLarge && window.showToast) window.showToast(`Saving ${contacts.length} contacts...`, "info");
+    
     try {
-        await fetch('/api/contacts', {
+        const res = await fetch('/api/contacts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+        if (!res.ok) throw new Error(await res.text());
+        if (isLarge && window.showToast) window.showToast("Contacts saved successfully.", "success");
     } catch (e) {
         console.error("Failed to save contacts", e);
+        if (window.showToast) window.showToast(`Failed to save: ${e.message}`, "error");
     }
     window.updateGroups();
     window.renderContacts();

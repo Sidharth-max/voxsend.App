@@ -1,0 +1,288 @@
+[Skip to content](https://docs.vobiz.ai/errors#main-content)
+[Console](https://console.vobiz.ai)
+[Documentation](https://docs.vobiz.ai/)
+[AI Integrations](https://docs.vobiz.ai/integrations)
+[Solutions](https://docs.vobiz.ai/solutions)
+[SIP Trunking APIs](https://docs.vobiz.ai/trunks)
+[Voice XML API](https://docs.vobiz.ai/xml/overview)
+[WhatsApp Business](https://docs.vobiz.ai/whatsapp)
+[Partner](https://docs.vobiz.ai/partner)
+[Documentation](https://docs.vobiz.ai/)
+[AI Integrations](https://docs.vobiz.ai/integrations)
+[Solutions](https://docs.vobiz.ai/solutions)
+[SIP Trunking APIs](https://docs.vobiz.ai/trunks)
+[Voice XML API](https://docs.vobiz.ai/xml/overview)
+[WhatsApp Business](https://docs.vobiz.ai/whatsapp)
+[Partner](https://docs.vobiz.ai/partner)
+
+### GETTING STARTED
+[Introduction](https://docs.vobiz.ai/)
+[Quick Start](https://docs.vobiz.ai/quick-start)
+[Concepts](https://docs.vobiz.ai/concepts)
+[Best Practices](https://docs.vobiz.ai/best-practices)
+[Error Handling](https://docs.vobiz.ai/errors)
+[FAQ & Guides](https://docs.vobiz.ai/faq)
+[Calculator](https://docs.vobiz.ai/resources/calculator)
+[XML Builder](https://docs.vobiz.ai/xml-builder)
+
+### API REFERENCE
+[Account](https://docs.vobiz.ai/account)
+[Sub-Accounts](https://docs.vobiz.ai/sub-accounts)
+[Applications](https://docs.vobiz.ai/applications)
+[Recording](https://docs.vobiz.ai/recording)
+[Call Detail Records](https://docs.vobiz.ai/cdr)
+[Phone Numbers](https://docs.vobiz.ai/account-phone-number)
+[Endpoint](https://docs.vobiz.ai/endpoint)
+[Home](https://docs.vobiz.ai/)
+
+# Error Handling
+
+Understand API error responses, status codes, and how to handle common error scenarios in your integration. All errors follow a consistent format for easy parsing and debugging.
+
+## Error Response Format
+All API errors follow a standardized JSON format for consistency across all services:
+
+```
+{ "status": "error", "error": { "code": "INSUFFICIENT_BALANCE", "message": "Account balance too low to complete this operation", "details": { "required": 1000, "available": 450, "currency": "USD" } }, "timestamp": "2025-10-12T10:30:00.000Z", "requestId": "req_7a8b9c0d1e2f" }
+```
+
+
+```
+{ "status": "error", "error": { "code": "INSUFFICIENT_BALANCE", "message": "Account balance too low to complete this operation", "details": { "required": 1000, "available": 450, "currency": "USD" } }, "timestamp": "2025-10-12T10:30:00.000Z", "requestId": "req_7a8b9c0d1e2f" }
+```
+
+
+#### Response Fields
+- status - Always "error" for error responses
+- error.code - Machine-readable error code (uppercase, underscore-separated)
+- error.message - Human-readable error description
+- error.details - Additional context (optional, varies by error)
+- timestamp - When the error occurred
+- requestId - Unique request identifier for support/debugging
+
+```
+status
+```
+
+
+```
+error.code
+```
+
+
+```
+error.message
+```
+
+
+```
+error.details
+```
+
+
+```
+timestamp
+```
+
+
+```
+requestId
+```
+
+## HTTP Status Codes
+#### 2xx Success
+- 200 OK - Request successful, response contains data
+- 201 Created - Resource created successfully (e.g., trunk, sub-account)
+- 204 No Content - Request successful, no response body (e.g., DELETE operations)
+
+#### 4xx Client Errors
+- 400 Bad Request - Invalid request format or parameters
+- 401 Unauthorized - Missing or invalid authentication credentials
+- 402 Payment Required - Insufficient account balance
+- 403 Forbidden - Authenticated but lacking permission for this resource
+- 404 Not Found - Requested resource does not exist
+- 409 Conflict - Request conflicts with current state (e.g., duplicate username)
+- 422 Unprocessable Entity - Validation failed (see details for field errors)
+- 429 Too Many Requests - Rate limit exceeded
+
+#### 5xx Server Errors
+- 500 Internal Server Error - Unexpected server error (report via requestId)
+- 502 Bad Gateway - Downstream service unavailable
+- 503 Service Unavailable - Service temporarily down or overloaded
+- 504 Gateway Timeout - Downstream service timeout
+
+## Common Errors
+
+#### Authentication Errors
+INVALID_CREDENTIALS
+Status: 401 | Email/password combination incorrect
+
+```
+{ "status": "error", "error": { "code": "INVALID_CREDENTIALS", "message": "Invalid email or password" } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "INVALID_CREDENTIALS", "message": "Invalid email or password" } }
+```
+
+TOKEN_EXPIRED
+Status: 401 | Access token has expired (use refresh token)
+
+```
+{ "status": "error", "error": { "code": "TOKEN_EXPIRED", "message": "Access token has expired. Use refresh token to obtain a new one." } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "TOKEN_EXPIRED", "message": "Access token has expired. Use refresh token to obtain a new one." } }
+```
+
+ACCOUNT_INACTIVE
+Status: 403 | Account has been deactivated
+
+```
+{ "status": "error", "error": { "code": "ACCOUNT_INACTIVE", "message": "Account is inactive. Contact support to reactivate." } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "ACCOUNT_INACTIVE", "message": "Account is inactive. Contact support to reactivate." } }
+```
+
+
+#### Resource Errors
+TRUNK_NOT_FOUND
+Status: 404 | Trunk ID does not exist or belongs to different account
+
+```
+{ "status": "error", "error": { "code": "TRUNK_NOT_FOUND", "message": "SIP trunk not found", "details": { "trunkId": "TRK_invalid123" } } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "TRUNK_NOT_FOUND", "message": "SIP trunk not found", "details": { "trunkId": "TRK_invalid123" } } }
+```
+
+DUPLICATE_USERNAME
+Status: 409 | Trunk username already exists
+
+```
+{ "status": "error", "error": { "code": "DUPLICATE_USERNAME", "message": "Username already exists", "details": { "username": "mytrunk", "suggestion": "Try mytrunk2 or mytrunk_2025" } } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "DUPLICATE_USERNAME", "message": "Username already exists", "details": { "username": "mytrunk", "suggestion": "Try mytrunk2 or mytrunk_2025" } } }
+```
+
+
+#### Balance & Billing Errors
+INSUFFICIENT_BALANCE
+Status: 402 | Account balance too low
+
+```
+{ "status": "error", "error": { "code": "INSUFFICIENT_BALANCE", "message": "Insufficient balance to purchase phone number", "details": { "required": 1000, "available": 450, "currency": "USD", "shortfall": 550 } } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "INSUFFICIENT_BALANCE", "message": "Insufficient balance to purchase phone number", "details": { "required": 1000, "available": 450, "currency": "USD", "shortfall": 550 } } }
+```
+
+PAYMENT_FAILED
+Status: 402 | Payment processing failed
+
+```
+{ "status": "error", "error": { "code": "PAYMENT_FAILED", "message": "Payment declined by gateway", "details": { "gateway": "razorpay", "reason": "Insufficient funds in linked account" } } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "PAYMENT_FAILED", "message": "Payment declined by gateway", "details": { "gateway": "razorpay", "reason": "Insufficient funds in linked account" } } }
+```
+
+
+#### Rate Limiting Errors
+RATE_LIMIT_EXCEEDED
+Status: 429 | Too many requests or calls
+
+```
+{ "status": "error", "error": { "code": "RATE_LIMIT_EXCEEDED", "message": "CPS limit exceeded for this trunk", "details": { "limitType": "cps", "limit": 10, "current": 15, "retryAfter": 1 } } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "RATE_LIMIT_EXCEEDED", "message": "CPS limit exceeded for this trunk", "details": { "limitType": "cps", "limit": 10, "current": 15, "retryAfter": 1 } } }
+```
+
+## Validation Errors
+
+When request validation fails (422 status), the response includes detailed field-level errors:
+
+```
+{ "status": "error", "error": { "code": "VALIDATION_ERROR", "message": "Request validation failed", "details": { "errors": [ { "field": "password", "message": "Password must be at least 8 characters", "code": "MIN_LENGTH", "value": "abc" }, { "field": "email", "message": "Invalid email format", "code": "INVALID_FORMAT", "value": "notanemail" }, { "field": "maxCps", "message": "Must be between 1 and 1000", "code": "OUT_OF_RANGE", "value": 5000 } ] } } }
+```
+
+
+```
+{ "status": "error", "error": { "code": "VALIDATION_ERROR", "message": "Request validation failed", "details": { "errors": [ { "field": "password", "message": "Password must be at least 8 characters", "code": "MIN_LENGTH", "value": "abc" }, { "field": "email", "message": "Invalid email format", "code": "INVALID_FORMAT", "value": "notanemail" }, { "field": "maxCps", "message": "Must be between 1 and 1000", "code": "OUT_OF_RANGE", "value": 5000 } ] } } }
+```
+
+
+#### Handling Validation Errors
+Parse the details.errors array to display field-specific error messages in your UI. Each error includes the field name, error code, and the invalid value.
+
+```
+details.errors
+```
+
+### Check HTTP Status Code First
+The status code category tells you who's at fault: 4xx = client error (fix your request), 5xx = server error (retry or contact support).
+
+### Always Log requestId
+Save the requestId from error responses. When contacting support, provide this ID for faster debugging and resolution.
+
+```
+requestId
+```
+
+### Implement Exponential Backoff
+For 429 (rate limit) and 503 (service unavailable) errors, retry with exponential backoff: wait 1s, then 2s, then 4s, etc. Check Retry-After header if present.
+
+```
+Retry-After
+```
+
+### Validate Before Sending
+Implement client-side validation matching API requirements to catch errors before making requests. Reduces unnecessary API calls and improves user experience.
+
+### Monitor Error Rates
+Track error response counts and types over time. Sudden spikes in specific error codes may indicate configuration issues or API changes requiring attention.
+
+### Common 401 Fixes
+• Ensure X-Auth-ID and X-Auth-Token headers are included• Check token hasn't expired• Verify account is active (is_active=true)
+
+```
+X-Auth-ID
+```
+
+
+```
+X-Auth-Token
+```
+
+
+```
+is_active=true
+```
+
+[Integrations](https://docs.vobiz.ai/integrations)
+[Best Practices](https://docs.vobiz.ai/best-practices)
+On this page
+[Introduction](https://docs.vobiz.ai/errors#introduction)
+[Error Response Format](https://docs.vobiz.ai/errors#error-format)
+[HTTP Status Codes](https://docs.vobiz.ai/errors#http-codes)
+[Common Errors](https://docs.vobiz.ai/errors#common-errors)
+[Validation Errors](https://docs.vobiz.ai/errors#validation-errors)
+[Troubleshooting Guide](https://docs.vobiz.ai/errors#troubleshooting)

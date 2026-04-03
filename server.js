@@ -102,7 +102,8 @@ if (!settingsExists) {
 }
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '100mb' }));
+app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
@@ -590,6 +591,14 @@ app.post('/api/settings', (req, res) => {
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
+});
+
+app.use((err, req, res, next) => {
+    console.error('SERVER ERROR:', err.message);
+    if (err.type === 'entity.too.large') {
+        return res.status(413).json({ success: false, error: 'Payload too large. Max limit is 100mb.' });
+    }
+    res.status(500).json({ success: false, error: err.message });
 });
 
 const PORT = process.env.PORT || 3000;
