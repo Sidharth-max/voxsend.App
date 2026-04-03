@@ -7,6 +7,12 @@ const app = express();
 
 const db = new Database('voxsend.db');
 
+// Performance pragmas — WAL mode gives much faster concurrent writes
+db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
+db.pragma('cache_size = -64000'); // 64MB cache
+db.pragma('temp_store = MEMORY');
+
 const sanitizePhoneNumber = (value = '') => {
     if (!value) return '';
     let normalized = String(value).trim().replace(/\s+/g, '');
@@ -141,10 +147,36 @@ app.post('/api/contacts', (req, res) => {
     }
 });
 
-app.delete('/api/contacts', (req, res) => {
-    const { phone } = req.body;
+// Lightweight upsert — only send what changed (new or edited contacts)
+app.post('/api/contacts/upsert', (req, res) => {
+    const contacts = Array.isArray(req.body) ? req.body : [req.body];
+    const insert = db.prepare('INSERT OR REPLACE INTO contacts (name, phone, group_name) VALUES (?, ?, ?)');
+    const upsertMany = db.transaction((list) => {
+        for (const contact of list) {
+            if (!contact || !contact.phone) continue;
+            const groupValue = contact.group ?? contact.group_name ?? '';
+            insert.run(contact.name || '', contact.phone, groupValue);
+        }
+    });
     try {
-        db.prepare('DELETE FROM contacts WHERE phone=?').run(phone);
+        upsertMany(contacts);
+        res.json({ success: true, count: contacts.length });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/contacts', (req, res) => {
+    const { phone, phones } = req.body;
+    try {
+        if (Array.isArray(phones) && phones.length) {
+            // Bulk delete
+            const del = db.prepare('DELETE FROM contacts WHERE phone=?');
+            const delMany = db.transaction((list) => list.forEach(p => del.run(p)));
+            delMany(phones);
+        } else if (phone) {
+            db.prepare('DELETE FROM contacts WHERE phone=?').run(phone);
+        }
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });

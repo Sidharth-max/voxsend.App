@@ -18,15 +18,41 @@ window.loadContacts = async function() {
     if(window.renderBroadcastContacts) window.renderBroadcastContacts();
 };
 
+// ── Upsert a small batch of contacts (only what changed) ──────────────────────
+// Sends in chunks of CHUNK_SIZE to avoid overloading the server.
+const CHUNK_SIZE = 5000;
+
+async function upsertContacts(list) {
+    if (!list || !list.length) return;
+    const chunks = [];
+    for (let i = 0; i < list.length; i += CHUNK_SIZE) {
+        chunks.push(list.slice(i, i + CHUNK_SIZE));
+    }
+    for (let ci = 0; ci < chunks.length; ci++) {
+        const chunk = chunks[ci];
+        const res = await fetch('/api/contacts/upsert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(chunk.map(c => ({
+                name: c.name || '',
+                phone: c.phone,
+                group: c.group || ''
+            })))
+        });
+        if (!res.ok) throw new Error(await res.text());
+        if (chunks.length > 1 && window.showToast) {
+            window.showToast(`Saved chunk ${ci + 1}/${chunks.length}…`, 'info');
+        }
+    }
+}
+
+// Full sync — only used when contacts are deleted (sends entire list)
 window.saveContacts = async function() {
     const payload = contacts.map(c => ({
         name: c.name || '',
         phone: c.phone,
         group: c.group || ''
     }));
-    const isLarge = contacts.length > 1000;
-    if (isLarge && window.showToast) window.showToast(`Saving ${contacts.length} contacts...`, "info");
-    
     try {
         const res = await fetch('/api/contacts', {
             method: 'POST',
@@ -34,7 +60,6 @@ window.saveContacts = async function() {
             body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error(await res.text());
-        if (isLarge && window.showToast) window.showToast("Contacts saved successfully.", "success");
     } catch (e) {
         console.error("Failed to save contacts", e);
         if (window.showToast) window.showToast(`Failed to save: ${e.message}`, "error");
@@ -64,7 +89,7 @@ window.handleCSV = function(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         const text = e.target.result;
         const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
         if (lines.length < 2) return window.showToast("File appears empty or missing headers.", "error");
@@ -76,7 +101,12 @@ window.handleCSV = function(event) {
         
         if (phoneIdx === -1) return window.showToast("CSV must contain a 'phone' column.", "error");
         
+        // Build a quick lookup for existing contacts by phone
+        const existingMap = new Map(contacts.map(c => [c.phone, c]));
+
         let added = 0, updated = 0;
+        const changedContacts = []; // only track what actually changed
+
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
             if (cols.length <= phoneIdx || !cols[phoneIdx]) continue;
@@ -86,20 +116,44 @@ window.handleCSV = function(event) {
             const name = nameIdx !== -1 && cols.length > nameIdx ? cols[nameIdx] : '';
             const group = groupIdx !== -1 && cols.length > groupIdx ? cols[groupIdx] : '';
             
-            const existing = contacts.find(c => c.phone === phone);
+            const existing = existingMap.get(phone);
             if (existing) {
-                if (name) existing.name = name;
-                if (group) existing.group = group;
-                updated++;
+                let changed = false;
+                if (name && existing.name !== name) { existing.name = name; changed = true; }
+                if (group && existing.group !== group) { existing.group = group; changed = true; }
+                if (changed) { changedContacts.push(existing); updated++; }
             } else {
-                contacts.push({ name, phone, group, selected: false });
+                const newContact = { name, phone, group, selected: false };
+                contacts.push(newContact);
+                existingMap.set(phone, newContact);
+                changedContacts.push(newContact);
                 added++;
             }
         }
         
-        window.saveContacts();
         event.target.value = '';
-        window.showToast(`Imported successfully. Added: ${added}, Updated: ${updated}`, "success");
+
+        if (!changedContacts.length) {
+            window.showToast("No new or updated contacts found.", "info");
+            window.updateGroups();
+            window.renderContacts();
+            return;
+        }
+
+        try {
+            if (changedContacts.length > CHUNK_SIZE) {
+                window.showToast(`Uploading ${changedContacts.length} contacts in batches…`, "info");
+            }
+            await upsertContacts(changedContacts);
+            window.showToast(`Done! Added: ${added}, Updated: ${updated}`, "success");
+        } catch (err) {
+            console.error("CSV upload failed", err);
+            window.showToast(`Upload failed: ${err.message}`, "error");
+        }
+
+        window.updateGroups();
+        window.renderContacts();
+        if(window.renderBroadcastContacts) window.renderBroadcastContacts();
     };
     reader.readAsText(file);
 };
@@ -181,10 +235,25 @@ window.deleteSelected = async function() {
     const toDelete = contacts.filter(c => c.selected);
     if (!toDelete.length) return window.showToast("No contacts selected.", "error");
     const confirmed = await window.showConfirm(`Delete ${toDelete.length} selected contact(s)?`);
-    if (confirmed) {
-        contacts = contacts.filter(c => !c.selected);
-        window.saveContacts();
+    if (!confirmed) return;
+
+    const phones = toDelete.map(c => c.phone);
+    contacts = contacts.filter(c => !c.selected);
+
+    try {
+        await fetch('/api/contacts', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phones })
+        });
+    } catch (e) {
+        console.error("Delete failed", e);
+        if (window.showToast) window.showToast("Delete failed.", "error");
     }
+
+    window.updateGroups();
+    window.renderContacts();
+    if(window.renderBroadcastContacts) window.renderBroadcastContacts();
 };
 
 window.exportCSV = function() {
@@ -245,7 +314,7 @@ window.downloadTemplate = function(e) {
     URL.revokeObjectURL(url);
 };
 
-window.addManualContact = function() {
+window.addManualContact = async function() {
     const name = document.getElementById('man-name').value.trim();
     const phoneInput = document.getElementById('man-phone').value.trim();
     const group = document.getElementById('man-group').value.trim();
@@ -261,6 +330,8 @@ window.addManualContact = function() {
             existing.name = name;
             existing.phone = phone;
             existing.group = group;
+            // Only send this one contact
+            try { await upsertContacts([existing]); } catch(e) { console.error(e); }
         }
         editingPhone = null;
         const btn = document.querySelector('button[onclick="addManualContact()"]');
@@ -270,8 +341,11 @@ window.addManualContact = function() {
         if (existing) {
             if (name) existing.name = name;
             if (group) existing.group = group;
+            try { await upsertContacts([existing]); } catch(e) { console.error(e); }
         } else {
-            contacts.push({ name, phone, group, selected: false });
+            const newContact = { name, phone, group, selected: false };
+            contacts.push(newContact);
+            try { await upsertContacts([newContact]); } catch(e) { console.error(e); }
         }
     }
     
@@ -279,7 +353,9 @@ window.addManualContact = function() {
     document.getElementById('man-phone').value = '';
     document.getElementById('man-group').value = '';
     
-    window.saveContacts();
+    window.updateGroups();
+    window.renderContacts();
+    if(window.renderBroadcastContacts) window.renderBroadcastContacts();
     window.showToast("Saved contact.", "success");
 };
 
