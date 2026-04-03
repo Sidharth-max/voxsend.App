@@ -261,8 +261,8 @@ app.post('/api/broadcast', async (req, res) => {
         // Estimate how long a call takes based on message length
         // ~750 chars/min speaking rate + 30s for ringing/buffer
         const msgLen = (msg || '').length;
-        const estimatedCallSec = Math.ceil((msgLen / 750) * 60) + 30;
-        const callTimeoutMs = Math.max(estimatedCallSec * 1000, 60000); // at least 60s
+        const estimatedCallSec = Math.ceil((msgLen / 750) * 60) + 60; // Extra buffer
+        const callTimeoutMs = Math.max(estimatedCallSec * 1000, 120000); // at least 120s to avoid releasing slots too early
 
         const callOne = async (n, index) => {
             await acquire();
@@ -276,54 +276,71 @@ app.post('/api/broadcast', async (req, res) => {
             try {
                 let resOk = false;
                 let resMsg = '';
+                let attempts = 0;
+                let maxAttempts = currentProvider === 'vobiz' ? 6 : 1; // 6 attempts * 10s = 1 min waiting
 
-                if (currentProvider === 'vobiz') {
-                    // Build call body with hangup_url so we know when the call finishes
-                    const callBody = {
-                        from: vobiz_from,
-                        to: n,
-                        answer_url: ttsUrl,
-                        answer_method: 'GET'
-                    };
-                    if (baseUrl) {
-                        callBody.hangup_url = `${baseUrl}/api/vobiz/hangup-callback`;
-                        callBody.hangup_method = 'POST';
+                while (attempts < maxAttempts) {
+                    attempts++;
+                    if (currentProvider === 'vobiz') {
+                        // Build call body with hangup_url so we know when the call finishes
+                        const callBody = {
+                            from: vobiz_from,
+                            to: n,
+                            answer_url: ttsUrl,
+                            answer_method: 'GET'
+                        };
+                        if (baseUrl) {
+                            callBody.hangup_url = `${baseUrl}/api/vobiz/hangup-callback`;
+                            callBody.hangup_method = 'POST';
+                        }
+    
+                        const vobizRes = await fetch(`https://api.vobiz.ai/api/v1/Account/${vobiz_id}/Call/`, {
+                            method: 'POST',
+                            headers: {
+                                'X-Auth-ID': vobiz_id,
+                                'X-Auth-Token': vobiz_token,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(callBody)
+                        });
+                        const rjson = await vobizRes.json();
+                        resOk = vobizRes.ok;
+                        resMsg = resOk ? `Call UUID: ${rjson.call_uuid}` : (rjson.message || JSON.stringify(rjson));
+                        
+                        // Handle Vobiz Concurrency Limit (429 or specific error messages)
+                        const errorText = resMsg.toLowerCase();
+                        if (!resOk && (vobizRes.status === 429 || errorText.includes('concurren') || errorText.includes('limit') || errorText.includes('capacity'))) {
+                            if (attempts < maxAttempts) {
+                                activeBroadcast.logs.push({ type: 'info', text: `[Vobiz] Concurrency limit reached. Waiting 10s before retry (Attempt ${attempts})...`, time: new Date().toLocaleTimeString() });
+                                await new Promise(resolve => setTimeout(resolve, 10000));
+                                continue; // Try again
+                            }
+                        }
+    
+                        // If call was initiated, prepare to wait for it to actually finish
+                        // so we don't exceed the Vobiz concurrent call limit
+                        if (resOk && rjson.call_uuid) {
+                            const callUuid = rjson.call_uuid;
+                            waitForCallEnd = Promise.race([
+                                new Promise(resolve => callCompletionResolvers.set(callUuid, resolve)),
+                                new Promise(resolve => setTimeout(resolve, callTimeoutMs))
+                            ]).then(() => callCompletionResolvers.delete(callUuid));
+                        }
+                        break; // Action completed, stop retrying
+                    } else {
+                        const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Basic ${auth}`,
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: new URLSearchParams({ To: n, From: from, Url: ttsUrl })
+                        });
+                        const rjson = await twilioRes.json();
+                        resOk = twilioRes.ok;
+                        resMsg = resOk ? 'Call queued' : rjson.message;
+                        break;
                     }
-
-                    const vobizRes = await fetch(`https://api.vobiz.ai/api/v1/Account/${vobiz_id}/Call/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-Auth-ID': vobiz_id,
-                            'X-Auth-Token': vobiz_token,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(callBody)
-                    });
-                    const rjson = await vobizRes.json();
-                    resOk = vobizRes.ok;
-                    resMsg = resOk ? `Call UUID: ${rjson.call_uuid}` : (rjson.message || JSON.stringify(rjson));
-
-                    // If call was initiated, prepare to wait for it to actually finish
-                    // so we don't exceed the Vobiz concurrent call limit
-                    if (resOk && rjson.call_uuid) {
-                        const callUuid = rjson.call_uuid;
-                        waitForCallEnd = Promise.race([
-                            new Promise(resolve => callCompletionResolvers.set(callUuid, resolve)),
-                            new Promise(resolve => setTimeout(resolve, callTimeoutMs))
-                        ]).then(() => callCompletionResolvers.delete(callUuid));
-                    }
-                } else {
-                    const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Basic ${auth}`,
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: new URLSearchParams({ To: n, From: from, Url: ttsUrl })
-                    });
-                    const rjson = await twilioRes.json();
-                    resOk = twilioRes.ok;
-                    resMsg = resOk ? 'Call queued' : rjson.message;
                 }
 
                 if (resOk) {
