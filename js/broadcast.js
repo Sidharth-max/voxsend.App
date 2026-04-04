@@ -183,10 +183,17 @@ window.checkActiveBroadcast = async function() {
 
     fetch('/api/broadcast/status').then(res => res.json()).then(status => {
         if (status.active) {
+            // Restore context
+            document.getElementById('msg').value = status.msg || '';
+            if (window.preview) window.preview();
+            
+            // Open the log area and clear it for the fresh session info
+            const logList = document.getElementById('log-list');
+            if (logList) logList.innerHTML = '';
+            document.getElementById('prog-wrap').classList.add('show');
+            
             window.startPolling();
-            document.getElementById('msg').value = status.msg;
-            window.preview();
-            window.addLog('info', `Reconnected to active background ${status.provider} broadcast.`);
+            window.addLog('info', `Reconnected to active ${status.provider} broadcast.`);
         }
     });
 };
@@ -216,7 +223,8 @@ window.startPolling = function() {
             // Sync logs
             if (status.logs && status.logs.length > 0) {
                 status.logs.forEach(log => {
-                    const logId = log.time + '|' + log.text;
+                    // Use a more unique ID including index or full content
+                    const logId = `${log.time}-${log.type}-${log.text}`;
                     if (!window.seenLogs.has(logId)) {
                         window.seenLogs.add(logId);
                         window.addLog(log.type, log.text);

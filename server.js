@@ -391,7 +391,7 @@ app.post('/api/broadcast', async (req, res) => {
                 logFailure(n, errMsg);
             } finally {
                 activeBroadcast.current++;
-                if (activeBroadcast.logs.length > 50) activeBroadcast.logs.shift();
+                // Removed cap to ensure full history is visible until broadcast ends
                 // For Vobiz: wait until the call actually finishes before releasing
                 // the concurrency slot — prevents "Concurrent Call Limit Reached"
                 if (waitForCallEnd) {
