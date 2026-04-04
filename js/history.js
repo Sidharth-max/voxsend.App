@@ -202,6 +202,8 @@ window.updateMetrics = async function() {
                 const formatted = `₹${Number(data.balance).toFixed(2)}`;
                 if (walletBal) walletBal.textContent = formatted;
                 if (mWalletBal) mWalletBal.textContent = formatted;
+                const mini = document.getElementById('sidebar-balance-mini');
+                if (mini) mini.textContent = formatted;
             }
         } catch (e) {
             console.error('Failed to fetch balance:', e);

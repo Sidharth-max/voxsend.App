@@ -355,10 +355,8 @@ window.renderBroadcastContacts = function() {
             <td style="padding: 8px;" class="b-check"><input type="checkbox" class="checkbox b-checkbox" ${isChecked ? 'checked' : ''} onchange="toggleBroadcastContact('${c.phone}', this.checked)" /></td>
             <td style="padding: 8px;" class="b-num"><div class="mono" style="color:var(--text3); font-size: 0.65rem;">${i + 1}</div></td>
             <td style="padding: 8px;" class="b-main">
-                <div style="font-weight:500;color:var(--text);font-size:0.75rem">${c.name || '—'}</div>
-                <div class="b-details-mobile">
-                    <div class="mono" style="color:var(--text2);font-size:0.65rem">${c.phone}</div>
-                </div>
+                <div style="font-weight:500;color:var(--text);font-size:0.8rem;">${c.name || '—'}</div>
+                <div class="mono" style="color:var(--text2);font-size:0.7rem;margin-top:2px;">${c.phone}</div>
             </td>
         </tr>
     `}).join('');

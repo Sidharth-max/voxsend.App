@@ -49,13 +49,19 @@
         </div>
     </div>
 
-    <div class="app" id="main-app" style="display:none;">
-
-        <!-- ── SIDEBAR (desktop) ─────────────── -->
-        <aside class="sidebar">
+    <div class="app" id="main-app" style="display:none;">        <!-- ── SIDEBAR (desktop) ─────────────────── -->
+        <aside class="sidebar" id="main-sidebar">
             <div class="sidebar-brand">
-                <span class="brand-name">Twilio Call Broadcast</span>
-                <span class="brand-sub">Broadcast System</span>
+                <div class="sidebar-brand-text">
+                    <span class="brand-name">Twilio Call Broadcast</span>
+                    <span class="brand-sub">Broadcast System</span>
+                </div>
+                <!-- Collapse toggle button -->
+                <button class="sidebar-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse/Expand sidebar">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                </button>
             </div>
 
             <nav class="sidebar-nav">
@@ -74,7 +80,7 @@
                         <path d="M10.5 5.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM3.5 13a4.5 4.5 0 019 0"
                             stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    Contacts
+                    <span>Contacts</span>
                 </div>
 
                 <div class="nav-item" id="snav-history" onclick="go('history')">
@@ -82,7 +88,7 @@
                         <rect x="2" y="3" width="12" height="10" rx="1.5" />
                         <path d="M5 7h6M5 10h4" stroke-linecap="round" />
                     </svg>
-                    History
+                    <span>History</span>
                 </div>
 
                 <div class="nav-section-label" style="margin-top:8px">Config</div>
@@ -92,7 +98,7 @@
                         <rect x="2" y="2" width="12" height="12" rx="2" />
                         <path d="M6 6l-2 2 2 2M10 6l2 2-2 2M9 5l-2 6" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    API Config
+                    <span>API Config</span>
                 </div>
 
                 <div class="nav-item" id="snav-settings" onclick="go('settings')">
@@ -120,6 +126,7 @@
                     <span class="dot"></span>
                     <span class="status-txt">API Online</span>
                 </div>
+                <div class="sidebar-balance-mini" id="sidebar-balance-mini"></div>
             </div>
         </aside>
 
@@ -928,6 +935,26 @@
     <script src="js/broadcast.js"></script>
     <script src="js/settings.js"></script>
     <script>
+        // ── Sidebar collapse ────────────────────────────────────────────────
+        (function () {
+            const sidebar = document.getElementById('main-sidebar');
+            const main = document.querySelector('.main');
+            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                document.body.classList.add('sidebar-collapsed');
+            }
+        })();
+
+        window.toggleSidebar = function () {
+            const sidebar = document.getElementById('main-sidebar');
+            const isNowCollapsed = !sidebar.classList.contains('collapsed');
+            sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed', isNowCollapsed);
+            localStorage.setItem('sidebar-collapsed', isNowCollapsed);
+        };
+
+        // ── Health check ────────────────────────────────────────────────────
         async function checkHealth() {
             try {
                 const res = await fetch('/api/health');

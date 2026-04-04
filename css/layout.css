@@ -23,28 +23,169 @@ body {
     display: flex;
     flex-direction: column;
     z-index: 100;
-    transition: transform .25s ease;
+    transition: width 0.25s ease;
+    overflow: hidden;
 }
 
+/* Collapsed state */
+.sidebar.collapsed {
+    width: var(--sidebar-w-collapsed);
+}
+
+/* Hover to expand when collapsed */
+.sidebar.collapsed:hover {
+    width: var(--sidebar-w);
+    box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+}
+
+/* --- Hide text labels when collapsed and NOT hovered --- */
+.sidebar.collapsed:not(:hover) .brand-name,
+.sidebar.collapsed:not(:hover) .brand-sub {
+    display: none;
+}
+
+.sidebar.collapsed:not(:hover) .nav-section-label {
+    visibility: hidden;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+.sidebar.collapsed:not(:hover) .nav-item span {
+    display: none;
+}
+
+.sidebar.collapsed:not(:hover) .status-txt {
+    display: none;
+}
+
+/* Collapsed wallet: hide the big card, show compact amount below status dot */
+.sidebar.collapsed:not(:hover) #wallet-wrap {
+    display: none !important;
+}
+
+.sidebar-balance-mini {
+    display: none;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--success);
+    text-align: center;
+    margin-top: 4px;
+}
+
+.sidebar.collapsed:not(:hover) .sidebar-balance-mini {
+    display: block;
+}
+
+/* Center icons when collapsed */
+.sidebar.collapsed:not(:hover) .nav-item {
+    justify-content: center;
+    padding: 12px 0;
+    gap: 0;
+}
+
+.sidebar.collapsed:not(:hover) .nav-item svg {
+    width: 20px;
+    height: 20px;
+    opacity: 0.7;
+}
+
+.sidebar.collapsed:not(:hover) .sidebar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 0 14px;
+}
+
+.sidebar.collapsed:not(:hover) .sidebar-footer {
+    align-items: center;
+    padding: 16px 0;
+}
+
+.sidebar.collapsed:not(:hover) .dot {
+    margin: 0;
+}
+
+
+
 .sidebar-brand {
-    padding: 18px 20px 16px;
+    padding: 16px 12px;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.sidebar-brand-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* Toggle button — inside the brand header */
+.sidebar-toggle {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    color: var(--text2);
+    margin-left: auto;
+}
+
+.sidebar-toggle:hover {
+    background: var(--surface);
+    color: var(--text);
+}
+
+.sidebar-toggle svg {
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+.sidebar.collapsed .sidebar-toggle svg {
+    transform: rotate(180deg);
+}
+
+/* Collapsed brand: center the toggle */
+.sidebar.collapsed:not(:hover) .sidebar-brand {
+    justify-content: center;
+    padding: 14px 0;
+}
+
+.sidebar.collapsed:not(:hover) .brand-name,
+.sidebar.collapsed:not(:hover) .brand-sub {
+    display: none;
 }
 
 .brand-name {
     font-family: 'Instrument Serif', serif;
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--text);
-    line-height: 1.4;
+    line-height: 1.2;
     display: block;
+    font-weight: 500;
 }
 
 .brand-sub {
-    font-size: 0.7143rem;
+    font-size: 0.65rem;
     color: var(--text3);
-    letter-spacing: .1em;
+    letter-spacing: .05em;
     text-transform: uppercase;
     margin-top: 2px;
+    display: block;
 }
 
 .sidebar-nav {
@@ -618,6 +759,12 @@ body {
 
     .main {
         margin-left: var(--sidebar-w);
+        transition: margin-left 0.25s ease;
+    }
+
+    /* When sidebar is collapsed, shrink main margin */
+    body.sidebar-collapsed .main {
+        margin-left: var(--sidebar-w-collapsed);
     }
 
     .content {
