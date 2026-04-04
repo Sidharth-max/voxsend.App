@@ -1,4 +1,5 @@
 let contacts = [];
+let contactsVisibleLimit = 100;
 
 window.loadContacts = async function() {
     try {
@@ -174,6 +175,10 @@ window.renderContacts = function() {
         if (sq && !c.name.toLowerCase().includes(sq) && !c.phone.includes(sq)) return false;
         return true;
     });
+
+    // Reset visible limit if it's a new search/filter
+    // We check if the search/filter changed from last time if we want to be more efficient,
+    // but for now, we'll let the event listeners handle resetting it.
     
     document.getElementById('contacts-count').textContent = `${contacts.length} total`;
     document.getElementById('check-all').checked = filtered.length > 0 && filtered.every(c => c.selected);
@@ -182,8 +187,10 @@ window.renderContacts = function() {
         tbody.innerHTML = '<tr><td colspan="6" class="empty">No contacts found.</td></tr>';
         return;
     }
+
+    const visible = filtered.slice(0, contactsVisibleLimit);
     
-    tbody.innerHTML = filtered.map((c, i) => `
+    tbody.innerHTML = visible.map((c, i) => `
         <tr>
             <td><input type="checkbox" class="checkbox" ${c.selected ? 'checked' : ''} onchange="toggleContact('${c.phone}', this.checked)" /></td>
             <td><div class="mono" style="color:var(--text3); font-size: 0.8rem;">${i + 1}</div></td>
@@ -195,6 +202,14 @@ window.renderContacts = function() {
             </td>
         </tr>
     `).join('');
+
+    if (filtered.length > contactsVisibleLimit) {
+        const moreRow = document.createElement('tr');
+        moreRow.innerHTML = `<td colspan="6" style="text-align:center; padding: 20px; color: var(--text3); font-size: 0.85rem;">
+            Showing ${contactsVisibleLimit} of ${filtered.length}. Scroll to load more...
+        </td>`;
+        tbody.appendChild(moreRow);
+    }
 };
 
 window.editContact = function(phone) {
@@ -361,4 +376,34 @@ window.addManualContact = async function() {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.loadContacts();
+
+    // Scroll to load more
+    const container = document.querySelector('.contacts-list');
+    if (container) {
+        container.addEventListener('scroll', () => {
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 50) {
+                const searchQ = document.getElementById('search-contacts');
+                const filterGroup = document.getElementById('filter-group');
+                const fv = filterGroup ? filterGroup.value : '';
+                const sq = searchQ ? searchQ.value.toLowerCase() : '';
+                
+                const filtered = contacts.filter(c => {
+                    if (fv && c.group !== fv) return false;
+                    if (sq && !c.name.toLowerCase().includes(sq) && !c.phone.includes(sq)) return false;
+                    return true;
+                });
+
+                if (contactsVisibleLimit < filtered.length) {
+                    contactsVisibleLimit += 100;
+                    window.renderContacts();
+                }
+            }
+        });
+    }
+
+    // Reset limit on input
+    const searchQ = document.getElementById('search-contacts');
+    const filterGroup = document.getElementById('filter-group');
+    if (searchQ) searchQ.addEventListener('input', () => { contactsVisibleLimit = 100; });
+    if (filterGroup) filterGroup.addEventListener('change', () => { contactsVisibleLimit = 100; });
 });

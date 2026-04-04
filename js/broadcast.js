@@ -1,5 +1,6 @@
 let lang = 'hi';
 window.lastNumStats = { total: 0, unique: 0, duplicatesRemoved: 0 };
+let broadcastVisibleLimit = 100;
 
 const cleanNumberEntry = (value = '') => {
     if (!value) return '';
@@ -323,6 +324,10 @@ window.renderBroadcastContacts = function() {
     const countEl = document.getElementById('b-contacts-count');
     if (countEl) countEl.textContent = `${contacts.length} total`;
     
+    document.getElementById('b-check-all').checked = filtered.length > 0 && filtered.every(c => {
+        return new Set(getNums().map(normalizeNumberKey)).has(normalizeNumberKey(c.phone));
+    });
+    
     const numsEl = document.getElementById('numbers');
     const existingStats = numsEl ? buildUniqueNumberList(numsEl.value.split('\n')) : { unique: [] };
     const existingArr = existingStats.unique;
@@ -333,7 +338,9 @@ window.renderBroadcastContacts = function() {
         return;
     }
     
-    tbody.innerHTML = filtered.map((c, i) => {
+    const visible = filtered.slice(0, broadcastVisibleLimit);
+    
+    tbody.innerHTML = visible.map((c, i) => {
         const isChecked = existingKeys.has(normalizeNumberKey(c.phone));
         return `
         <tr>
@@ -345,6 +352,14 @@ window.renderBroadcastContacts = function() {
             </td>
         </tr>
     `}).join('');
+
+    if (filtered.length > broadcastVisibleLimit) {
+        const moreRow = document.createElement('tr');
+        moreRow.innerHTML = `<td colspan="3" style="text-align:center; padding: 15px; color: var(--text3); font-size: 0.7rem;">
+            Showing ${broadcastVisibleLimit} of ${filtered.length}. Scroll to see more.
+        </td>`;
+        tbody.appendChild(moreRow);
+    }
 };
 
 window.toggleBroadcastContact = function(phone, isChecked) {
@@ -415,6 +430,36 @@ document.addEventListener('DOMContentLoaded', () => {
             updateRecipientsField(this.value.split('\n'), { preserveTrailingNewline: /\n$/.test(cleanVal) });
         });
     }
+
+    // Scroll to load more in sidebar
+    const broadcastSidebarWrap = document.querySelector('.broadcast-side .table-wrap');
+    if (broadcastSidebarWrap) {
+        broadcastSidebarWrap.addEventListener('scroll', () => {
+            if (broadcastSidebarWrap.scrollTop + broadcastSidebarWrap.clientHeight >= broadcastSidebarWrap.scrollHeight - 50) {
+                const searchQ = document.getElementById('b-search-contacts');
+                const filterGroup = document.getElementById('b-filter-group');
+                const fv = filterGroup ? filterGroup.value : '';
+                const sq = searchQ ? searchQ.value.toLowerCase() : '';
+                
+                const filtered = (typeof contacts !== 'undefined' ? contacts : []).filter(c => {
+                    if (fv && c.group !== fv) return false;
+                    if (sq && !c.name.toLowerCase().includes(sq) && !c.phone.includes(sq)) return false;
+                    return true;
+                });
+
+                if (broadcastVisibleLimit < filtered.length) {
+                    broadcastVisibleLimit += 100;
+                    window.renderBroadcastContacts();
+                }
+            }
+        });
+    }
+
+    // Reset limit on input
+    const bSearch = document.getElementById('b-search-contacts');
+    const bFilter = document.getElementById('b-filter-group');
+    if (bSearch) bSearch.addEventListener('input', () => { broadcastVisibleLimit = 100; });
+    if (bFilter) bFilter.addEventListener('change', () => { broadcastVisibleLimit = 100; });
     
     window.checkActiveBroadcast();
 });
