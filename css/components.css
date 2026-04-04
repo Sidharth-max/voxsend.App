@@ -539,12 +539,12 @@
         .table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9286rem;
+            font-size: 0.85rem;
             text-align: left;
         }
 
         .table th, .table td {
-            padding: 12px 16px;
+            padding: 8px 12px;
             border-bottom: 1px solid var(--border);
             white-space: nowrap;
         }
@@ -647,6 +647,14 @@
             margin-bottom: 4px;
         }
 
+        /* Desktop defaults for mobile-only elements */
+        .mobile-edit {
+            display: none;
+        }
+        .c-details-wrap, .b-details-mobile {
+            display: none;
+        }
+
         /* ── RESPONSIVE OVERRIDES ───────────────── */
         @media(max-width: 599px) {
             input[type=text], input[type=password], select, textarea {
@@ -736,17 +744,86 @@
             }
             .table-wrap {
                 margin: 0 -14px !important;
-                padding: 0 14px !important;
+                padding: 0 !important;
                 width: calc(100% + 28px) !important;
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch !important;
+                border-radius: 0;
+                border-left: none;
+                border-right: none;
             }
-            #contacts-table th, #contacts-table td {
-                min-width: 100px !important;
-                white-space: nowrap !important;
+            .table thead {
+                display: none;
             }
-            #contacts-table td:nth-child(2) { /* Phone column */
-                min-width: 140px !important;
+            .table tr {
+                display: flex;
+                flex-wrap: wrap;
+                padding: 16px;
+                border-bottom: 1px solid var(--border);
+                align-items: flex-start;
+                background: var(--surface);
+                transition: background 0.2s ease;
+            }
+            .table tr:hover {
+                background: var(--surface2);
+            }
+            .table td {
+                padding: 0 !important;
+                border: none !important;
+            }
+            .c-check, .b-check {
+                width: 24px;
+                margin-right: 12px;
+                margin-top: 2px;
+            }
+            .c-num, .b-num {
+                width: 20px;
+                margin-right: 12px;
+                margin-top: 4px;
+                opacity: 0.5;
+            }
+            .c-main, .b-main {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .c-name-wrap {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                width: 100%;
+            }
+            .c-name {
+                font-size: 1rem !important;
+                font-weight: 600 !important;
+                color: var(--text) !important;
+            }
+            .mobile-edit {
+                display: block !important;
+                flex-shrink: 0;
+                min-height: 32px !important;
+                padding: 4px 14px !important;
+                font-size: 0.75rem !important;
+                width: auto !important;
+            }
+            .c-details-wrap, .b-details-mobile {
+                display: flex !important;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                margin-top: 0;
+            }
+            .c-phone, .b-details-mobile div {
+                font-size: 0.85rem !important;
+                color: var(--text2) !important;
+                opacity: 0.8;
+            }
+            .c-group {
+                display: inline-block;
+                margin-top: 2px;
+            }
+            .c-phone-desktop, .c-group-desktop, .c-actions-desktop {
+                display: none !important;
             }
         }
 

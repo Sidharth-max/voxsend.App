@@ -191,13 +191,22 @@ window.renderContacts = function() {
     const visible = filtered.slice(0, contactsVisibleLimit);
     
     tbody.innerHTML = visible.map((c, i) => `
-        <tr>
-            <td><input type="checkbox" class="checkbox" ${c.selected ? 'checked' : ''} onchange="toggleContact('${c.phone}', this.checked)" /></td>
-            <td><div class="mono" style="color:var(--text3); font-size: 0.8rem;">${i + 1}</div></td>
-            <td><div style="font-weight:500;color:var(--text)">${c.name || '—'}</div></td>
-            <td><div class="mono" style="color:var(--text2)">${c.phone}</div></td>
-            <td>${c.group ? `<span class="badge">${c.group}</span>` : '—'}</td>
-            <td>
+        <tr class="c-row">
+            <td class="c-check"><input type="checkbox" class="checkbox" ${c.selected ? 'checked' : ''} onchange="toggleContact('${c.phone}', this.checked)" /></td>
+            <td class="c-num"><div class="mono" style="color:var(--text3); font-size: 0.75rem;">${i + 1}</div></td>
+            <td class="c-main">
+                <div class="c-name-wrap">
+                    <div class="c-name" style="font-weight:500;color:var(--text); font-size: 0.85rem;">${c.name || '—'}</div>
+                    <button class="btn btn-secondary btn-sm mobile-edit" onclick="editContact('${c.phone}')">EDIT</button>
+                </div>
+                <div class="c-details-wrap">
+                    <div class="c-phone mono" style="color:var(--text2); font-size: 0.8rem;">${c.phone}</div>
+                    ${c.group ? `<span class="badge c-group" style="font-size: 0.65rem;">${c.group}</span>` : ''}
+                </div>
+            </td>
+            <td class="c-phone-desktop"><div class="mono" style="color:var(--text2); font-size: 0.8rem;">${c.phone}</div></td>
+            <td class="c-group-desktop">${c.group ? `<span class="badge" style="font-size: 0.65rem;">${c.group}</span>` : '—'}</td>
+            <td class="c-actions-desktop">
                 <button class="btn btn-secondary btn-sm" onclick="editContact('${c.phone}')" style="width:auto; padding:4px 10px; font-size:10px;">EDIT</button>
             </td>
         </tr>
@@ -217,12 +226,57 @@ window.editContact = function(phone) {
     if (!c) return;
 
     editingPhone = phone;
-    document.getElementById('man-name').value = c.name || '';
-    document.getElementById('man-phone').value = c.phone || '';
-    document.getElementById('man-group').value = c.group || '';
+    document.getElementById('edit-name').value = c.name || '';
+    document.getElementById('edit-phone').value = c.phone || '';
+    document.getElementById('edit-group').value = c.group || '';
 
-    const btn = document.querySelector('button[onclick="addManualContact()"]');
-    if (btn) btn.textContent = 'Update';
+    const modal = document.getElementById('edit-contact-modal');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.closeEditContact = function() {
+    const modal = document.getElementById('edit-contact-modal');
+    if (modal) modal.style.display = 'none';
+    editingPhone = null;
+};
+
+window.saveEditedContact = async function() {
+    if (!editingPhone) return;
+
+    const name = document.getElementById('edit-name').value.trim();
+    const phoneInput = document.getElementById('edit-phone').value.trim();
+    const group = document.getElementById('edit-group').value.trim();
+
+    if (!phoneInput) return window.showToast("Phone number is required.", "error");
+
+    let p = phoneInput.replace(/\s+/g, '');
+    const phone = p.startsWith('+') ? p : '+' + p;
+
+    const existingIndex = contacts.findIndex(c => c.phone === editingPhone);
+    if (existingIndex !== -1) {
+        const updatedContact = {
+            ...contacts[existingIndex],
+            name,
+            phone,
+            group
+        };
+        
+        // Update local array
+        contacts[existingIndex] = updatedContact;
+
+        try {
+            await upsertContacts([updatedContact]);
+            window.showToast("Contact updated.", "success");
+        } catch (e) {
+            console.error(e);
+            window.showToast("Failed to sync update.", "error");
+        }
+    }
+
+    window.closeEditContact();
+    window.updateGroups();
+    window.renderContacts();
+    if (window.renderBroadcastContacts) window.renderBroadcastContacts();
 };
 
 window.toggleContact = function(phone, isChecked) {
@@ -339,29 +393,15 @@ window.addManualContact = async function() {
     let p = phoneInput.replace(/\s+/g, '');
     const phone = p.startsWith('+') ? p : '+' + p;
     
-    if (editingPhone) {
-        const existing = contacts.find(c => c.phone === editingPhone);
-        if (existing) {
-            existing.name = name;
-            existing.phone = phone;
-            existing.group = group;
-            // Only send this one contact
-            try { await upsertContacts([existing]); } catch(e) { console.error(e); }
-        }
-        editingPhone = null;
-        const btn = document.querySelector('button[onclick="addManualContact()"]');
-        if (btn) btn.textContent = 'Add';
+    const existing = contacts.find(c => c.phone === phone);
+    if (existing) {
+        if (name) existing.name = name;
+        if (group) existing.group = group;
+        try { await upsertContacts([existing]); } catch(e) { console.error(e); }
     } else {
-        const existing = contacts.find(c => c.phone === phone);
-        if (existing) {
-            if (name) existing.name = name;
-            if (group) existing.group = group;
-            try { await upsertContacts([existing]); } catch(e) { console.error(e); }
-        } else {
-            const newContact = { name, phone, group, selected: false };
-            contacts.push(newContact);
-            try { await upsertContacts([newContact]); } catch(e) { console.error(e); }
-        }
+        const newContact = { name, phone, group, selected: false };
+        contacts.push(newContact);
+        try { await upsertContacts([newContact]); } catch(e) { console.error(e); }
     }
     
     document.getElementById('man-name').value = '';
