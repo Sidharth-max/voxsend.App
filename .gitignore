@@ -26,4 +26,6 @@ messages.json
 settings.json
 history.json
 voxsend.db
+voxsend.db-shm
+voxsend.db-wal
 *.json
