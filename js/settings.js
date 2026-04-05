@@ -36,11 +36,11 @@ window.applyTrustName = function (name) {
 
 window.saveAppSettings = function () {
     const settings = {
-        trust_name: document.getElementById('trust-name-input').value.trim(),
+        org_name: document.getElementById('trust-name-input').value.trim(),
         parallel_calls: document.getElementById('parallel-calls').value,
-        retry_toggle: document.getElementById('retry-toggle').checked,
-        default_lang: document.getElementById('default-lang').value,
-        call_delay: document.getElementById('call-delay').value
+        retry_failed: document.getElementById('retry-toggle').checked ? 1 : 0,
+        default_language: document.getElementById('default-lang').value,
+        delay_ms: document.getElementById('call-delay').value
     };
 
     fetch('/api/settings', {
@@ -56,14 +56,14 @@ window.saveAppSettings = function () {
 
 window.loadAppSettings = function () {
     fetch('/api/settings').then(res => res.json()).then(s => {
-        if (s.trust_name) {
-            document.getElementById('trust-name-input').value = s.trust_name;
-            window.applyTrustName(s.trust_name);
+        if (s.org_name) {
+            document.getElementById('trust-name-input').value = s.org_name;
+            window.applyTrustName(s.org_name);
         }
         if (s.parallel_calls) document.getElementById('parallel-calls').value = s.parallel_calls;
-        if (s.retry_toggle !== undefined) document.getElementById('retry-toggle').checked = s.retry_toggle;
-        if (s.default_lang) document.getElementById('default-lang').value = s.default_lang;
-        if (s.call_delay) document.getElementById('call-delay').value = s.call_delay;
+        if (s.retry_failed !== undefined) document.getElementById('retry-toggle').checked = !!s.retry_failed;
+        if (s.default_language) document.getElementById('default-lang').value = s.default_language;
+        if (s.delay_ms) document.getElementById('call-delay').value = s.delay_ms;
     }).catch(e => console.error("Error loading settings:", e));
 };
 

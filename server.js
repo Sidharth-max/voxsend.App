@@ -69,7 +69,7 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY DEFAULT 1,
-    parallel_calls INTEGER DEFAULT 3,
+    parallel_calls INTEGER DEFAULT 10,
     retry_failed INTEGER DEFAULT 0,
     default_language TEXT DEFAULT 'hi-IN',
     delay_ms INTEGER DEFAULT 200,
@@ -105,6 +105,12 @@ try {
 const settingsExists = db.prepare('SELECT id FROM settings WHERE id=1').get();
 if (!settingsExists) {
     db.prepare('INSERT INTO settings (id) VALUES (1)').run();
+} else if (settingsExists) {
+    // Migrate: upgrade parallel_calls from old default of 3 → 10 (Vobiz plan upgraded)
+    const row = db.prepare('SELECT parallel_calls FROM settings WHERE id=1').get();
+    if (row && row.parallel_calls <= 3) {
+        db.prepare('UPDATE settings SET parallel_calls=10 WHERE id=1').run();
+    }
 }
 
 app.use(cors());
@@ -257,9 +263,12 @@ app.post('/api/broadcast', async (req, res) => {
             }
         }
 
-        // ── Semaphore: limit concurrent calls to respect Vobiz plan ──────
-        // Vobiz plan = 3 concurrent calls; use 1 to guarantee no concurrency errors
-        const MAX_CONCURRENT = currentProvider === 'vobiz' ? 1 : 10;
+        // ── Semaphore: limit concurrent calls ────────────────────────────
+        // For Vobiz: read from settings (default 10, max 10 per plan)
+        // For Twilio: use settings value without a plan cap
+        const dbSettings = db.prepare('SELECT parallel_calls FROM settings WHERE id=1').get();
+        const configuredConcurrent = (dbSettings && dbSettings.parallel_calls) ? parseInt(dbSettings.parallel_calls) : 10;
+        const MAX_CONCURRENT = currentProvider === 'vobiz' ? Math.min(configuredConcurrent, 10) : configuredConcurrent;
         let activeSlots = 0;
         const waiting = [];
 
@@ -435,17 +444,12 @@ app.post('/api/broadcast', async (req, res) => {
                 // For Vobiz: wait until the call actually finishes before releasing
                 // the concurrency slot — prevents "Concurrent Call Limit Reached"
                 if (currentProvider === 'vobiz') {
-                    // GUARANTEED minimum wait: at least 30s per call even if callback/polling fail
-                    // This ensures we never rapid-fire calls
-                    const minWait = new Promise(resolve => setTimeout(resolve, 30000));
                     if (waitForCallEnd) {
-                        // Wait for BOTH: call to end AND minimum time to pass
-                        await Promise.all([waitForCallEnd, minWait]);
-                    } else {
-                        await minWait;
+                        // Wait for call to finish before releasing concurrency slot
+                        await waitForCallEnd;
                     }
-                    // Extra 3s buffer after call confirmed done
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    // Brief buffer after call confirmed done
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 } else if (waitForCallEnd) {
                     await waitForCallEnd;
                 }
@@ -453,7 +457,7 @@ app.post('/api/broadcast', async (req, res) => {
             }
         };
 
-        // Kick off all calls; semaphore gates concurrency (1 at a time for Vobiz)
+        // Kick off all calls; semaphore gates concurrency (10 at a time for Vobiz)
         const tasks = recipientList.map((raw, i) => {
             let n = raw.trim();
             if (!n.startsWith('+')) n = '+' + n;
