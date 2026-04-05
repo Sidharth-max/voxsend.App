@@ -69,7 +69,7 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY DEFAULT 1,
-    parallel_calls INTEGER DEFAULT 10,
+    parallel_calls INTEGER DEFAULT 12,
     retry_failed INTEGER DEFAULT 0,
     default_language TEXT DEFAULT 'hi-IN',
     delay_ms INTEGER DEFAULT 200,
@@ -106,10 +106,10 @@ const settingsExists = db.prepare('SELECT id FROM settings WHERE id=1').get();
 if (!settingsExists) {
     db.prepare('INSERT INTO settings (id) VALUES (1)').run();
 } else if (settingsExists) {
-    // Migrate: upgrade parallel_calls from old default of 3 → 10 (Vobiz plan upgraded)
+    // Migrate: upgrade parallel_calls if still at old defaults (3 or 10) → 12 (Vobiz plan = 13, using 12 as safe limit)
     const row = db.prepare('SELECT parallel_calls FROM settings WHERE id=1').get();
-    if (row && row.parallel_calls <= 3) {
-        db.prepare('UPDATE settings SET parallel_calls=10 WHERE id=1').run();
+    if (row && row.parallel_calls <= 10) {
+        db.prepare('UPDATE settings SET parallel_calls=12 WHERE id=1').run();
     }
 }
 
@@ -264,11 +264,11 @@ app.post('/api/broadcast', async (req, res) => {
         }
 
         // ── Semaphore: limit concurrent calls ────────────────────────────
-        // For Vobiz: read from settings (default 10, max 10 per plan)
-        // For Twilio: use settings value without a plan cap
+        // Vobiz plan limit = 13 concurrent calls; use 12 to keep 1 slot buffer
+        const VOBIZ_PLAN_LIMIT = 12;
         const dbSettings = db.prepare('SELECT parallel_calls FROM settings WHERE id=1').get();
-        const configuredConcurrent = (dbSettings && dbSettings.parallel_calls) ? parseInt(dbSettings.parallel_calls) : 10;
-        const MAX_CONCURRENT = currentProvider === 'vobiz' ? Math.min(configuredConcurrent, 10) : configuredConcurrent;
+        const configuredConcurrent = (dbSettings && dbSettings.parallel_calls) ? parseInt(dbSettings.parallel_calls) : VOBIZ_PLAN_LIMIT;
+        const MAX_CONCURRENT = currentProvider === 'vobiz' ? Math.min(configuredConcurrent, VOBIZ_PLAN_LIMIT) : configuredConcurrent;
         let activeSlots = 0;
         const waiting = [];
 
