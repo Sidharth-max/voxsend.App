@@ -216,6 +216,41 @@ window.updateMetrics = async function() {
     }
 };
 
+// Extract phone numbers from failed/missed log entries
+window.getFailedNumbers = function(h) {
+    let logs = [];
+    try { logs = typeof h.results === 'string' ? JSON.parse(h.results) : (h.results || []); } catch(e) {}
+    const failed = [];
+    logs.forEach(log => {
+        if (log.type !== 'err') return;
+        // Log format: "[provider] Failed +91XXXXXXXXXX: <reason>"  or  "Network error: ... for +91XXXXXXXXXX"
+        const matches = (log.text || '').match(/\+\d{7,15}/g);
+        if (matches) failed.push(...matches);
+    });
+    // Deduplicate
+    return [...new Set(failed)];
+};
+
+window.retryFailedCalls = function(index) {
+    const h = historyData[index];
+    if (!h) return;
+    const failed = window.getFailedNumbers(h);
+    if (!failed.length) { window.showToast("No failed numbers found.", "info"); return; }
+
+    const msgEl = document.getElementById('msg');
+    if (msgEl) msgEl.value = h.message || '';
+
+    if (typeof window.setRecipientNumbers === 'function') {
+        window.setRecipientNumbers(failed);
+    } else {
+        const numsEl = document.getElementById('numbers');
+        if (numsEl) numsEl.value = failed.join('\n');
+    }
+
+    window.showToast(`Loaded ${failed.length} failed number${failed.length > 1 ? 's' : ''} for retry.`, "success");
+    go('broadcast');
+};
+
 window.renderHistory = function() {
     const list = document.getElementById('hist-list');
     if(!list) return;
@@ -289,10 +324,16 @@ window.renderHistory = function() {
                     </div>
                 </div>
 
-                <div class="hist-card-actions" style="display:flex; justify-content:space-between; align-items:center;">
-                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); repeatBroadcast(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px;">
-                        RE-USE BROADCAST
-                    </button>
+                <div class="hist-card-actions" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); repeatBroadcast(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px;">
+                            RE-USE BROADCAST
+                        </button>
+                        ${window.getFailedNumbers(h).length > 0 ? `
+                        <button class="btn btn-sm" onclick="event.stopPropagation(); retryFailedCalls(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px; background:var(--warning, #f59e0b); color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
+                            ↺ RETRY ${window.getFailedNumbers(h).length} FAILED
+                        </button>` : ''}
+                    </div>
                     <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); deleteHistoryEntry(${h._index}, ${h.id ? h.id : 'null'})" style="width:auto; height:32px; font-size:11px; padding:0 12px; color:var(--error);">
                         DELETE
                     </button>
@@ -324,6 +365,22 @@ window.showHistoryDetails = function(index) {
         closeHistoryDetails();
         repeatBroadcast(index);
     };
+
+    // setup retry failed button — only show if there are failed numbers
+    const retryBtn = document.getElementById('mdl-retry-failed');
+    const failedNums = window.getFailedNumbers(h);
+    if (retryBtn) {
+        if (failedNums.length > 0) {
+            retryBtn.style.display = 'inline-flex';
+            retryBtn.textContent = `↺ Retry ${failedNums.length} Failed`;
+            retryBtn.onclick = () => {
+                closeHistoryDetails();
+                retryFailedCalls(index);
+            };
+        } else {
+            retryBtn.style.display = 'none';
+        }
+    }
 
     document.getElementById('hist-modal').style.display = 'flex';
 };
