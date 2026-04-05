@@ -258,8 +258,8 @@ app.post('/api/broadcast', async (req, res) => {
         }
 
         // ── Semaphore: limit concurrent calls to respect Vobiz plan ──────
-        // Vobiz free plan = 3 concurrent calls; use 2 to leave safety buffer
-        const MAX_CONCURRENT = currentProvider === 'vobiz' ? 2 : 10;
+        // Vobiz plan = 3 concurrent calls; use 1 to guarantee no concurrency errors
+        const MAX_CONCURRENT = currentProvider === 'vobiz' ? 1 : 10;
         let activeSlots = 0;
         const waiting = [];
 
@@ -295,7 +295,47 @@ app.post('/api/broadcast', async (req, res) => {
         // ~750 chars/min speaking rate + 30s for ringing/buffer
         const msgLen = (msg || '').length;
         const estimatedCallSec = Math.ceil((msgLen / 750) * 60) + 60; // Extra buffer
-        const callTimeoutMs = Math.max(estimatedCallSec * 1000, 120000); // at least 120s to avoid releasing slots too early
+        const callTimeoutMs = Math.max(estimatedCallSec * 1000, 180000); // at least 180s
+
+        // ── Poll Vobiz API for call status (fallback if hangup callback doesn't arrive) ──
+        const pollCallComplete = async (callUuid) => {
+            const POLL_INTERVAL = 5000; // 5 seconds
+            const MAX_POLLS = Math.ceil(callTimeoutMs / POLL_INTERVAL);
+            for (let i = 0; i < MAX_POLLS; i++) {
+                // If hangup callback already resolved, stop polling
+                if (!callCompletionResolvers.has(callUuid)) return;
+                try {
+                    const statusRes = await fetch(`https://api.vobiz.ai/api/v1/Account/${vobiz_id}/Call/${callUuid}/`, {
+                        headers: {
+                            'X-Auth-ID': vobiz_id,
+                            'X-Auth-Token': vobiz_token
+                        }
+                    });
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        const callStatus = (statusData.call_status || statusData.status || '').toLowerCase();
+                        // Terminal statuses: completed, failed, busy, no-answer, canceled
+                        if (['completed', 'failed', 'busy', 'no-answer', 'canceled', 'hangup'].includes(callStatus)) {
+                            console.log(`[Poll] Call ${callUuid} ended with status: ${callStatus}`);
+                            if (callCompletionResolvers.has(callUuid)) {
+                                callCompletionResolvers.get(callUuid)();
+                                callCompletionResolvers.delete(callUuid);
+                            }
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.error(`[Poll] Error checking call ${callUuid}:`, e.message);
+                }
+                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+            }
+            // Timeout — force resolve
+            if (callCompletionResolvers.has(callUuid)) {
+                console.log(`[Poll] Call ${callUuid} timed out, releasing slot`);
+                callCompletionResolvers.get(callUuid)();
+                callCompletionResolvers.delete(callUuid);
+            }
+        };
 
         const callOne = async (n, index) => {
             await acquire();
@@ -310,7 +350,7 @@ app.post('/api/broadcast', async (req, res) => {
                 let resOk = false;
                 let resMsg = '';
                 let attempts = 0;
-                let maxAttempts = currentProvider === 'vobiz' ? 6 : 1; // 6 attempts * 10s = 1 min waiting
+                let maxAttempts = currentProvider === 'vobiz' ? 10 : 1; // 10 attempts * 15s = 2.5 min max wait
 
                 while (attempts < maxAttempts) {
                     attempts++;
@@ -344,20 +384,21 @@ app.post('/api/broadcast', async (req, res) => {
                         const errorText = resMsg.toLowerCase();
                         if (!resOk && (vobizRes.status === 429 || errorText.includes('concurren') || errorText.includes('limit') || errorText.includes('capacity'))) {
                             if (attempts < maxAttempts) {
-                                activeBroadcast.logs.push({ type: 'info', text: `[Vobiz] Concurrency limit reached. Waiting 10s before retry (Attempt ${attempts})...`, time: new Date().toLocaleTimeString() });
-                                await new Promise(resolve => setTimeout(resolve, 10000));
+                                const waitSec = 15;
+                                activeBroadcast.logs.push({ type: 'info', text: `[Vobiz] Concurrency limit hit. Waiting ${waitSec}s before retry (${attempts}/${maxAttempts})...`, time: new Date().toLocaleTimeString() });
+                                await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
                                 continue; // Try again
                             }
                         }
     
-                        // If call was initiated, prepare to wait for it to actually finish
-                        // so we don't exceed the Vobiz concurrent call limit
+                        // If call was initiated, wait for it to actually finish
+                        // Uses BOTH hangup callback AND active polling as fallback
                         if (resOk && rjson.call_uuid) {
                             const callUuid = rjson.call_uuid;
-                            waitForCallEnd = Promise.race([
-                                new Promise(resolve => callCompletionResolvers.set(callUuid, resolve)),
-                                new Promise(resolve => setTimeout(resolve, callTimeoutMs))
-                            ]).then(() => callCompletionResolvers.delete(callUuid));
+                            const callbackPromise = new Promise(resolve => callCompletionResolvers.set(callUuid, resolve));
+                            // Start polling in background (will auto-stop if callback resolves first)
+                            pollCallComplete(callUuid);
+                            waitForCallEnd = callbackPromise.then(() => callCompletionResolvers.delete(callUuid));
                         }
                         break; // Action completed, stop retrying
                     } else {
@@ -391,17 +432,28 @@ app.post('/api/broadcast', async (req, res) => {
                 logFailure(n, errMsg);
             } finally {
                 activeBroadcast.current++;
-                // Removed cap to ensure full history is visible until broadcast ends
                 // For Vobiz: wait until the call actually finishes before releasing
                 // the concurrency slot — prevents "Concurrent Call Limit Reached"
-                if (waitForCallEnd) {
+                if (currentProvider === 'vobiz') {
+                    // GUARANTEED minimum wait: at least 30s per call even if callback/polling fail
+                    // This ensures we never rapid-fire calls
+                    const minWait = new Promise(resolve => setTimeout(resolve, 30000));
+                    if (waitForCallEnd) {
+                        // Wait for BOTH: call to end AND minimum time to pass
+                        await Promise.all([waitForCallEnd, minWait]);
+                    } else {
+                        await minWait;
+                    }
+                    // Extra 3s buffer after call confirmed done
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                } else if (waitForCallEnd) {
                     await waitForCallEnd;
                 }
                 release();
             }
         };
 
-        // Kick off all calls; semaphore waits for each call to finish (Vobiz)
+        // Kick off all calls; semaphore gates concurrency (1 at a time for Vobiz)
         const tasks = recipientList.map((raw, i) => {
             let n = raw.trim();
             if (!n.startsWith('+')) n = '+' + n;
