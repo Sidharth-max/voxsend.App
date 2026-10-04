@@ -198,6 +198,8 @@
                                                 id="pill-hi">Hindi</button>
                                             <button class="lang-pill" onclick="setLang('en')"
                                                 id="pill-en">English</button>
+                                            <button class="lang-pill" onclick="setLang('gu')"
+                                                id="pill-gu" style="display:none">Gujarati</button>
                                         </div>
 
                                         <div id="vobiz-voice-wrap" style="display:none; margin-left:12px;">
@@ -211,8 +213,14 @@
                                     </div>
                                 </div>
                                 <div class="block-body">
+                                    <div id="sarvam-mode-note" class="hint" style="display:none; margin-bottom:12px; padding:10px 12px; border:1px solid var(--border); border-radius:10px;">
+                                        <strong style="color:var(--text)">Sarvam agent mode.</strong>
+                                        Your Sarvam agent runs the whole call: it plays its saved greeting and answers callers' questions
+                                        using the instructions you set up on Sarvam. Leave the message empty to use that greeting, or type one
+                                        to replace only the opening greeting for this broadcast. Conversations appear under History → Sarvam Conversations.
+                                    </div>
                                     <div class="field">
-                                        <label class="field-label">Voice message text</label>
+                                        <label class="field-label" id="msg-label">Voice message text</label>
                                         <textarea id="msg" class="hindi"
                                             placeholder="नमस्ते! हमारा कार्यक्रम कल 11 बजे है। कृपया समय पर पधारें। धन्यवाद।"
                                             oninput="preview()"></textarea>
@@ -245,12 +253,6 @@
                                             Removed 0 duplicate numbers automatically.
                                         </p>
                                     </div>
-                                    <div class="cost-strip" id="cost-strip" style="display:none">
-                                        <div class="ci">Calls <strong id="cs-n">0</strong></div>
-                                        <div class="ci">Rate <strong>₹0.70/min</strong></div>
-                                        <div class="ci">TTS <strong style="color:var(--success)">Free</strong></div>
-                                        <div class="ci">Est. total <strong id="cs-cost">₹0</strong></div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -266,6 +268,33 @@
                                         </svg>
                                         Send to All Members
                                     </button>
+                                    <div class="field" style="margin-top:18px;">
+                                        <label class="field-label">Or schedule for later</label>
+                                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                            <div style="flex:1; min-width:140px;">
+                                                <span class="hint">From</span>
+                                                <div data-vx-picker="date" id="sched-from" data-placeholder="Pick a date" oninput="updateSchedulePreview()"></div>
+                                            </div>
+                                            <div style="flex:1; min-width:140px;">
+                                                <span class="hint">To (optional)</span>
+                                                <div data-vx-picker="date" id="sched-to" data-placeholder="Same day" data-clearable oninput="updateSchedulePreview()"></div>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top:10px;">
+                                            <span class="hint">Times each day</span>
+                                            <div id="sched-times" style="display:flex; flex-direction:column; gap:8px; margin-top:4px;"></div>
+                                            <button class="btn btn-secondary btn-sm" onclick="addScheduleTime()"
+                                                style="width:auto; margin-top:8px; padding:4px 14px;">+ Add time</button>
+                                        </div>
+                                        <p class="hint" id="sched-preview" style="margin-top:10px;">Pick a date and at least one time.</p>
+                                        <button class="btn btn-secondary" id="schedule-btn" onclick="scheduleBlast()" disabled
+                                            style="margin-top:6px;">Schedule</button>
+                                        <p class="hint">Uses your browser's time zone. The server places the calls at each time, so it must be running then.</p>
+                                    </div>
+                                    <div id="sched-wrap" style="display:none; margin-top:14px;">
+                                        <label class="field-label">Scheduled calls</label>
+                                        <div id="sched-list"></div>
+                                    </div>
                                     <div class="prog-wrap" id="prog-wrap" style="margin-top:24px;">
                                         <div class="prog-track">
                                             <div class="prog-fill" id="prog-fill"></div>
@@ -435,6 +464,7 @@
                     <div class="lang-pills" style="margin-bottom:20px;">
                         <button class="lang-pill active" id="sub-broadcast" onclick="setHistTab('broadcast')">Broadcast History</button>
                         <button class="lang-pill" id="sub-vobiz" onclick="setHistTab('vobiz')">Vobiz Call Logs</button>
+                        <button class="lang-pill" id="sub-sarvam" onclick="setHistTab('sarvam')">Sarvam Conversations</button>
                     </div>
 
                     <div id="hist-broadcast-content">
@@ -457,6 +487,12 @@
                             </table>
                         </div>
                         <div id="vobiz-logs-empty" class="empty" style="display:none;">No recent Vobiz logs found.</div>
+                    </div>
+
+                    <div id="hist-sarvam-content" style="display:none;">
+                        <p class="hint" style="margin-bottom:12px;">Answers come from your Sarvam agent's own instructions. Transcripts arrive only when the Public URL is reachable by Sarvam.</p>
+                        <div id="sarvam-calls-list" class="history-list"></div>
+                        <div id="sarvam-calls-empty" class="empty" style="display:none;">No Sarvam calls yet.</div>
                     </div>
                 </div>
 
@@ -495,6 +531,7 @@
                                     <select id="provider-select" onchange="toggleProviderFields()">
                                         <option value="twilio">Twilio</option>
                                         <option value="vobiz">Vobiz.ai</option>
+                                        <option value="sarvam">Sarvam AI</option>
                                     </select>
                                 </div>
 
@@ -534,16 +571,60 @@
                                         <input type="text" id="vobiz-from" class="mono" placeholder="+1XXXXXXXXXX"
                                             autocomplete="new-password" />
                                     </div>
-<div class="field">
+                                </div>
+
+                                <!-- Sarvam Fields -->
+                                <div id="sarvam-fields" style="display:none">
+                                    <div class="field">
+                                        <label class="field-label">API Key</label>
+                                        <input type="password" id="sarvam-key" class="mono" placeholder="••••••••••••••••"
+                                            autocomplete="new-password" />
+                                        <p class="hint">Sarvam dashboard → Settings → API Key.</p>
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Org ID</label>
+                                        <input type="text" id="sarvam-org" class="mono" placeholder="org id"
+                                            autocomplete="new-password" />
+                                        <p class="hint">Copy the Org and Workspace IDs from your Sarvam dashboard URL.</p>
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Workspace ID</label>
+                                        <input type="text" id="sarvam-workspace" class="mono" placeholder="workspace id"
+                                            autocomplete="new-password" />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Agent ID</label>
+                                        <input type="text" id="sarvam-app-id" class="mono" placeholder="agent (app) id"
+                                            autocomplete="new-password" />
+                                        <p class="hint">An announcement agent: it says the opening message it is given, then ends the call.</p>
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Agent Version</label>
+                                        <input type="text" id="sarvam-app-version" class="mono" placeholder="1"
+                                            autocomplete="new-password" />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">Connection ID</label>
+                                        <input type="text" id="sarvam-connection-id" class="mono" placeholder="telephony connection id"
+                                            autocomplete="new-password" />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field-label">From Number</label>
+                                        <input type="text" id="sarvam-from" class="mono" placeholder="+91XXXXXXXXXX"
+                                            autocomplete="new-password" />
+                                        <p class="hint">The Sarvam phone number the calls come from.</p>
+                                    </div>
+                                </div>
+
+<div class="field" id="public-url-wrap" style="display:none">
     <label class="field-label">Public URL (for callbacks)</label>
     <div style="display:flex; gap:10px;">
         <input type="text" id="public-url" class="mono" placeholder="https://your-app.com"
             autocomplete="off" style="flex:1" />
         <button class="btn btn-secondary btn-sm" onclick="copyPublicUrl()" style="width:auto; margin:0">Copy</button>
     </div>
-    <p class="hint">Required for Vobiz/Twilio to fetch voice instructions. In production, use your domain (e.g., <code>https://broadcast.yourcompany.com</code>). For local testing, use <code>npx localtunnel --port 3000</code>.</p>
+    <p class="hint">Required for Vobiz to fetch voice instructions. For Sarvam it is used for call-result webhooks (optional). In production, use your domain (e.g., <code>https://broadcast.yourcompany.com</code>). For local testing, use <code>npx localtunnel --port 3000</code>.</p>
 </div>
-                                </div>
 
                                 <button class="btn" id="save-btn" onclick="saveCfg()">Save Credentials</button>
                             </div>
@@ -939,6 +1020,7 @@
     </div>
 
     <script src="js/app.js"></script>
+    <script src="js/pickers.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/history.js"></script>
     <script src="js/library.js"></script>

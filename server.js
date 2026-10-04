@@ -3,9 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const Database = require('better-sqlite3');
+const fs = require('fs');
+const sarvam = require('./sarvam');
 const app = express();
 
-const db = new Database('voxsend.db');
+const db = new Database(process.env.DB_PATH || 'voxsend.db');
 
 // Performance pragmas — WAL mode gives much faster concurrent writes
 db.pragma('journal_mode = WAL');
@@ -89,6 +91,33 @@ db.exec(`
     broadcast_started_at TEXT,
     failed_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS sarvam_calls (
+    attempt_id TEXT PRIMARY KEY,
+    phone TEXT,
+    status TEXT,
+    duration REAL,
+    failure_reason TEXT,
+    transcript TEXT,
+    agent_variables TEXT,
+    message TEXT,
+    broadcast_started_at TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME
+  );
+  CREATE TABLE IF NOT EXISTS scheduled_calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message TEXT NOT NULL,
+    language TEXT,
+    voice TEXT,
+    provider TEXT NOT NULL,
+    recipients TEXT NOT NULL,
+    run_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    note TEXT,
+    sent_by TEXT,
+    group_id TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 try {
@@ -99,6 +128,10 @@ try {
 
 try {
   db.prepare('ALTER TABLE history ADD COLUMN recipients TEXT').run();
+} catch (e) {}
+
+try {
+  db.prepare('ALTER TABLE scheduled_calls ADD COLUMN group_id TEXT').run();
 } catch (e) {}
 
 // Initialize settings if not exists
@@ -191,6 +224,7 @@ app.delete('/api/contacts', (req, res) => {
 
 let activeBroadcast = null;
 const callCompletionResolvers = new Map();
+const sarvamPending = new Map(); // attempt_id -> { phone, done }
 
 app.get('/api/broadcast/status', (req, res) => {
     res.json(activeBroadcast || { active: false });
@@ -205,16 +239,62 @@ app.post('/api/broadcast/stop', (req, res) => {
     }
 });
 
-app.post('/api/broadcast', async (req, res) => {
-    const { nums, msg, credentials, lang, sentBy, provider } = req.body;
+// Credentials as stored server-side in .env (used by the credentials API and the scheduler).
+const getEnvCredentials = () => ({
+    sid: process.env.TWILIO_ACCOUNT_SID,
+    token: process.env.TWILIO_AUTH_TOKEN,
+    from: process.env.TWILIO_FROM,
+    vobiz_id: process.env.VOBIZ_AUTH_ID,
+    vobiz_token: process.env.VOBIZ_AUTH_TOKEN,
+    vobiz_from: process.env.VOBIZ_FROM,
+    sarvam_key: process.env.SARVAM_API_KEY,
+    sarvam_org: process.env.SARVAM_ORG_ID,
+    sarvam_workspace: process.env.SARVAM_WORKSPACE_ID,
+    sarvam_app_id: process.env.SARVAM_APP_ID,
+    sarvam_app_version: process.env.SARVAM_APP_VERSION,
+    sarvam_connection_id: process.env.SARVAM_CONNECTION_ID,
+    sarvam_from: process.env.SARVAM_FROM,
+    provider: process.env.PROVIDER || 'twilio',
+    public_url: process.env.PUBLIC_URL
+});
+
+const PROVIDERS = ['twilio', 'vobiz', 'sarvam'];
+const AGENT_GREETING_LABEL = '(Sarvam agent greeting)';
+// The Sarvam agent may hold a conversation, so a call can run far longer than the message.
+const SARVAM_MAX_CALL_MS = (parseInt(process.env.SARVAM_MAX_CALL_MINUTES, 10) || 10) * 60 * 1000;
+
+// Returns a message describing missing credentials for a provider, or null if usable.
+const missingCredentials = (provider, c = {}) => {
+    if (provider === 'sarvam') {
+        const missing = sarvam.missingSarvamConfig(c);
+        return missing ? `Missing Sarvam settings: ${missing}` : null;
+    }
+    if (provider === 'vobiz') {
+        if (!c.vobiz_id || !c.vobiz_token || !c.vobiz_from) return 'Missing Vobiz credentials';
+        if (!c.public_url) return 'Missing Public URL (required for Vobiz callbacks)';
+        return null;
+    }
+    if (!c.sid || !c.token || !c.from) return 'Missing Twilio credentials';
+    return null;
+};
+
+// Validates and starts a broadcast in the background.
+// Returns { success, status?, message, duplicatesRemoved? }.
+function startBroadcast({ nums, msg, credentials, lang, sentBy, provider, voice }) {
     const { unique: recipientList, duplicates: duplicatesRemoved } = dedupeRecipients(nums || []);
+    credentials = credentials || {};
 
     if (activeBroadcast && activeBroadcast.active) {
-        return res.status(400).json({ success: false, message: "A broadcast is already in progress." });
+        return { success: false, status: 400, message: "A broadcast is already in progress." };
     }
 
     if (!recipientList.length) {
-        return res.status(400).json({ success: false, message: "No valid recipients provided." });
+        return { success: false, status: 400, message: "No valid recipients provided." };
+    }
+
+    msg = (msg || '').trim();
+    if (!msg && provider !== 'sarvam') {
+        return { success: false, status: 400, message: "Message is empty." };
     }
 
     activeBroadcast = {
@@ -229,15 +309,13 @@ app.post('/api/broadcast', async (req, res) => {
         lang: lang,
         sentBy: sentBy,
         provider: provider || 'twilio',
-        voice: req.body.voice || 'Polly.Aditi',
+        voice: voice || 'Polly.Aditi',
         recipients: recipientList.join('\n')
     };
 
     if (duplicatesRemoved) {
         activeBroadcast.logs.push({ type: 'info', text: `Removed ${duplicatesRemoved} duplicate ${duplicatesRemoved === 1 ? 'number' : 'numbers'} before dialing.`, time: new Date().toLocaleTimeString() });
     }
-
-    res.json({ success: true, message: "Broadcast started in background.", duplicatesRemoved });
 
     const runBroadcast = async () => {
         const { sid, token, from, vobiz_id, vobiz_token, vobiz_from, public_url } = credentials;
@@ -252,6 +330,8 @@ app.post('/api/broadcast', async (req, res) => {
             const voice = activeBroadcast.voice || 'Polly.Aditi';
             const language = voice.includes('Aditi') || voice.includes('Kajal') ? 'hi-IN' : (voice.includes('Joanna') ? 'en-US' : 'en-IN');
             ttsUrl = `${baseUrl}/api/vobiz/xml?msg=${encodeURIComponent(msg)}&voice=${voice}&lang=${language}&p=vobiz`;
+        } else if (currentProvider === 'sarvam') {
+            // Sarvam speaks the message itself (passed per call); no TwiML URL needed.
         } else {
             auth = Buffer.from(`${sid}:${token}`).toString('base64');
             if (public_url) {
@@ -410,6 +490,41 @@ app.post('/api/broadcast', async (req, res) => {
                             waitForCallEnd = callbackPromise.then(() => callCompletionResolvers.delete(callUuid));
                         }
                         break; // Action completed, stop retrying
+                    } else if (currentProvider === 'sarvam') {
+                        const webhookUrl = baseUrl ? `${baseUrl}/api/sarvam/webhook` : null;
+                        const result = await sarvam.placeCall(credentials, {
+                            to: n,
+                            message: msg,
+                            lang,
+                            webhookUrl,
+                            metadata: {
+                                broadcast: broadcastStartedAt,
+                                to: n,
+                                sig: sarvam.signMetadata(credentials.sarvam_key, broadcastStartedAt, n)
+                            }
+                        });
+                        resOk = result.ok;
+                        resMsg = result.ok ? `Call queued (attempt ${result.attemptId})` : result.message;
+                        if (result.ok) {
+                            try {
+                                db.prepare('INSERT OR IGNORE INTO sarvam_calls (attempt_id, phone, status, message, broadcast_started_at) VALUES (?, ?, ?, ?, ?)')
+                                    .run(result.attemptId, n, 'queued', msg || null, broadcastStartedAt);
+                            } catch (e) { console.error('Failed to record Sarvam call:', e.message); }
+                        }
+
+                        // With a public URL, hold the concurrency slot until Sarvam reports the
+                        // outcome by webhook (or the timeout passes). Without one, release now.
+                        if (result.ok && webhookUrl) {
+                            const attemptId = result.attemptId;
+                            waitForCallEnd = new Promise(resolve => {
+                                const timer = setTimeout(() => {
+                                    sarvamPending.delete(attemptId);
+                                    resolve();
+                                }, SARVAM_MAX_CALL_MS);
+                                sarvamPending.set(attemptId, { phone: n, done: () => { clearTimeout(timer); resolve(); } });
+                            });
+                        }
+                        break;
                     } else {
                         const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
                             method: 'POST',
@@ -468,7 +583,7 @@ app.post('/api/broadcast', async (req, res) => {
         if (activeBroadcast) {
             try {
                 db.prepare('INSERT INTO history (message, language, total, successful, recipients, results, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
-                    msg,
+                    msg || AGENT_GREETING_LABEL,
                     lang,
                     activeBroadcast.total,
                     activeBroadcast.successful,
@@ -485,6 +600,85 @@ app.post('/api/broadcast', async (req, res) => {
     };
 
     runBroadcast();
+    return { success: true, message: "Broadcast started in background.", duplicatesRemoved };
+}
+
+app.post('/api/broadcast', (req, res) => {
+    const result = startBroadcast(req.body);
+    if (!result.success) {
+        return res.status(result.status || 400).json({ success: false, message: result.message });
+    }
+    res.json({ success: true, message: result.message, duplicatesRemoved: result.duplicatesRemoved });
+});
+
+// ── SARVAM WEBHOOK ───────────────────────────
+// Sarvam POSTs the outcome of each call attempt here, including the conversation transcript.
+app.post('/api/sarvam/webhook', (req, res) => {
+    const p = req.body || {};
+    const attemptId = p.attempt_id;
+    const meta = (p.webhook_config && p.webhook_config.metadata) || {};
+    // Only accept results for calls this server placed (metadata is signed with the API key).
+    if (!attemptId || !sarvam.verifyMetadata(process.env.SARVAM_API_KEY, meta)) {
+        return res.status(403).json({ ok: false });
+    }
+
+    const status = p.status || 'unknown';
+    const reason = p.failure_reason || null;
+    try {
+        db.prepare(`INSERT INTO sarvam_calls (attempt_id, phone, status, duration, failure_reason, transcript, agent_variables, broadcast_started_at, updated_at)
+                    VALUES (@id, @phone, @status, @duration, @reason, @transcript, @vars, @broadcast, CURRENT_TIMESTAMP)
+                    ON CONFLICT(attempt_id) DO UPDATE SET status=@status, duration=@duration, failure_reason=@reason,
+                        transcript=@transcript, agent_variables=@vars, updated_at=CURRENT_TIMESTAMP`)
+            .run({
+                id: attemptId, phone: meta.to || null, status, duration: p.duration ?? null, reason,
+                transcript: p.interaction_transcript ? JSON.stringify(p.interaction_transcript) : null,
+                vars: p.final_agent_variables ? JSON.stringify(p.final_agent_variables) : null,
+                broadcast: meta.broadcast || null
+            });
+    } catch (e) {
+        console.error('Failed to save Sarvam call result:', e.message);
+    }
+
+    const pending = sarvamPending.get(attemptId);
+    if (pending) {
+        sarvamPending.delete(attemptId);
+        if (activeBroadcast) {
+            const time = new Date().toLocaleTimeString();
+            const logFailure = detail => {
+                try {
+                    db.prepare('INSERT INTO call_failures (phone, error, broadcast_started_at) VALUES (?, ?, ?)')
+                        .run(pending.phone, detail, activeBroadcast.startTime);
+                } catch (e) {}
+            };
+            if (status === 'connected') {
+                const secs = p.duration ? ` (${Math.round(p.duration)}s)` : '';
+                activeBroadcast.logs.push({ type: 'ok', text: `[sarvam] Answered ${pending.phone}${secs}`, time });
+            } else if (status === 'no_answer' || status === 'busy') {
+                const text = `[sarvam] ${pending.phone}: ${status === 'busy' ? 'line busy' : 'no answer'}`;
+                activeBroadcast.logs.push({ type: 'info', text, time });
+                logFailure(status);
+            } else {
+                const detail = reason || status;
+                activeBroadcast.successful = Math.max(0, activeBroadcast.successful - 1);
+                activeBroadcast.failed++;
+                activeBroadcast.logs.push({ type: 'err', text: `[sarvam] Failed ${pending.phone}: ${detail}`, time });
+                logFailure(detail);
+            }
+        }
+        pending.done();
+    }
+    res.status(200).json({ ok: true });
+});
+
+app.get('/api/sarvam/calls', (req, res) => {
+    try {
+        const rows = db.prepare('SELECT * FROM sarvam_calls ORDER BY created_at DESC LIMIT 100').all();
+        res.json(rows.map(r => ({
+            ...r,
+            transcript: r.transcript ? JSON.parse(r.transcript) : null,
+            agent_variables: r.agent_variables ? JSON.parse(r.agent_variables) : null
+        })));
+    } catch (e) { res.json([]); }
 });
 
 // ── VOBIZ DASHBOARD APIS ─────────────────────
@@ -573,30 +767,152 @@ app.all('/api/vobiz/hangup-callback', (req, res) => {
 app.use(express.static(__dirname));
 
 app.get('/api/credentials', (req, res) => {
-    res.json({
-        sid: process.env.TWILIO_ACCOUNT_SID,
-        token: process.env.TWILIO_AUTH_TOKEN,
-        from: process.env.TWILIO_FROM,
-        vobiz_id: process.env.VOBIZ_AUTH_ID,
-        vobiz_token: process.env.VOBIZ_AUTH_TOKEN,
-        vobiz_from: process.env.VOBIZ_FROM,
-        provider: process.env.PROVIDER || 'twilio',
-        public_url: process.env.PUBLIC_URL
-    });
+    res.json(getEnvCredentials());
 });
 
+// Maps credential fields (as sent by the API tab) to their .env variable names.
+const ENV_KEYS = {
+    sid: 'TWILIO_ACCOUNT_SID', token: 'TWILIO_AUTH_TOKEN', from: 'TWILIO_FROM',
+    vobiz_id: 'VOBIZ_AUTH_ID', vobiz_token: 'VOBIZ_AUTH_TOKEN', vobiz_from: 'VOBIZ_FROM',
+    sarvam_key: 'SARVAM_API_KEY', sarvam_org: 'SARVAM_ORG_ID', sarvam_workspace: 'SARVAM_WORKSPACE_ID',
+    sarvam_app_id: 'SARVAM_APP_ID', sarvam_app_version: 'SARVAM_APP_VERSION',
+    sarvam_connection_id: 'SARVAM_CONNECTION_ID', sarvam_from: 'SARVAM_FROM',
+    provider: 'PROVIDER', public_url: 'PUBLIC_URL'
+};
+
 app.post('/api/credentials', (req, res) => {
-    const { sid, token, from, vobiz_id, vobiz_token, vobiz_from, provider, public_url } = req.body;
-    const fs = require('fs');
-    let envContent = `TWILIO_ACCOUNT_SID=${sid || ''}\nTWILIO_AUTH_TOKEN=${token || ''}\nTWILIO_FROM=${from || ''}\n`;
-    envContent += `VOBIZ_AUTH_ID=${vobiz_id || ''}\nVOBIZ_AUTH_TOKEN=${vobiz_token || ''}\nVOBIZ_FROM=${vobiz_from || ''}\n`;
-    envContent += `PROVIDER=${provider || 'twilio'}\n`;
-    envContent += `PUBLIC_URL=${public_url || ''}\n`;
-    
-    fs.writeFileSync('.env', envContent);
-    require('dotenv').config({ override: true });
-    res.json({ success: true });
+    try {
+        // Merge into the existing .env so settings this form doesn't manage (PORT, DB_PATH, ...) survive.
+        const existing = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8').split('\n') : [];
+        const values = new Map();
+        const order = [];
+        existing.forEach(line => {
+            const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+            if (m) { values.set(m[1], m[2]); order.push(m[1]); }
+        });
+        Object.entries(ENV_KEYS).forEach(([field, envKey]) => {
+            if (!(field in req.body)) return; // not sent: leave as is
+            const clean = String(req.body[field] ?? '').replace(/[\r\n]/g, '');
+            if (!values.has(envKey)) order.push(envKey);
+            values.set(envKey, field === 'provider' ? (clean || 'twilio') : clean);
+        });
+        fs.writeFileSync('.env', order.map(k => `${k}=${values.get(k)}`).join('\n') + '\n');
+        // dotenv's override re-reads .env; blank values must also clear the in-memory copy.
+        order.forEach(k => { process.env[k] = values.get(k); });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
+
+// ── SCHEDULED CALLS ──────────────────────────
+const SCHEDULE_GRACE_MS = (parseInt(process.env.SCHEDULE_GRACE_MINUTES, 10) || 60) * 60 * 1000;
+
+const MAX_SCHEDULE_OCCURRENCES = 200;
+
+// Accepts one time (runAt) or many (runAts). Many times are stored as one group,
+// e.g. every day in a date range at one or more times of day.
+app.post('/api/schedule', (req, res) => {
+    const { nums, msg, lang, voice, provider, runAt, runAts, sentBy } = req.body || {};
+    const { unique: recipients } = dedupeRecipients(nums || []);
+    const prov = provider || 'twilio';
+    const rawTimes = Array.isArray(runAts) ? runAts : [runAt];
+
+    if (!PROVIDERS.includes(prov)) return res.status(400).json({ success: false, message: 'Unknown provider.' });
+    if ((!msg || !String(msg).trim()) && prov !== 'sarvam') return res.status(400).json({ success: false, message: 'Message is empty.' });
+    if (!recipients.length) return res.status(400).json({ success: false, message: 'No valid recipients provided.' });
+
+    const times = [...new Set(rawTimes.map(t => Date.parse(t)))].sort((x, y) => x - y);
+    if (!times.length || times.some(Number.isNaN)) return res.status(400).json({ success: false, message: 'Invalid date/time.' });
+    if (times.length > MAX_SCHEDULE_OCCURRENCES) {
+        return res.status(400).json({ success: false, message: `Too many times (${times.length}); the limit is ${MAX_SCHEDULE_OCCURRENCES}.` });
+    }
+    if (times[0] < Date.now() - 60 * 1000) return res.status(400).json({ success: false, message: 'Scheduled time is in the past.' });
+
+    const missing = missingCredentials(prov, getEnvCredentials());
+    if (missing) return res.status(400).json({ success: false, message: `${missing}. Save credentials in the API tab first.` });
+
+    const groupId = require('crypto').randomUUID();
+    const insert = db.prepare(
+        'INSERT INTO scheduled_calls (message, language, voice, provider, recipients, run_at, sent_by, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    try {
+        const ids = db.transaction(() => times.map(t => insert.run(String(msg || '').trim(), lang || 'hi', voice || null, prov,
+            JSON.stringify(recipients), new Date(t).toISOString(), sentBy || null, groupId).lastInsertRowid))();
+        res.json({ success: true, id: ids[0], ids, groupId, occurrences: times.length, total: recipients.length,
+            firstRunAt: new Date(times[0]).toISOString(), lastRunAt: new Date(times[times.length - 1]).toISOString() });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Every pending entry, plus the most recent finished ones.
+app.get('/api/schedule', (req, res) => {
+    try {
+        const rows = db.prepare(
+            `SELECT * FROM scheduled_calls WHERE status = 'pending'
+             UNION ALL
+             SELECT * FROM (SELECT * FROM scheduled_calls WHERE status != 'pending' ORDER BY run_at DESC LIMIT 100)
+             ORDER BY run_at ASC`
+        ).all();
+        res.json(rows.map(r => ({
+            id: r.id, group_id: r.group_id || `single-${r.id}`, message: r.message, language: r.language,
+            provider: r.provider, total: JSON.parse(r.recipients).length, run_at: r.run_at,
+            status: r.status, note: r.note, sent_by: r.sent_by
+        })));
+    } catch (e) { res.json([]); }
+});
+
+// Cancels one entry ({ id }) or every pending entry in a group ({ group }).
+app.delete('/api/schedule', (req, res) => {
+    const { id, group } = req.body || {};
+    try {
+        let info;
+        if (group && String(group).startsWith('single-')) {
+            info = db.prepare("UPDATE scheduled_calls SET status='cancelled' WHERE id=? AND status='pending'").run(String(group).slice(7));
+        } else if (group) {
+            info = db.prepare("UPDATE scheduled_calls SET status='cancelled' WHERE group_id=? AND status='pending'").run(group);
+        } else {
+            info = db.prepare("UPDATE scheduled_calls SET status='cancelled' WHERE id=? AND status='pending'").run(id);
+        }
+        res.json(info.changes
+            ? { success: true, cancelled: info.changes }
+            : { success: false, message: 'Only pending schedules can be cancelled.' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// Starts at most one due schedule per tick, and only while no broadcast is running.
+function runDueSchedules() {
+    if (activeBroadcast && activeBroadcast.active) return;
+    try {
+        const due = db.prepare("SELECT * FROM scheduled_calls WHERE status='pending' AND run_at <= ? ORDER BY run_at LIMIT 1")
+            .get(new Date().toISOString());
+        if (!due) return;
+        const setStatus = (status, note) =>
+            db.prepare('UPDATE scheduled_calls SET status=?, note=? WHERE id=?').run(status, note || null, due.id);
+
+        if (Date.now() - Date.parse(due.run_at) > SCHEDULE_GRACE_MS) {
+            return setStatus('missed', 'Server was not running at the scheduled time.');
+        }
+        const credentials = getEnvCredentials();
+        const missing = missingCredentials(due.provider, credentials);
+        if (missing) return setStatus('failed', missing);
+
+        const result = startBroadcast({
+            nums: JSON.parse(due.recipients), msg: due.message, credentials,
+            lang: due.language, sentBy: due.sent_by || 'Scheduled', provider: due.provider, voice: due.voice
+        });
+        if (result.success) setStatus('started');
+        else if (result.message === 'A broadcast is already in progress.') return; // try again next tick
+        else setStatus('failed', result.message);
+    } catch (e) {
+        console.error('Scheduler error:', e.message);
+    }
+}
+setInterval(runDueSchedules, 30 * 1000);
+setTimeout(runDueSchedules, 5000);
 
 
 

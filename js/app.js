@@ -65,18 +65,16 @@ window.toggleProviderFields = function() {
     const provider = document.getElementById('provider-select').value;
     const twilioFields = document.getElementById('twilio-fields');
     const vobizFields = document.getElementById('vobiz-fields');
-    
-    if (provider === 'vobiz') {
-        twilioFields.style.display = 'none';
-        vobizFields.style.display = 'block';
-    } else {
-        twilioFields.style.display = 'block';
-        vobizFields.style.display = 'none';
-    }
+    const sarvamFields = document.getElementById('sarvam-fields');
+    const publicUrlWrap = document.getElementById('public-url-wrap');
 
-    // Also toggle the voice selector on the broadcast tab
-    const vWrap = document.getElementById('vobiz-voice-wrap');
-    if (vWrap) vWrap.style.display = (provider === 'vobiz') ? 'block' : 'none';
+    twilioFields.style.display = provider === 'twilio' ? 'block' : 'none';
+    vobizFields.style.display = provider === 'vobiz' ? 'block' : 'none';
+    if (sarvamFields) sarvamFields.style.display = provider === 'sarvam' ? 'block' : 'none';
+    if (publicUrlWrap) publicUrlWrap.style.display = provider === 'twilio' ? 'none' : 'block';
+
+    // Keep the Broadcast tab in step with the selected provider
+    if (window.applyProviderUI) window.applyProviderUI(provider);
 
     if (window.updateMetrics) window.updateMetrics();
 };
@@ -94,6 +92,13 @@ window.saveCfg = function() {
         vobiz_id: document.getElementById('vobiz-id').value,
         vobiz_token: document.getElementById('vobiz-token').value,
         vobiz_from: document.getElementById('vobiz-from').value,
+        sarvam_key: document.getElementById('sarvam-key').value,
+        sarvam_org: document.getElementById('sarvam-org').value.trim(),
+        sarvam_workspace: document.getElementById('sarvam-workspace').value.trim(),
+        sarvam_app_id: document.getElementById('sarvam-app-id').value.trim(),
+        sarvam_app_version: document.getElementById('sarvam-app-version').value.trim(),
+        sarvam_connection_id: document.getElementById('sarvam-connection-id').value.trim(),
+        sarvam_from: document.getElementById('sarvam-from').value.trim(),
         public_url: document.getElementById('public-url').value,
         provider: document.getElementById('provider-select').value
     };
@@ -123,6 +128,16 @@ window.loadCfg = function() {
         if (c.vobiz_token) document.getElementById('vobiz-token').value = c.vobiz_token;
         if (c.vobiz_from) document.getElementById('vobiz-from').value = c.vobiz_from;
         if (c.public_url) document.getElementById('public-url').value = c.public_url;
+
+        // Load Sarvam values
+        const sarvamFieldIds = {
+            sarvam_key: 'sarvam-key', sarvam_org: 'sarvam-org', sarvam_workspace: 'sarvam-workspace',
+            sarvam_app_id: 'sarvam-app-id', sarvam_app_version: 'sarvam-app-version',
+            sarvam_connection_id: 'sarvam-connection-id', sarvam_from: 'sarvam-from'
+        };
+        Object.entries(sarvamFieldIds).forEach(([key, id]) => {
+            if (c[key]) document.getElementById(id).value = c[key];
+        });
         
         // Set provider
         if (c.provider) {

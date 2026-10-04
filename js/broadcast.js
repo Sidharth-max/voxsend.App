@@ -83,14 +83,42 @@ const updateRecipientsField = (list, options = {}) => {
 
 window.setRecipientNumbers = (list, options) => updateRecipientsField(list, options);
 
+// Provider currently saved in the API tab; drives Sarvam-specific UI.
+window.currentProvider = 'twilio';
+const isSarvam = () => window.currentProvider === 'sarvam';
+
+const SARVAM_PLACEHOLDER = "Optional — leave empty to use the Sarvam agent's own greeting";
+
+window.applyProviderUI = function(provider) {
+    window.currentProvider = provider || 'twilio';
+    const sarvam = isSarvam();
+    const note = document.getElementById('sarvam-mode-note');
+    if (note) note.style.display = sarvam ? 'block' : 'none';
+    const label = document.getElementById('msg-label');
+    if (label) label.textContent = sarvam ? 'Message override (optional)' : 'Voice message text';
+    const vWrap = document.getElementById('vobiz-voice-wrap');
+    if (vWrap) vWrap.style.display = window.currentProvider === 'vobiz' ? 'block' : 'none';
+
+    // Gujarati is only spoken by Sarvam; Polly voices cannot.
+    const gu = document.getElementById('pill-gu');
+    if (gu) gu.style.display = sarvam ? '' : 'none';
+    if (!sarvam && lang === 'gu') { window.setLang('hi'); return; }
+    window.setLang(lang);
+};
+
 window.setLang = function(l) {
     lang = l;
-    document.getElementById('pill-hi').classList.toggle('active', l === 'hi');
-    document.getElementById('pill-en').classList.toggle('active', l === 'en');
+    ['hi', 'en', 'gu'].forEach(code => {
+        const pill = document.getElementById('pill-' + code);
+        if (pill) pill.classList.toggle('active', l === code);
+    });
     
     const msgEl = document.getElementById('msg');
-    if (msgEl) {
-        if (l === 'hi') {
+    if (msgEl && isSarvam()) {
+        msgEl.placeholder = SARVAM_PLACEHOLDER;
+        msgEl.classList.toggle('hindi', l !== 'en');
+    } else if (msgEl) {
+        if (l === 'hi' || l === 'gu') {
             msgEl.placeholder = 'नमस्ते! हमारा कार्यक्रम कल 11 बजे है। कृपया समय पर पधारें। धन्यवाद।';
             msgEl.classList.add('hindi');
         } else {
@@ -117,7 +145,7 @@ window.preview = function() {
     
     const prevMsgEl = document.getElementById('prev-msg');
     if (prevMsgEl) {
-        prevMsgEl.textContent = msg || 'Message will appear here...';
+        prevMsgEl.textContent = msg || (isSarvam() ? "Sarvam agent's own greeting" : 'Message will appear here...');
         prevMsgEl.className = 'hist-msg ' + lang;
     }
 
@@ -134,22 +162,6 @@ window.preview = function() {
     const charCountEl = document.getElementById('char-count');
     if (charCountEl) charCountEl.textContent = msg.length + ' chars';
 
-    const costStrip = document.getElementById('cost-strip');
-    if (costStrip) {
-        if (nums.length > 0) {
-            costStrip.style.display = 'flex';
-            const csN = document.getElementById('cs-n');
-            const csCost = document.getElementById('cs-cost');
-            if (csN) csN.textContent = nums.length;
-            if (csCost) {
-                const cost = (nums.length * 0.70).toFixed(2);
-                csCost.textContent = '₹' + cost;
-            }
-        } else {
-            costStrip.style.display = 'none';
-        }
-    }
-
     const maxChars = lang === 'en' ? 1200 : 800;
     const isOver = msg.length > maxChars;
     const btn = document.getElementById('send-btn');
@@ -160,7 +172,7 @@ window.preview = function() {
         if (btn) btn.disabled = true;
     } else {
         if (overEl) overEl.style.display = 'none';
-        if (btn) btn.disabled = !msg || nums.length === 0;
+        if (btn) btn.disabled = (!msg && !isSarvam()) || nums.length === 0;
     }
 };
 
@@ -177,9 +189,7 @@ let pollInterval = null;
 
 window.checkActiveBroadcast = async function() {
     const c = await window.getCfg();
-    const isVobiz = c.provider === 'vobiz';
-    const vWrap = document.getElementById('vobiz-voice-wrap');
-    if (vWrap) vWrap.style.display = isVobiz ? 'block' : 'none';
+    window.applyProviderUI(c.provider);
 
     fetch('/api/broadcast/status').then(res => res.json()).then(status => {
         if (status.active) {
@@ -264,6 +274,12 @@ window.blast = async function() {
             window.addLog('err', 'Missing Public URL! Required for Vobiz callbacks.');
             return;
         }
+    } else if (provider === 'sarvam') {
+        if (!c.sarvam_key || !c.sarvam_org || !c.sarvam_workspace || !c.sarvam_app_id ||
+            !c.sarvam_app_version || !c.sarvam_connection_id || !c.sarvam_from) {
+            window.addLog('err', 'Missing Sarvam settings! Check API tab.');
+            return;
+        }
     } else {
         if (!c.sid || !c.token || !c.from) {
             window.addLog('err', 'Missing Twilio credentials! Check API tab.');
@@ -293,13 +309,223 @@ window.blast = async function() {
             if (res.duplicatesRemoved) {
                 window.addLog('info', `Skipped ${res.duplicatesRemoved} duplicate ${res.duplicatesRemoved === 1 ? 'number' : 'numbers'} before sending.`);
             }
-             window.addLog('info', `Broadcast initiated via ${provider === 'vobiz' ? 'Vobiz.ai' : 'Twilio'}. You can safely close this page.`);
+             window.addLog('info', `Broadcast initiated via ${PROVIDER_LABELS[provider] || provider}. You can safely close this page.`);
             window.startPolling();
         } else {
             window.addLog('err', 'Error: ' + res.message);
         }
     }).catch(err => {
         window.addLog('err', 'Network error starting broadcast.');
+    });
+};
+
+const PROVIDER_LABELS = { twilio: 'Twilio', vobiz: 'Vobiz.ai', sarvam: 'Sarvam AI' };
+
+// ── Scheduled calls ──────────────────────────────────
+// Builds every run time from the date range × the times of day, in the browser's time zone.
+const buildScheduleTimes = () => {
+    const from = document.getElementById('sched-from').dataset.value;
+    const to = document.getElementById('sched-to').dataset.value || from;
+    const times = [...document.querySelectorAll('#sched-times .vx-field')].map(f => f.dataset.value).filter(Boolean);
+    if (!from || !times.length) return { runs: [], error: 'Pick a date and at least one time.' };
+    if (to < from) return { runs: [], error: '"To" date is before "From" date.' };
+
+    const runs = [];
+    const day = new Date(from + 'T00:00');
+    const last = new Date(to + 'T00:00');
+    while (day <= last && runs.length <= MAX_SCHEDULE) {
+        const ymd = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        [...new Set(times)].sort().forEach(t => runs.push(new Date(`${ymd}T${t}`)));
+        day.setDate(day.getDate() + 1);
+    }
+    if (runs.length > MAX_SCHEDULE) return { runs: [], error: `That is more than ${MAX_SCHEDULE} broadcasts. Shorten the range or remove a time.` };
+    const past = runs.filter(r => r.getTime() < Date.now()).length;
+    if (past === runs.length) return { runs: [], error: 'All of those times are in the past.' };
+    return { runs: runs.filter(r => r.getTime() >= Date.now()), skippedPast: past };
+};
+const MAX_SCHEDULE = 200;
+
+window.addScheduleTime = function(value = '') {
+    const wrap = document.getElementById('sched-times');
+    const row = document.createElement('div');
+    row.className = 'vx-time-row';
+    const field = window.VxPicker.makeField('time', { value, placeholder: 'Pick a time' });
+    field.addEventListener('input', window.updateSchedulePreview);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'vx-icon-btn';
+    remove.setAttribute('aria-label', 'Remove this time');
+    remove.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+    remove.onclick = () => { row.remove(); window.updateSchedulePreview(); };
+    row.append(field, remove);
+    wrap.appendChild(row);
+    window.updateSchedulePreview();
+};
+
+window.updateSchedulePreview = function() {
+    const fromF = document.getElementById('sched-from');
+    const toF = document.getElementById('sched-to');
+    if (fromF && toF) toF.dataset.min = fromF.dataset.value || '';
+    const el = document.getElementById('sched-preview');
+    const btn = document.getElementById('schedule-btn');
+    if (!el) return;
+    const { runs, error, skippedPast } = buildScheduleTimes();
+    if (error) { el.textContent = error; btn.disabled = true; return; }
+    const fmt = d => d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    let text = `${runs.length} broadcast${runs.length === 1 ? '' : 's'}`;
+    text += runs.length === 1 ? ` on ${fmt(runs[0])}.` : `, from ${fmt(runs[0])} to ${fmt(runs[runs.length - 1])}.`;
+    if (skippedPast) text += ` ${skippedPast} time${skippedPast === 1 ? ' is' : 's are'} already past and will be skipped.`;
+    el.textContent = text;
+    btn.disabled = false;
+};
+
+window.scheduleBlast = async function() {
+    const nums = getNums();
+    const msg = document.getElementById('msg').value.trim();
+    if (!msg && !isSarvam()) return window.showToast('Write a message first.', 'error');
+    if (nums.length === 0) return window.showToast('Add at least one recipient.', 'error');
+    const { runs, error } = buildScheduleTimes();
+    if (error) return window.showToast(error, 'error');
+
+    const c = await window.getCfg();
+    const voiceEl = document.getElementById('vobiz-voice');
+    const btn = document.getElementById('schedule-btn');
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nums, msg, lang,
+                voice: voiceEl ? voiceEl.value : null,
+                provider: c.provider || 'twilio',
+                runAts: runs.map(r => r.toISOString()),
+                sentBy: window.currentUser ? window.currentUser.username : 'Unknown'
+            })
+        }).then(r => r.json());
+        if (res.success) {
+            window.showToast(`Scheduled ${res.occurrences} broadcast${res.occurrences === 1 ? '' : 's'} to ${res.total} number${res.total === 1 ? '' : 's'}.`, 'success');
+            window.resetScheduleForm();
+            window.loadSchedules();
+        } else {
+            window.showToast(res.message || 'Could not schedule.', 'error');
+        }
+    } catch (e) {
+        window.showToast('Network error while scheduling.', 'error');
+    } finally {
+        window.updateSchedulePreview();
+    }
+};
+
+window.resetScheduleForm = function() {
+    ['sched-from', 'sched-to'].forEach(id => {
+        const f = document.getElementById(id);
+        f.dataset.value = '';
+        f.classList.add('is-empty');
+        f.querySelector('.vx-field-label').textContent = f.dataset.placeholder;
+    });
+    document.getElementById('sched-times').innerHTML = '';
+    window.addScheduleTime();
+};
+
+window.cancelSchedule = async function(target, label) {
+    const confirmed = await window.showConfirm(label || 'Cancel this scheduled call?');
+    if (!confirmed) return;
+    const res = await fetch('/api/schedule', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(target)
+    }).then(r => r.json()).catch(() => ({ success: false }));
+    if (!res.success) window.showToast(res.message || 'Could not cancel.', 'error');
+    window.loadSchedules();
+};
+
+window.loadSchedules = async function() {
+    const wrap = document.getElementById('sched-wrap');
+    const list = document.getElementById('sched-list');
+    if (!wrap || !list) return;
+    let rows = [];
+    try { rows = await fetch('/api/schedule').then(r => r.json()); } catch (e) { return; }
+    if (!Array.isArray(rows) || rows.length === 0) { wrap.style.display = 'none'; return; }
+
+    // Group entries that were scheduled together; groups with pending runs come first.
+    const groups = new Map();
+    rows.forEach(r => {
+        if (!groups.has(r.group_id)) groups.set(r.group_id, []);
+        groups.get(r.group_id).push(r);
+    });
+    const ordered = [...groups.entries()].sort(([, a], [, b]) => {
+        const nextA = a.find(r => r.status === 'pending'), nextB = b.find(r => r.status === 'pending');
+        if (!!nextA !== !!nextB) return nextA ? -1 : 1;
+        if (nextA) return nextA.run_at.localeCompare(nextB.run_at);
+        return b[b.length - 1].run_at.localeCompare(a[a.length - 1].run_at);
+    }).slice(0, 30);
+
+    const labels = { pending: 'Scheduled', started: 'Sent', missed: 'Missed', failed: 'Failed', cancelled: 'Cancelled' };
+    const fmt = iso => new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    wrap.style.display = 'block';
+    list.innerHTML = '';
+
+    ordered.forEach(([groupId, entries]) => {
+        const first = entries[0];
+        const pending = entries.filter(r => r.status === 'pending');
+        const card = document.createElement('div');
+        card.className = 'row-item';
+        card.style.cssText = 'display:block;';
+
+        const top = document.createElement('div');
+        top.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;';
+        const info = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 'row-label';
+        const span = entries.length === 1 ? fmt(first.run_at)
+            : `${entries.length} broadcasts · ${fmt(first.run_at)} → ${fmt(entries[entries.length - 1].run_at)}`;
+        title.textContent = `${span} · ${first.total} number${first.total === 1 ? '' : 's'} · ${PROVIDER_LABELS[first.provider] || first.provider}`;
+        const sub = document.createElement('div');
+        sub.className = 'hint';
+        const text = first.message || "Sarvam agent's own greeting";
+        const preview = text.length > 60 ? text.slice(0, 60) + '…' : text;
+        const state = entries.length === 1
+            ? `${labels[first.status] || first.status}${first.note ? ' — ' + first.note : ''}`
+            : (pending.length ? `${pending.length} left · next ${fmt(pending[0].run_at)}` : 'Finished');
+        sub.textContent = `${state} · ${preview}`;
+        info.append(title, sub);
+        top.appendChild(info);
+
+        if (pending.length) {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-danger btn-sm';
+            btn.style.cssText = 'width:auto; padding:4px 10px;';
+            btn.textContent = entries.length === 1 ? 'Cancel' : 'Cancel all';
+            btn.onclick = () => window.cancelSchedule({ group: groupId },
+                pending.length === 1 ? 'Cancel this scheduled call?' : `Cancel all ${pending.length} remaining broadcasts in this schedule?`);
+            top.appendChild(btn);
+        }
+        card.appendChild(top);
+
+        if (entries.length > 1) {
+            const det = window.VxDisclosure('Show each time', box => {
+            entries.forEach(r => {
+                const line = document.createElement('div');
+                line.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px;';
+                const t = document.createElement('span');
+                t.className = 'hint';
+                t.textContent = `${fmt(r.run_at)} — ${labels[r.status] || r.status}${r.note ? ' (' + r.note + ')' : ''}`;
+                line.appendChild(t);
+                if (r.status === 'pending') {
+                    const x = document.createElement('button');
+                    x.className = 'btn btn-secondary btn-sm';
+                    x.style.cssText = 'width:auto; margin:0; padding:2px 8px;';
+                    x.textContent = 'Cancel';
+                    x.onclick = () => window.cancelSchedule({ id: r.id }, `Cancel the ${fmt(r.run_at)} broadcast?`);
+                    line.appendChild(x);
+                }
+                box.appendChild(line);
+            });
+            });
+            card.appendChild(det);
+        }
+        list.appendChild(card);
     });
 };
 
@@ -470,4 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (bFilter) bFilter.addEventListener('change', () => { broadcastVisibleLimit = 100; });
     
     window.checkActiveBroadcast();
+    window.resetScheduleForm();
+    window.loadSchedules();
+    setInterval(window.loadSchedules, 30000);
 });

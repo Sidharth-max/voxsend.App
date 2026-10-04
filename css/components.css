@@ -1109,3 +1109,113 @@
     }
 }
 
+
+/* ── THEMED PICKERS (date / time) ───────── */
+.vx-field {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2rem;
+    color: var(--text);
+    font-family: 'Geist', sans-serif;
+    font-size: 0.9286rem;
+    padding: 10px 18px;
+    min-height: 42px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s ease;
+}
+.vx-field:hover, .vx-field[aria-expanded="true"], .vx-field:focus-visible {
+    border-color: var(--border2);
+    outline: none;
+}
+.vx-field.is-empty .vx-field-label { color: var(--text3); }
+.vx-field-icon { color: var(--text2); display: inline-flex; flex-shrink: 0; }
+.vx-field-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.vx-pop {
+    position: fixed;
+    z-index: 1000;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.45);
+    padding: 12px;
+    color: var(--text);
+    font-family: 'Geist', sans-serif;
+    max-width: calc(100vw - 24px);
+}
+.vx-pop button { font-family: inherit; }
+.vx-pop button:focus-visible { outline: 1px solid var(--border2); outline-offset: 1px; }
+
+.vx-cal { width: 280px; }
+.vx-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.vx-cal-title { font-size: 0.9286rem; font-weight: 500; }
+.vx-cal-nav {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid var(--border); background: transparent; color: var(--text2);
+    font-size: 1rem; line-height: 1; cursor: pointer;
+}
+.vx-cal-nav:hover:not(:disabled) { background: var(--surface2); color: var(--text); }
+.vx-cal-nav:disabled { opacity: .3; cursor: default; }
+.vx-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.vx-cal-wd { text-align: center; font-size: 0.7143rem; color: var(--text3); padding: 4px 0; }
+.vx-cal-day {
+    aspect-ratio: 1; border: 1px solid transparent; border-radius: 50%;
+    background: transparent; color: var(--text); font-size: 0.8571rem; cursor: pointer;
+    font-variant-numeric: tabular-nums;
+}
+.vx-cal-day:hover:not(:disabled) { background: var(--surface2); }
+.vx-cal-day.is-today { border-color: var(--border2); }
+.vx-cal-day.is-selected { background: var(--text); color: var(--bg); }
+.vx-cal-day:disabled { color: var(--text3); opacity: .5; cursor: default; }
+
+.vx-time { width: 220px; }
+.vx-time-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.vx-time-col {
+    max-height: 210px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+    border: 1px solid var(--border); border-radius: 12px; padding: 4px;
+    scrollbar-width: thin;
+}
+.vx-time-opt {
+    border: none; background: transparent; color: var(--text2); border-radius: 8px;
+    padding: 7px 8px; font-size: 0.8571rem; cursor: pointer; text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.vx-time-opt:hover { background: var(--surface2); color: var(--text); }
+.vx-time-opt.is-selected { background: var(--text); color: var(--bg); }
+
+.vx-pop-foot { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+.vx-pop-btn {
+    border: 1px solid var(--border); background: transparent; color: var(--text2);
+    border-radius: 2rem; padding: 6px 14px; font-size: 0.7857rem; cursor: pointer;
+}
+.vx-pop-btn:hover { background: var(--surface2); color: var(--text); }
+.vx-pop-btn.is-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.vx-pop-btn.is-primary:hover { opacity: .9; background: var(--text); color: var(--bg); }
+
+/* Time rows in the schedule form */
+.vx-time-row { display: flex; gap: 8px; align-items: center; }
+.vx-time-row .vx-field { flex: 1; }
+.vx-icon-btn {
+    width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%;
+    border: 1px solid var(--border); background: transparent; color: var(--text2);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.vx-icon-btn:hover { background: var(--surface2); color: var(--error); }
+
+/* ── THEMED DISCLOSURE (replaces <details>) ─ */
+.vx-disclosure { margin-top: 8px; }
+.vx-disclosure-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: none; background: transparent; padding: 2px 0; cursor: pointer;
+    color: var(--text2); font-family: 'Geist', sans-serif; font-size: 0.7857rem;
+}
+.vx-disclosure-btn:hover { color: var(--text); }
+.vx-disclosure-btn:focus-visible { outline: 1px solid var(--border2); outline-offset: 2px; border-radius: 4px; }
+.vx-chev { transition: transform .15s ease; }
+.vx-disclosure-btn[aria-expanded="true"] .vx-chev { transform: rotate(90deg); }
+.vx-disclosure-body { margin-top: 4px; }

@@ -27,23 +27,101 @@ window.loadHistory = async function() {
 };
 
 window.setHistTab = function(tab) {
-    const bBtn = document.getElementById('sub-broadcast');
-    const vBtn = document.getElementById('sub-vobiz');
-    const bCont = document.getElementById('hist-broadcast-content');
-    const vCont = document.getElementById('hist-vobiz-content');
+    ['broadcast', 'vobiz', 'sarvam'].forEach(t => {
+        const btn = document.getElementById('sub-' + t);
+        const cont = document.getElementById('hist-' + t + '-content');
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (cont) cont.style.display = t === tab ? 'block' : 'none';
+    });
+    if (tab === 'vobiz') window.loadVobizLogs();
+    if (tab === 'sarvam') window.loadSarvamCalls();
+};
 
-    if (tab === 'vobiz') {
-        bBtn.classList.remove('active');
-        vBtn.classList.add('active');
-        bCont.style.display = 'none';
-        vCont.style.display = 'block';
-        window.loadVobizLogs();
-    } else {
-        bBtn.classList.add('active');
-        vBtn.classList.remove('active');
-        bCont.style.display = 'block';
-        vCont.style.display = 'none';
-    }
+const SARVAM_STATUS = {
+    queued: ['Waiting for result', ''], connected: ['Answered', 'badge-success'],
+    no_answer: ['No answer', 'badge-danger'], busy: ['Busy', 'badge-danger'], failed: ['Failed', 'badge-danger']
+};
+
+// Sarvam transcript turns vary in shape; pull out a speaker and the spoken text.
+const transcriptTurn = (turn) => {
+    if (typeof turn === 'string') return { who: '', text: turn };
+    const role = String(turn.role || turn.speaker || turn.sender || '').toLowerCase();
+    const who = /user|caller|human|customer/.test(role) ? 'Caller' : (role ? 'Agent' : '');
+    return { who, text: turn.content || turn.text || turn.message || turn.transcript || JSON.stringify(turn) };
+};
+
+window.loadSarvamCalls = async function() {
+    const list = document.getElementById('sarvam-calls-list');
+    const empty = document.getElementById('sarvam-calls-empty');
+    if (!list) return;
+    let rows = [];
+    try { rows = await fetch('/api/sarvam/calls').then(r => r.json()); } catch (e) { return; }
+    list.innerHTML = '';
+    if (empty) empty.style.display = rows.length ? 'none' : 'block';
+
+    rows.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'block panel';
+        item.style.marginBottom = '10px';
+        const body = document.createElement('div');
+        body.className = 'block-body';
+
+        const head = document.createElement('div');
+        head.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;';
+        const left = document.createElement('div');
+        const num = document.createElement('div');
+        num.className = 'mono';
+        num.style.color = 'var(--text)';
+        num.textContent = r.phone || 'Unknown number';
+        const when = document.createElement('div');
+        when.className = 'hint';
+        const secs = r.duration ? ` · ${Math.round(r.duration)}s` : '';
+        when.textContent = new Date((r.created_at || '').replace(' ', 'T') + 'Z').toLocaleString() + secs;
+        left.append(num, when);
+        const [label, cls] = SARVAM_STATUS[r.status] || [r.status, ''];
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + cls;
+        badge.textContent = label;
+        head.append(left, badge);
+        body.appendChild(head);
+
+        if (r.failure_reason) {
+            const fr = document.createElement('div');
+            fr.className = 'hint';
+            fr.style.cssText = 'color:var(--error); margin-top:6px;';
+            fr.textContent = r.failure_reason;
+            body.appendChild(fr);
+        }
+
+        const turns = Array.isArray(r.transcript) ? r.transcript : [];
+        if (turns.length) {
+            const det = window.VxDisclosure(`Conversation (${turns.length} turns)`, box => {
+            turns.forEach(t => {
+                const { who, text } = transcriptTurn(t);
+                const line = document.createElement('div');
+                line.style.cssText = 'margin-top:8px; font-size:0.9rem; line-height:1.5;';
+                const w = document.createElement('strong');
+                w.style.color = who === 'Caller' ? 'var(--text)' : 'var(--text2)';
+                w.textContent = who ? who + ': ' : '';
+                line.append(w, document.createTextNode(text));
+                box.appendChild(line);
+            });
+            });
+            body.appendChild(det);
+        }
+
+        const vars = r.agent_variables && Object.keys(r.agent_variables).length ? r.agent_variables : null;
+        if (vars) {
+            const v = document.createElement('div');
+            v.className = 'hint mono';
+            v.style.cssText = 'margin-top:8px; white-space:pre-wrap;';
+            v.textContent = Object.entries(vars).map(([k, val]) => `${k}: ${typeof val === 'object' ? JSON.stringify(val) : val}`).join('\n');
+            body.appendChild(v);
+        }
+
+        item.appendChild(body);
+        list.appendChild(item);
+    });
 };
 
 window.loadVobizLogs = async function() {
