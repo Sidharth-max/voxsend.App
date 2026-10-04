@@ -67,6 +67,20 @@ window.loadAppSettings = function () {
     }).catch(e => console.error("Error loading settings:", e));
 };
 
+// Adapts Settings to the provider: rows marked data-sarvam-off are disabled for Sarvam,
+// rows with data-sarvam-sub get a Sarvam-specific description.
+window.applySettingsProviderUI = function (provider) {
+    const sarvam = provider === 'sarvam';
+    document.querySelectorAll('#tab-settings .row-item[data-sarvam-off], #tab-settings .row-item[data-sarvam-sub]').forEach(row => {
+        const sub = row.querySelector('.row-sub');
+        if (sub && sub.dataset.orig === undefined) sub.dataset.orig = sub.textContent;
+        const off = row.hasAttribute('data-sarvam-off');
+        row.classList.toggle('is-off', sarvam && off);
+        row.querySelectorAll('select, input').forEach(el => { el.disabled = sarvam && off; });
+        if (sub) sub.textContent = sarvam ? (row.dataset.sarvamOff || row.dataset.sarvamSub) : sub.dataset.orig;
+    });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     // init server settings
     window.loadAppSettings();

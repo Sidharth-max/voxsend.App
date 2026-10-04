@@ -294,7 +294,8 @@ window.getFailedNumbers = function(h) {
     try { logs = typeof h.results === 'string' ? JSON.parse(h.results) : (h.results || []); } catch(e) {}
     const failed = [];
     logs.forEach(log => {
-        if (log.type !== 'err') return;
+        const unanswered = log.type === 'info' && /: (no answer|line busy)$/.test(log.text || '');
+        if (log.type !== 'err' && !unanswered) return;
         // Log format: "[provider] Failed +91XXXXXXXXXX: <reason>"  or  "Network error: ... for +91XXXXXXXXXX"
         const matches = (log.text || '').match(/\+\d{7,15}/g);
         if (matches) failed.push(...matches);
@@ -310,7 +311,9 @@ window.retryFailedCalls = function(index) {
     if (!failed.length) { window.showToast("No failed numbers found.", "info"); return; }
 
     const msgEl = document.getElementById('msg');
-    if (msgEl) msgEl.value = h.message || '';
+    // Agent-greeting broadcasts are stored with a label, not a real message: retry with an empty box.
+    if (msgEl) msgEl.value = h.message === '(Sarvam agent greeting)' ? '' : (h.message || '');
+    if (window.preview) window.preview();
 
     if (typeof window.setRecipientNumbers === 'function') {
         window.setRecipientNumbers(failed);

@@ -1222,3 +1222,7 @@
 
 /* PIN fields: spaced digits, normal placeholder */
 #login-pin::placeholder, #api-unlock-pass::placeholder { letter-spacing: normal; }
+
+/* Settings rows that do not apply to the current provider */
+.row-item.is-off .row-right { opacity: .35; pointer-events: none; }
+.row-item.is-off .row-label { color: var(--text2); }

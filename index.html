@@ -160,7 +160,7 @@
                                     <div class="metric-val" id="m-ok">0</div>
                                     <div class="metric-lbl">Successful</div>
                                 </div>
-                                <div class="metric">
+                                <div class="metric" id="m-cost-tile">
                                     <div class="metric-val" id="m-cost">₹0.00</div>
                                     <div class="metric-lbl">Total Spent</div>
                                 </div>
@@ -448,8 +448,8 @@
 
                     <div class="lang-pills" style="margin-bottom:20px;">
                         <button class="lang-pill active" id="sub-broadcast" onclick="setHistTab('broadcast')">Broadcast History</button>
-                        <button class="lang-pill" id="sub-vobiz" onclick="setHistTab('vobiz')">Vobiz Call Logs</button>
-                        <button class="lang-pill" id="sub-sarvam" onclick="setHistTab('sarvam')">Sarvam Conversations</button>
+                        <button class="lang-pill" id="sub-vobiz" onclick="setHistTab('vobiz')" style="display:none">Vobiz Call Logs</button>
+                        <button class="lang-pill" id="sub-sarvam" onclick="setHistTab('sarvam')" style="display:none">Sarvam Conversations</button>
                     </div>
 
                     <div id="hist-broadcast-content">
@@ -585,9 +585,10 @@
                                         <p class="hint">An announcement agent: it says the opening message it is given, then ends the call.</p>
                                     </div>
                                     <div class="field">
-                                        <label class="field-label">Agent Version</label>
-                                        <input type="text" id="sarvam-app-version" class="mono" placeholder="1"
-                                            autocomplete="new-password" />
+                                        <label class="field-label">Agent Version (optional)</label>
+                                        <input type="text" id="sarvam-app-version" class="mono" placeholder="Latest committed"
+                                            inputmode="numeric" autocomplete="off" />
+                                        <p class="hint">Leave empty to always use the newest version you committed in Sarvam. Enter a number only to pin calls to that version.</p>
                                     </div>
                                     <div class="field">
                                         <label class="field-label">Connection ID</label>
@@ -650,7 +651,7 @@
                     <div class="block">
                         <div class="block-head"><span class="block-title">Call Behavior</span></div>
                         <div class="block-body">
-                            <div class="row-item">
+                            <div class="row-item" data-sarvam-sub="How many calls Sarvam dials at once. Your Sarvam plan may allow fewer.">
                                 <div>
                                     <div class="row-label">Parallel calls</div>
                                     <div class="row-sub">Concurrent outbound connections</div>
@@ -673,7 +674,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="row-item">
+                            <div class="row-item" data-sarvam-off="Not used for Sarvam. Use “Retry failed” in History to call unanswered numbers again.">
                                 <div>
                                     <div class="row-label">Retry failed calls</div>
                                     <div class="row-sub">Attempt once more on failure</div>
@@ -687,7 +688,7 @@
                                     </label>
                                 </div>
                             </div>
-                            <div class="row-item">
+                            <div class="row-item" data-sarvam-off="Set by your Sarvam agent. Pick a language on the Broadcast screen only when typing a message.">
                                 <div>
                                     <div class="row-label">Default language</div>
                                     <div class="row-sub">Voice for TTS</div>
@@ -699,7 +700,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="row-item">
+                            <div class="row-item" data-sarvam-off="Not used for Sarvam. Sarvam paces its own dialing.">
                                 <div>
                                     <div class="row-label">Delay between calls</div>
                                     <div class="row-sub">Ms between each request</div>

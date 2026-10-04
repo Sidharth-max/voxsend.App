@@ -10,7 +10,6 @@ const REQUIRED_FIELDS = [
     ['sarvam_org', 'Org ID'],
     ['sarvam_workspace', 'Workspace ID'],
     ['sarvam_app_id', 'Agent ID'],
-    ['sarvam_app_version', 'Agent version'],
     ['sarvam_connection_id', 'Connection ID'],
     ['sarvam_from', 'From number']
 ];
@@ -19,6 +18,15 @@ const REQUIRED_FIELDS = [
 function missingSarvamConfig(cfg = {}) {
     const missing = REQUIRED_FIELDS.filter(([key]) => !cfg[key]).map(([, label]) => label);
     return missing.length ? missing.join(', ') : null;
+}
+
+// No version set: use whatever was last committed in the Sarvam dashboard.
+// (version_filter is accepted by the API but not in its docs: latest | specific | latest_committed.)
+function agentVersion(value) {
+    const v = parseInt(value, 10);
+    return Number.isInteger(v) && v > 0
+        ? { version_filter: 'specific', app_version: v }
+        : { version_filter: 'latest_committed' };
 }
 
 function baseUrl() {
@@ -33,7 +41,7 @@ async function placeCall(cfg, { to, message, lang, webhookUrl, metadata }) {
     const body = {
         app_config: {
             app_id: cfg.sarvam_app_id,
-            app_version: parseInt(cfg.sarvam_app_version, 10),
+            ...agentVersion(cfg.sarvam_app_version),
             connection_config: {
                 connection_id: cfg.sarvam_connection_id,
                 agent_phone_number: cfg.sarvam_from

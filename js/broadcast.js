@@ -99,6 +99,20 @@ window.applyProviderUI = function(provider) {
     const vWrap = document.getElementById('vobiz-voice-wrap');
     if (vWrap) vWrap.style.display = window.currentProvider === 'vobiz' ? 'block' : 'none';
 
+    // Sarvam bills in its own credits, so the ₹/min estimate does not apply.
+    const costTile = document.getElementById('m-cost-tile');
+    if (costTile) costTile.style.display = sarvam ? 'none' : '';
+
+    // History sub-tabs only for the provider that has them
+    const vTab = document.getElementById('sub-vobiz');
+    const sTab = document.getElementById('sub-sarvam');
+    if (vTab) vTab.style.display = window.currentProvider === 'vobiz' ? '' : 'none';
+    if (sTab) sTab.style.display = sarvam ? '' : 'none';
+    const activeSub = document.querySelector('#sub-vobiz.active, #sub-sarvam.active');
+    if (activeSub && activeSub.style.display === 'none' && window.setHistTab) window.setHistTab('broadcast');
+
+    if (window.applySettingsProviderUI) window.applySettingsProviderUI(window.currentProvider);
+
     // Gujarati is only spoken by Sarvam; Polly voices cannot.
     const gu = document.getElementById('pill-gu');
     if (gu) gu.style.display = sarvam ? '' : 'none';
@@ -276,7 +290,7 @@ window.blast = async function() {
         }
     } else if (provider === 'sarvam') {
         if (!c.sarvam_key || !c.sarvam_org || !c.sarvam_workspace || !c.sarvam_app_id ||
-            !c.sarvam_app_version || !c.sarvam_connection_id || !c.sarvam_from) {
+            !c.sarvam_connection_id || !c.sarvam_from) {
             window.addLog('err', 'Missing Sarvam settings! Check API tab.');
             return;
         }
