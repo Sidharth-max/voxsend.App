@@ -263,11 +263,8 @@ window.updateMetrics = async function() {
     if (c.provider === 'vobiz' && c.vobiz_id) {
         const walletWrap = document.getElementById('wallet-wrap');
         const walletBal = document.getElementById('wallet-balance');
-        const mWalletWrap = document.getElementById('mobile-wallet-wrap');
-        const mWalletBal = document.getElementById('mobile-wallet-balance');
 
         if (walletWrap) walletWrap.style.display = 'flex';
-        if (mWalletWrap) mWalletWrap.style.display = 'flex';
         
         try {
             const res = await fetch('/api/vobiz/balance', {
@@ -279,7 +276,6 @@ window.updateMetrics = async function() {
             if (data.balance !== undefined) {
                 const formatted = `₹${Number(data.balance).toFixed(2)}`;
                 if (walletBal) walletBal.textContent = formatted;
-                if (mWalletBal) mWalletBal.textContent = formatted;
                 const mini = document.getElementById('sidebar-balance-mini');
                 if (mini) mini.textContent = formatted;
             }
@@ -288,9 +284,7 @@ window.updateMetrics = async function() {
         }
     } else {
         const walletWrap = document.getElementById('wallet-wrap');
-        const mWalletWrap = document.getElementById('mobile-wallet-wrap');
         if (walletWrap) walletWrap.style.display = 'none';
-        if (mWalletWrap) mWalletWrap.style.display = 'none';
     }
 };
 

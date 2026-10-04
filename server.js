@@ -150,6 +150,47 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 
+// ── PIN LOGIN ────────────────────────────────
+// The PIN lives in .env as APP_PIN. It is re-read on each attempt so a change
+// takes effect without restarting. Repeated wrong guesses lock that address out.
+const PIN_MAX_FAILS = 5;
+const PIN_LOCK_MS = 5 * 60 * 1000;
+const pinFails = new Map(); // ip -> { count, until }
+
+const currentPin = () => {
+    try {
+        const parsed = require('dotenv').parse(fs.readFileSync('.env'));
+        if (parsed.APP_PIN) return String(parsed.APP_PIN).trim();
+    } catch (e) {}
+    return (process.env.APP_PIN || '').trim();
+};
+
+app.post('/api/auth/pin', (req, res) => {
+    const ip = req.ip || 'unknown';
+    const now = Date.now();
+    const rec = pinFails.get(ip);
+    if (rec && rec.until > now) {
+        return res.status(429).json({ ok: false, message: `Too many attempts. Try again in ${Math.ceil((rec.until - now) / 60000)} min.` });
+    }
+
+    const expected = currentPin();
+    if (!expected) return res.status(503).json({ ok: false, message: 'No PIN is set. Add APP_PIN to .env.' });
+
+    const given = String((req.body && req.body.pin) || '');
+    const a = Buffer.from(given), b = Buffer.from(expected);
+    const match = a.length === b.length && require('crypto').timingSafeEqual(a, b);
+    if (match) {
+        pinFails.delete(ip);
+        return res.json({ ok: true });
+    }
+
+    const expiredLock = rec && rec.until && rec.until <= now;
+    const count = (rec && !expiredLock ? rec.count : 0) + 1;
+    pinFails.set(ip, { count, until: count >= PIN_MAX_FAILS ? now + PIN_LOCK_MS : 0 });
+    const left = PIN_MAX_FAILS - count;
+    res.status(401).json({ ok: false, message: left > 0 ? `Wrong PIN. ${left} attempt${left === 1 ? '' : 's'} left.` : 'Too many attempts. Try again in 5 min.' });
+});
+
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
 });

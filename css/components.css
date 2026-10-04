@@ -1219,3 +1219,6 @@
 .vx-chev { transition: transform .15s ease; }
 .vx-disclosure-btn[aria-expanded="true"] .vx-chev { transform: rotate(90deg); }
 .vx-disclosure-body { margin-top: 4px; }
+
+/* PIN fields: spaced digits, normal placeholder */
+#login-pin::placeholder, #api-unlock-pass::placeholder { letter-spacing: normal; }

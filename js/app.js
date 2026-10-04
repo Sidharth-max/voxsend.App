@@ -46,9 +46,12 @@ window.getCfg = async function() {
     }
 }
 
-window.unlockApi = function() {
-    const pass = document.getElementById('api-unlock-pass').value;
-    if (window.verifySessionPassword && window.verifySessionPassword(pass)) {
+window.unlockApi = async function() {
+    const passEl = document.getElementById('api-unlock-pass');
+    const errEl = document.getElementById('api-unlock-err');
+    const result = await window.checkPin(passEl.value.trim());
+    passEl.value = '';
+    if (result.ok) {
         document.getElementById('api-lock-overlay').style.display = 'none';
         const wrap = document.getElementById('api-fields-wrap');
         wrap.style.opacity = '1';
@@ -57,7 +60,8 @@ window.unlockApi = function() {
         document.getElementById('api-unlock-err').style.display = 'none';
         window.loadCfg(); // Load credentials only after unlock
     } else {
-        document.getElementById('api-unlock-err').style.display = 'block';
+        errEl.textContent = result.message || 'Incorrect PIN';
+        errEl.style.display = 'block';
     }
 };
 

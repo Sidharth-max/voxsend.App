@@ -28,21 +28,17 @@
                 <div class="block-body">
                     <form id="login-form" onsubmit="handleLogin(event)">
                         <div class="field">
-                            <label class="field-label">Username</label>
-                            <input type="text" id="login-user" required autocomplete="username" />
-                        </div>
-                        <div class="field">
-                            <label class="field-label">Password</label>
-                            <div style="position:relative;">
-                                <input type="password" id="login-pass" required style="padding-right:40px;" />
-                                <button type="button" onclick="togglePass('login-pass')"
-                                    style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text2); cursor:pointer; font-size: 0.7857rem; text-transform:uppercase;">Show</button>
+                            <label class="field-label">Verification Required</label>
+                            <div style="display:flex; gap:10px;">
+                                <input type="password" id="login-pin" inputmode="numeric" pattern="[0-9]*" maxlength="12"
+                                    autocomplete="current-password" placeholder="Enter PIN" required
+                                    style="flex:1; letter-spacing:.3em;" />
+                                <button type="submit" class="btn btn-secondary btn-sm" id="login-btn"
+                                    style="width:auto; margin:0">Unlock</button>
                             </div>
+                            <div id="login-err"
+                                style="color:var(--error); font-size: 0.7857rem; margin-top:8px; display:none;">Incorrect PIN</div>
                         </div>
-                        <div id="login-err"
-                            style="color:var(--error); font-size: 0.8571rem; margin-bottom:14px; display:none;">Invalid
-                            credentials</div>
-                        <button type="submit" class="btn">Sign In</button>
                     </form>
                 </div>
             </div>
@@ -145,17 +141,6 @@
         <!-- ── MAIN ──────────────────────────── -->
         <main class="main">
             <div class="content">
-
-                <!-- MOBILE BALANCE (visible only on mobile via CSS) -->
-                <div id="mobile-wallet-wrap" class="mobile-only" style="display:none; align-items:center; justify-content:space-between; padding:12px 20px; border-bottom:1px solid var(--border); background:var(--bg);">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="font-size:11px; color:var(--text3); text-transform:uppercase;">Balance</span>
-                        <span id="mobile-wallet-balance" style="font-family:'Geist Mono'; font-size:15px; font-weight:600; color:var(--success);">₹0.00</span>
-                    </div>
-                    <button onclick="window.updateMetrics()" style="background:none; border:none; color:var(--text3); cursor:pointer;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                    </button>
-                </div>
 
                 <!-- BROADCAST TAB -->
                 <div class="tab-section active" id="tab-broadcast">
@@ -512,14 +497,15 @@
                                 <div class="field">
                                     <label class="field-label">Verification Required</label>
                                     <div style="display:flex; gap:10px;">
-                                        <input type="password" id="api-unlock-pass" placeholder="Enter password to edit"
-                                            style="flex:1" />
+                                        <input type="password" id="api-unlock-pass" inputmode="numeric" pattern="[0-9]*"
+                                            maxlength="12" placeholder="Enter PIN to edit" style="flex:1; letter-spacing:.3em;"
+                                            onkeydown="if(event.key==='Enter')unlockApi()" />
                                         <button class="btn btn-secondary btn-sm" onclick="unlockApi()"
                                             style="width:auto; margin:0">Unlock</button>
                                     </div>
                                     <div id="api-unlock-err"
                                         style="color:var(--error); font-size: 0.7857rem; margin-top:8px; display:none;">
-                                        Incorrect password</div>
+                                        Incorrect PIN</div>
                                 </div>
                             </div>
 
@@ -631,41 +617,6 @@
                         </div>
                     </div>
 
-                    <div class="block">
-                        <div class="block-head"><span class="block-title">Pricing Reference</span></div>
-                        <div class="block-body">
-                            <div class="row-item">
-                                <div>
-                                    <div class="row-label">Outbound US → India</div>
-                                </div>
-                                <div class="row-right"><span class="mono"
-                                        style="font-size: 0.8571rem;color:var(--text2)">$0.0075 / min</span></div>
-                            </div>
-                            <div class="row-item">
-                                <div>
-                                    <div class="row-label">Hindi TTS (Polly.Aditi)</div>
-                                </div>
-                                <div class="row-right"><span
-                                        style="font-size: 0.8571rem;color:var(--success)">Free</span>
-                                </div>
-                            </div>
-                            <div class="row-item">
-                                <div>
-                                    <div class="row-label">India number rental</div>
-                                </div>
-                                <div class="row-right"><span class="mono"
-                                        style="font-size: 0.8571rem;color:var(--text2)">$2.00 / mo</span></div>
-                            </div>
-                            <div class="row-item">
-                                <div>
-                                    <div class="row-label">Exchange rate (approx.)</div>
-                                </div>
-                                <div class="row-right"><span class="mono"
-                                        style="font-size: 0.8571rem;color:var(--text2)">1
-                                        USD ≈ ₹93.78</span></div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- SETTINGS TAB -->
@@ -778,65 +729,6 @@
                     </div>
 
                     <!-- USER MANAGEMENT (Merged) -->
-                    <div id="admin-section" style="display:none">
-                        <div class="page-hd"
-                            style="margin-top:40px; border-top:1px solid var(--border); padding-top:40px;">
-                            <div class="page-title">User Management</div>
-                            <div class="page-desc">Manage access for operators, senders, and viewers.</div>
-                        </div>
-
-                        <div class="users-grid">
-                            <div class="block">
-                                <div class="block-head"><span class="block-title">Add User</span></div>
-                                <div class="block-body">
-                                    <form id="add-user-form" onsubmit="addUser(event)">
-                                        <div class="field">
-                                            <label class="field-label">Full Name</label>
-                                            <input type="text" id="add-u-name" required />
-                                        </div>
-                                        <div style="display:flex; gap:16px;">
-                                            <div class="field" style="flex:1">
-                                                <label class="field-label">Username / Email</label>
-                                                <input type="text" id="add-u-email" required />
-                                            </div>
-                                            <div class="field" style="flex:1">
-                                                <label class="field-label">Password</label>
-                                                <input type="text" id="add-u-pass" required />
-                                            </div>
-                                        </div>
-                                        <div class="field">
-                                            <label class="field-label">Role</label>
-                                            <select id="add-u-role">
-                                                <option value="sender">Sender (Broadcast + History)</option>
-                                                <option value="viewer">Viewer (History only)</option>
-                                            </select>
-                                        </div>
-                                        <button type="submit" class="btn">Add User</button>
-                                    </form>
-                                </div>
-                            </div>
-
-                            <div class="block">
-                                <div class="block-head"><span class="block-title">Active Users</span></div>
-                                <div class="block-body">
-                                    <div class="table-wrap">
-                                        <table class="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                    <th>Username</th>
-                                                    <th>Role</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="users-tbody"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                 </div> <!-- end tab-settings -->
             </div> <!-- end content -->
         </main> <!-- end main -->
