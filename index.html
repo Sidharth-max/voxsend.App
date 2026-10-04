@@ -13,6 +13,9 @@
     <link rel="stylesheet" href="css/components.css" />
     <link rel="stylesheet" href="css/theme.css" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 </head>
 
 <body>
@@ -960,6 +963,11 @@
         }
         setInterval(checkHealth, 5000);
         checkHealth();
+
+        window.addEventListener('load', function () {
+            if (!('serviceWorker' in navigator)) return;
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+        });
     </script>
 </body>
 
