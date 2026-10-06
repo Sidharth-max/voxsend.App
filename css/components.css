@@ -1032,7 +1032,7 @@
         .modal {
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 20px;
             width: 100%;
             max-width: 500px;
             max-height: 90vh;
@@ -1040,7 +1040,7 @@
             flex-direction: column;
             box-shadow: var(--shadow-pop);
             overflow: hidden;
-            animation: modalUp .24s cubic-bezier(.4, 0, .2, 1) both;
+            animation: vx-pop-open .38s cubic-bezier(.2, .9, .3, 1) both;
         }
 
         @keyframes modalUp {
@@ -1705,7 +1705,7 @@ select.vx-select-native { display: none !important; }
 @keyframes vx-tab-in { from { opacity: 0; transform: translateY(6px); } }
 
 .modal-overlay.is-leaving { animation: vx-fade-out .18s ease forwards; }
-.modal-overlay.is-leaving .modal { animation: vx-sink .18s ease forwards; }
+.modal-overlay.is-leaving .modal { animation: vx-pop-close .2s cubic-bezier(.4, 0, 1, 1) forwards; }
 
 .vx-pop { animation: vx-pop-in .16s cubic-bezier(.4, 0, .2, 1) both; transform-origin: top center; }
 .vx-pop.is-leaving { animation: vx-fade-out .14s ease forwards; }
@@ -1931,47 +1931,28 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
     .contacts-grid > #import-block { order: 2; }
 }
 
-/* Phones: modals become bottom sheets that slide up from the bottom edge */
+/* Phones: dialogs are centred pop-up cards that pop in and shrink away */
 @media (max-width: 600px) {
-    .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+    .modal-overlay { align-items: center !important; padding: 16px !important; }
     .modal-overlay .modal {
         max-width: 100% !important;
         width: 100%;
-        max-height: 88vh;
-        border-radius: 18px 18px 0 0;
-        border-bottom: none;
-        padding-bottom: env(safe-area-inset-bottom);
-        animation: vx-sheet-pop .46s cubic-bezier(.2, .9, .3, 1) both;
+        max-height: 82vh;
+        border-radius: 20px;
+        animation: vx-pop-open .38s cubic-bezier(.2, .9, .3, 1) both;
     }
-    .modal-overlay .modal::before {
-        content: "";
-        display: block;
-        width: 36px;
-        height: 4px;
-        border-radius: 2px;
-        background: var(--border2);
-        margin: 8px auto 0;
-        flex-shrink: 0;
-    }
-    .modal-overlay.is-leaving .modal { animation: vx-sheet-down .26s cubic-bezier(.4, 0, 1, 1) forwards; }
-    .modal-overlay.is-leaving { animation-duration: .26s !important; }
-    .modal-hd { padding: 12px 18px 14px; }
-    .modal-body { padding: 16px 18px; }
-    .modal-ft { padding: 12px 18px; }
-    #convo-modal { padding: 0 !important; }
+    .modal-overlay.is-leaving .modal { animation: vx-pop-close .2s cubic-bezier(.4, 0, 1, 1) forwards; }
+    .modal-hd { padding: 12px 16px; }
+    .modal-body { padding: 16px; }
+    .modal-ft { padding: 12px 16px; }
+    #convo-modal { padding: 16px !important; }
 }
-/* Opening: the sheet pops up past its resting point and settles back (a small spring) */
-@keyframes vx-sheet-pop {
-    0%   { transform: translateY(60%) scale(.96); opacity: 0; }
-    55%  { transform: translateY(-10px) scale(1.01); opacity: 1; }
-    78%  { transform: translateY(3px) scale(.998); }
+@keyframes vx-pop-open {
+    0%   { transform: scale(.88); opacity: 0; }
+    60%  { transform: scale(1.02); opacity: 1; }
     100% { transform: none; }
 }
-/* Closing: it drops back down off the screen (from wherever a drag left it) */
-@keyframes vx-sheet-down { to { transform: translateY(105%); } }
-/* While being dragged the sheet follows the finger exactly */
-.modal-overlay .modal.is-dragging { animation: none !important; transition: none !important; }
-.modal-overlay .modal.is-settling { transition: transform .32s cubic-bezier(.2, .9, .3, 1.15); }
+@keyframes vx-pop-close { to { transform: scale(.94); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
     .modal-overlay .modal, .modal-overlay.is-leaving .modal { animation: none !important; }
 }
@@ -2084,22 +2065,6 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
 }
 :root[data-theme="light"] .modal-hd { background: color-mix(in srgb, #fff 66%, transparent); }
 
-@media (max-width: 600px) {
-    /* The grab handle lives in the sticky header, so it stays visible while scrolling */
-    .modal-overlay .modal::before { display: none !important; }
-    .modal-hd { padding: 16px 16px 10px !important; }
-    .modal-hd::before {
-        content: "";
-        position: absolute;
-        top: 6px;
-        left: 50%;
-        width: 36px;
-        height: 4px;
-        margin-left: -18px;
-        border-radius: 2px;
-        background: var(--border2);
-    }
-}
 
 /* Active tab in the bottom bar: the app's red (same as Clear / Delete), on a faint red highlight */
 :root { --accent-red: #ef4444; }
@@ -2136,8 +2101,3 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
 }
 
 .top-fade.is-on { opacity: 1; visibility: visible; transition: height .35s cubic-bezier(.32, .72, 0, 1), opacity .3s ease; }
-
-@media (max-width: 600px) {
-    /* The sheet header is a drag handle: no browser panning there */
-    .modal-overlay .modal-hd { touch-action: none; cursor: grab; }
-}
