@@ -34,10 +34,17 @@ window.vxShowModal = function(overlay) {
 window.vxHideModal = function(overlay, done) {
     if (!overlay) return;
     clearTimeout(overlay._vxTimer);
-    const finish = () => { overlay.style.display = 'none'; overlay.classList.remove('is-leaving'); if (done) done(); };
+    const finish = () => {
+        overlay.style.display = 'none';
+        overlay.classList.remove('is-leaving');
+        const m = overlay.querySelector('.modal');
+        if (m) { m.style.transform = ''; m.classList.remove('is-dragging', 'is-settling'); }
+        if (done) done();
+    };
     if (vxReduced() || overlay.style.display === 'none') return finish();
     overlay.classList.add('is-leaving');
-    overlay._vxTimer = setTimeout(finish, 180);
+    const sheet = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+    overlay._vxTimer = setTimeout(finish, sheet ? 260 : 180);
 };
 
 // Fades a transient element (popover, menu) out, then removes it.
@@ -414,4 +421,65 @@ window.placeNavIndicator = function() {
     window.syncTopFade = syncTopFade;
     const init = () => document.querySelectorAll('.sticky-bar').forEach(watch);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+
+// ── Bottom sheets: drag down to close (phones) ─────────────────────────
+// Grab the header (or anywhere, when the sheet is scrolled to the top) and pull down.
+// Past 120px or a quick flick closes it; otherwise it springs back.
+(function sheetDrag() {
+    const isPhone = () => window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+    let drag = null;
+    const start = (target, y) => {
+        if (!isPhone()) return;
+        const modal = target.closest && target.closest('.modal-overlay .modal');
+        if (!modal || target.closest('input, textarea, select, button, a, .vx-select-btn')) return;
+        const inHeader = !!target.closest('.modal-hd');
+        if (!inHeader && modal.scrollTop > 0) return;
+        drag = { modal, y0: y, t0: performance.now(), dy: 0, active: false, inHeader };
+    };
+    // Returns true while the sheet itself is being dragged (so the page must not scroll)
+    const move = y => {
+        if (!drag) return false;
+        const dy = y - drag.y0;
+        if (!drag.active) {
+            if (dy < 6) { if (dy < -6) drag = null; return false; } // moving up: let the list scroll
+            if (!drag.inHeader && drag.modal.scrollTop > 0) { drag = null; return false; }
+            drag.active = true;
+            drag.t0 = performance.now();
+            drag.y0 = y;
+            drag.modal.classList.remove('is-settling');
+            drag.modal.classList.add('is-dragging');
+        }
+        drag.dy = Math.max(0, y - drag.y0);
+        drag.modal.style.transform = `translateY(${drag.dy}px)`;
+        return true;
+    };
+    const end = () => {
+        if (!drag) return;
+        const { modal, dy, t0, active } = drag;
+        drag = null;
+        if (!active) return;
+        modal.classList.remove('is-dragging');
+        const fast = dy / Math.max(1, performance.now() - t0) > 0.5; // px per ms
+        if (dy > 120 || (fast && dy > 30)) {
+            // Close through the sheet's own close button so its page logic runs too
+            const overlay = modal.closest('.modal-overlay');
+            const btn = overlay.querySelector('.modal-close, #confirm-no, #prompt-cancel');
+            if (btn) btn.click(); else window.vxHideModal(overlay);
+        } else {
+            modal.classList.add('is-settling');
+            modal.style.transform = '';
+            setTimeout(() => modal.classList.remove('is-settling'), 340);
+        }
+    };
+    // Touch (phones): non-passive move so a sheet drag doesn't also scroll or bounce the page
+    document.addEventListener('touchstart', e => { if (e.touches.length === 1) start(e.target, e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('touchmove', e => { if (drag && move(e.touches[0].clientY) && e.cancelable) e.preventDefault(); }, { passive: false });
+    document.addEventListener('touchend', end);
+    document.addEventListener('touchcancel', end);
+    // Mouse (narrow desktop windows)
+    document.addEventListener('mousedown', e => { if (e.button === 0) start(e.target, e.clientY); });
+    document.addEventListener('mousemove', e => { if (drag) move(e.clientY); });
+    document.addEventListener('mouseup', end);
 })();

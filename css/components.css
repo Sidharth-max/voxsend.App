@@ -1941,7 +1941,7 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
         border-radius: 18px 18px 0 0;
         border-bottom: none;
         padding-bottom: env(safe-area-inset-bottom);
-        animation: vx-sheet-up .28s cubic-bezier(.2, .8, .2, 1) both;
+        animation: vx-sheet-pop .46s cubic-bezier(.2, .9, .3, 1) both;
     }
     .modal-overlay .modal::before {
         content: "";
@@ -1953,14 +1953,25 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
         margin: 8px auto 0;
         flex-shrink: 0;
     }
-    .modal-overlay.is-leaving .modal { animation: vx-sheet-down .2s ease forwards; }
+    .modal-overlay.is-leaving .modal { animation: vx-sheet-down .26s cubic-bezier(.4, 0, 1, 1) forwards; }
+    .modal-overlay.is-leaving { animation-duration: .26s !important; }
     .modal-hd { padding: 12px 18px 14px; }
     .modal-body { padding: 16px 18px; }
     .modal-ft { padding: 12px 18px; }
     #convo-modal { padding: 0 !important; }
 }
-@keyframes vx-sheet-up { from { transform: translateY(100%); } }
-@keyframes vx-sheet-down { to { transform: translateY(100%); } }
+/* Opening: the sheet pops up past its resting point and settles back (a small spring) */
+@keyframes vx-sheet-pop {
+    0%   { transform: translateY(60%) scale(.96); opacity: 0; }
+    55%  { transform: translateY(-10px) scale(1.01); opacity: 1; }
+    78%  { transform: translateY(3px) scale(.998); }
+    100% { transform: none; }
+}
+/* Closing: it drops back down off the screen (from wherever a drag left it) */
+@keyframes vx-sheet-down { to { transform: translateY(105%); } }
+/* While being dragged the sheet follows the finger exactly */
+.modal-overlay .modal.is-dragging { animation: none !important; transition: none !important; }
+.modal-overlay .modal.is-settling { transition: transform .32s cubic-bezier(.2, .9, .3, 1.15); }
 @media (prefers-reduced-motion: reduce) {
     .modal-overlay .modal, .modal-overlay.is-leaving .modal { animation: none !important; }
 }
@@ -2125,3 +2136,8 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
 }
 
 .top-fade.is-on { opacity: 1; visibility: visible; transition: height .35s cubic-bezier(.32, .72, 0, 1), opacity .3s ease; }
+
+@media (max-width: 600px) {
+    /* The sheet header is a drag handle: no browser panning there */
+    .modal-overlay .modal-hd { touch-action: none; cursor: grab; }
+}
