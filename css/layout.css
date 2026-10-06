@@ -23,7 +23,8 @@ body {
     display: flex;
     flex-direction: column;
     z-index: 100;
-    transition: width 0.25s ease;
+    /* Collapse right away; expanding on hover waits briefly (.sidebar.collapsed:hover) */
+    transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease-out;
     overflow: hidden;
 }
 
@@ -32,37 +33,33 @@ body {
     width: var(--sidebar-w-collapsed);
 }
 
-/* Hover to expand when collapsed */
+/* Hover to expand when collapsed. The sidebar is fixed, so it overlays the page (.main
+   keeps its collapsed margin). A 150ms hover-intent delay stops passing pointers opening it. */
 .sidebar.collapsed:hover {
     width: var(--sidebar-w);
-    box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-pop);
+    transition-delay: 0.15s;
 }
 
-/* --- Hide text labels when collapsed and NOT hovered --- */
-.sidebar.collapsed:not(:hover) .brand-name,
-.sidebar.collapsed:not(:hover) .brand-sub {
-    display: none;
-}
-
-.sidebar.collapsed:not(:hover) .nav-section-label {
-    visibility: hidden;
-    height: 0;
-    padding: 0;
-    margin: 0;
-    overflow: hidden;
-}
-
-.sidebar.collapsed:not(:hover) .nav-item span {
-    display: none;
-}
-
-.sidebar.collapsed:not(:hover) .status-txt {
-    display: none;
-}
-
-/* Collapsed wallet: hide the big card, show compact amount below status dot */
+/* --- Collapsed rail: same layout as the expanded sidebar. Icons, paddings and heights never
+   change; text labels only fade (no display:none, no height change), so nothing jumps. --- */
+.sidebar.collapsed:not(:hover) .sidebar-brand-text,
+.sidebar.collapsed:not(:hover) .nav-section-label,
+.sidebar.collapsed:not(:hover) .nav-item span,
+.sidebar.collapsed:not(:hover) .status-txt,
 .sidebar.collapsed:not(:hover) #wallet-wrap {
-    display: none !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.08s ease-out, visibility 0s linear 0.08s;
+}
+
+/* Labels fade in once the width animation is under way (after the hover-intent delay) */
+.sidebar.collapsed:hover .sidebar-brand-text,
+.sidebar.collapsed:hover .nav-section-label,
+.sidebar.collapsed:hover .nav-item span,
+.sidebar.collapsed:hover .status-txt,
+.sidebar.collapsed:hover #wallet-wrap {
+    transition: opacity 0.16s ease-out 0.24s, visibility 0s linear 0.24s;
 }
 
 .sidebar-balance-mini {
@@ -75,47 +72,23 @@ body {
     margin-top: 4px;
 }
 
-.sidebar.collapsed:not(:hover) .sidebar-balance-mini {
+.sidebar.collapsed .sidebar-balance-mini {
     display: block;
+    transition: opacity 0.12s ease-out;
 }
 
-/* Center icons when collapsed */
-.sidebar.collapsed:not(:hover) .nav-item {
-    justify-content: center;
-    padding: 12px 0;
-    gap: 0;
-}
-
-.sidebar.collapsed:not(:hover) .nav-item svg {
-    width: 20px;
-    height: 20px;
-    opacity: 0.7;
-}
-
-.sidebar.collapsed:not(:hover) .sidebar-brand {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 18px 0 14px;
-}
-
-.sidebar.collapsed:not(:hover) .sidebar-footer {
-    align-items: center;
-    padding: 16px 0;
-}
-
-.sidebar.collapsed:not(:hover) .dot {
-    margin: 0;
+.sidebar.collapsed:hover .sidebar-balance-mini {
+    opacity: 0;
 }
 
 
 
 .sidebar-brand {
-    padding: 16px 12px;
+    padding: 20px 16px 18px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     position: relative;
     flex-shrink: 0;
 }
@@ -131,8 +104,8 @@ body {
 /* Toggle button — inside the brand header */
 .sidebar-toggle {
     flex-shrink: 0;
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -159,32 +132,35 @@ body {
     transform: rotate(180deg);
 }
 
-/* Collapsed brand: center the toggle */
-.sidebar.collapsed:not(:hover) .sidebar-brand {
-    justify-content: center;
-    padding: 14px 0;
+/* Collapsed brand: the toggle stays centred in the 60px rail (16px padding + 28px/2 = 30px)
+   and does not move on hover; the name fades in to its right. Brand padding is unchanged. */
+.sidebar.collapsed .sidebar-toggle {
+    order: -1;
+    margin-left: 0;
 }
 
-.sidebar.collapsed:not(:hover) .brand-name,
-.sidebar.collapsed:not(:hover) .brand-sub {
-    display: none;
+.sidebar.collapsed .brand-name,
+.sidebar.collapsed .brand-sub {
+    white-space: nowrap;
 }
 
 .brand-name {
     font-family: 'Instrument Serif', serif;
-    font-size: 0.95rem;
+    font-size: 1.25rem;
     color: var(--text);
-    line-height: 1.2;
+    line-height: 1.15;
+    white-space: nowrap;
     display: block;
     font-weight: 500;
 }
 
 .brand-sub {
-    font-size: 0.65rem;
+    font-size: 0.68rem;
     color: var(--text3);
-    letter-spacing: .05em;
+    letter-spacing: .08em;
     text-transform: uppercase;
-    margin-top: 2px;
+    margin-top: 5px;
+    white-space: nowrap;
     display: block;
 }
 
@@ -200,18 +176,20 @@ body {
     color: var(--text3);
     letter-spacing: .1em;
     text-transform: uppercase;
-    padding: 10px 8px 4px;
+    padding: 14px 12px 6px;
+    white-space: nowrap;
 }
 
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: 6px;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 2px;
+    border-radius: 8px;
     cursor: pointer;
     color: var(--text2);
-    font-size: 0.9286rem;
+    font-size: 1rem;
     font-weight: 400;
     transition: color .15s, background .15s;
     user-select: none;
@@ -229,8 +207,8 @@ body {
 }
 
 .nav-item svg {
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
     opacity: .5;
     flex-shrink: 0
 }
@@ -240,7 +218,7 @@ body {
 }
 
 .sidebar-footer {
-    padding: 20px;
+    padding: 18px 16px 18px 27px;
     border-top: 1px solid var(--border);
     margin-top: auto;
     display: flex;
@@ -251,6 +229,71 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
+}
+
+/* Brand title = the active calling service (set by applyProviderUI in broadcast.js) */
+.brand-name.brand-provider {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    min-height: 1.15em;
+}
+
+.brand-provider[data-provider="twilio"] {
+    color: #F22F46;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.brand-provider[data-provider="twilio"]::before {
+    content: "";
+    width: 0.62em;
+    height: 0.62em;
+    border-radius: 50%;
+    border: 0.17em solid #F22F46;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+/* vobiz.ai: accent #EE6524 (theme-color #E83C00) */
+.brand-provider[data-provider="vobiz"] {
+    color: #EE6524;
+    font-weight: 700;
+}
+
+.brand-provider-meta {
+    /* Own line under "Call Broadcast" so it never runs under the collapse button */
+    display: block;
+    margin-top: 3px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brand-provider-meta:empty {
+    display: none;
+}
+
+.topbar-brand.brand-provider {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar *,
+    .sidebar.collapsed:hover,
+    .sidebar.collapsed:hover * {
+        transition: none !important;
+    }
 }
 
 .dot {
@@ -492,7 +535,8 @@ body {
     }
 
     .metrics {
-        grid-template-columns: 1fr;
+        grid-auto-flow: row;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
         border: none;
     }
@@ -500,12 +544,14 @@ body {
     .metric {
         padding: 12px;
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: 12px;
     }
 
+    /* Title and badge share a line; a control group (div) wraps onto its own full-width row */
     .block-head {
-        flex-direction: column;
-        align-items: flex-start;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
         gap: 8px;
         padding: 12px;
     }
@@ -591,7 +637,8 @@ body {
     }
 
     .metrics {
-        grid-template-columns: repeat(2, 1fr);
+        grid-auto-flow: row;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
         border: none;
     }
@@ -599,10 +646,11 @@ body {
     .metric {
         padding: 16px;
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: 12px;
     }
 
-    .metric:last-child {
+    /* An odd tile out spans the row instead of leaving a hole */
+    .metric:last-child:nth-child(odd) {
         grid-column: span 2;
     }
 
@@ -832,9 +880,12 @@ body {
 @media(max-width: 768px) {
     html, body {
         height: auto !important;
-        overflow: auto !important;
         -webkit-overflow-scrolling: touch;
     }
+    /* Only the page scrolls. If body were a scroller too it would never move, and sticky
+       toolbars would pin to it instead of the screen. */
+    html { overflow: auto !important; }
+    body { overflow: visible !important; overflow-x: clip !important; }
     .app {
         height: auto !important;
         display: block !important;

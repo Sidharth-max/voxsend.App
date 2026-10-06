@@ -7,4 +7,92 @@
     --text: #09090b;
     --text2: #71717a;
     --text3: #a1a1aa;
+    --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.05);
+    --shadow-card-hover: 0 4px 12px rgba(16, 24, 40, 0.07);
+    --shadow-btn: 0 1px 2px rgba(16, 24, 40, 0.08);
+    --shadow-pop: 0 12px 32px rgba(16, 24, 40, 0.12);
+    --overlay: rgba(24, 24, 27, 0.35);
+}
+
+/* ── THEME TOGGLE FAB (sun/moon) ─────────── */
+/* Dark (default) shows the moon, light shows the sun. Transitions run only while
+   <html> has .theme-anim, which js/settings.js adds for ~300ms on a toggle. */
+#settings-fab .tf-core,
+#settings-fab .tf-rays {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+#settings-fab .tf-rays { opacity: 0; transform: rotate(-45deg) scale(.6); }
+:root[data-theme="light"] #settings-fab .theme-fab-icon { transform: rotate(90deg); }
+:root[data-theme="light"] #settings-fab .tf-core { transform: scale(.6); }
+:root[data-theme="light"] #settings-fab .tf-cut { transform: translate(7px, -7px); }
+:root[data-theme="light"] #settings-fab .tf-rays { opacity: 1; transform: none; }
+#settings-fab:focus-visible { outline: 2px solid var(--border2); outline-offset: 3px; }
+
+/* ── Theme switch: one coordinated 300ms crossfade (js/settings.js applyTheme) ── */
+/* 1) View Transitions (html.theme-vt): the new theme fades in over the old one, which stays
+   fully opaque underneath. A plain crossfade fades both at once, so mid-way the page dims
+   and flickers; this way brightness moves in one smooth direction. */
+::view-transition-old(root),
+::view-transition-new(root) {
+    mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+    animation: none;
+}
+::view-transition-new(root) {
+    animation: theme-fade-in .4s cubic-bezier(.4, 0, .2, 1) both;
+}
+@keyframes theme-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+/* Per-element transitions would make the live "new" snapshot start mid-way; freeze them so
+   the new page is final at once and the root crossfade is the only motion. */
+html.theme-vt *,
+html.theme-vt *::before,
+html.theme-vt *::after {
+    transition: none !important;
+}
+/* The FAB gets its own layer: its icon morphs live and its colours fade over the same 300ms. */
+html.theme-vt #settings-fab { view-transition-name: theme-fab; }
+::view-transition-group(theme-fab),
+::view-transition-new(theme-fab) { animation: none; }
+::view-transition-old(theme-fab) { display: none; }
+html.theme-vt #settings-fab {
+    transition: background-color .4s ease, border-color .4s ease, color .4s ease, box-shadow .4s ease !important;
+}
+
+/* 2) Fallback without View Transitions (html.theme-anim): every element, pseudo-element and
+   SVG fades its colours together, for this switch only. */
+html.theme-anim,
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+    transition-property: background-color, color, border-color, outline-color, fill, stroke,
+        box-shadow, text-decoration-color, caret-color, -webkit-text-fill-color !important;
+    transition-duration: .4s !important;
+    transition-timing-function: cubic-bezier(.4, 0, .2, 1) !important;
+    transition-delay: 0s !important;
+}
+
+/* Icon morph (both paths): one 350ms sun/moon morph, never cut short. */
+html.theme-vt #settings-fab .tf-anim,
+html.theme-anim #settings-fab .tf-anim {
+    transition: transform .35s cubic-bezier(.4, 0, .2, 1), opacity .35s ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) { animation: none !important; }
+    html.theme-anim,
+    html.theme-anim *,
+    html.theme-anim *::before,
+    html.theme-anim *::after,
+    html.theme-vt #settings-fab,
+    html.theme-vt #settings-fab .tf-anim,
+    html.theme-anim #settings-fab .tf-anim {
+        transition: none !important;
+    }
 }

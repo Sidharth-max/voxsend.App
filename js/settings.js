@@ -1,26 +1,82 @@
-window.toggleThemePop = function () {
-    const pop = document.getElementById('theme-pop');
-    if (pop.style.display === 'none') {
-        pop.style.display = 'block';
+// ── Theme (light/dark) ─────────────────────────────────
+// Saved as localStorage 'theme' = 'light' | 'dark'; light sets <html data-theme="light">.
+// The header toggle (#settings-fab) goes through applyTheme.
+const THEME_ANIM_MS = 400;   // fade length (css/theme.css uses the same 400ms)
+const THEME_ANIM_HOLD = 450; // fallback class lifetime: fade + the 350ms icon morph
+const DEFAULT_FONT_PX = 14; // the old font-size slider's default; the slider is gone
+let themeAnimTimer = null;
+
+function setThemeAttr(isLight) {
+    const root = document.documentElement;
+    if (isLight) root.setAttribute('data-theme', 'light');
+    else root.removeAttribute('data-theme');
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', isLight ? '#fafafa' : '#0a0a0a');
+}
+
+window.applyTheme = function (isLight, animate) {
+    const root = document.documentElement;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const changing = (root.getAttribute('data-theme') === 'light') !== !!isLight;
+    if (!animate || reduce || !changing) {
+        // Page load, other-tab sync, reduced motion: switch instantly, nothing animates.
+        // .theme-vt also freezes the elements' own transitions (inputs, pills) for this switch.
+        if (changing) {
+            root.classList.add('theme-vt');
+            setThemeAttr(isLight);
+            void root.offsetWidth; // commit the new colours while transitions are off
+            root.classList.remove('theme-vt');
+        } else {
+            setThemeAttr(isLight);
+        }
+    } else if (typeof document.startViewTransition === 'function') {
+        // View Transitions: the browser snapshots the old page and crossfades the whole page
+        // (every element, pseudo-element, SVG, image, gradient, popover) into the new one in a
+        // single 300ms fade. .theme-vt (css/theme.css) freezes per-element transitions so the
+        // new snapshot is final at once, and lets the FAB icon morph live on its own layer.
+        root.classList.remove('theme-anim');
+        root.classList.add('theme-vt');
+        clearTimeout(themeAnimTimer);
+        let vt;
+        try {
+            vt = document.startViewTransition(() => setThemeAttr(isLight));
+        } catch (e) {
+            vt = null;
+            setThemeAttr(isLight);
+        }
+        const done = () => { if (!root.classList.contains('theme-anim')) root.classList.remove('theme-vt'); };
+        if (vt && vt.finished) vt.finished.then(done, done);
+        themeAnimTimer = setTimeout(done, THEME_ANIM_HOLD + 600); // safety net
     } else {
-        pop.style.display = 'none';
+        // Fallback: .theme-anim gives every element (and ::before/::after, SVG fill/stroke) the
+        // same 300ms colour transition for this switch only, then is removed.
+        root.classList.add('theme-anim');
+        void root.offsetWidth; // commit the transition rules before the colours change
+        setThemeAttr(isLight);
+        clearTimeout(themeAnimTimer);
+        themeAnimTimer = setTimeout(() => root.classList.remove('theme-anim'), THEME_ANIM_HOLD);
+    }
+    const fab = document.getElementById('settings-fab');
+    if (fab) {
+        const label = isLight ? 'Switch to dark mode' : 'Switch to light mode';
+        fab.setAttribute('aria-label', label);
+        fab.title = label;
     }
 };
 
 window.setThemeMode = function (isLight) {
-    if (isLight) {
-        document.documentElement.setAttribute('data-theme', 'light');
-        localStorage.setItem('theme', 'light');
-    } else {
-        document.documentElement.removeAttribute('data-theme');
-        localStorage.setItem('theme', 'dark');
-    }
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    window.applyTheme(isLight, true);
 };
 
-window.setFontSize = function (size) {
-    document.documentElement.style.fontSize = size + 'px';
-    localStorage.setItem('font-size', size);
+window.toggleTheme = function () {
+    window.setThemeMode(document.documentElement.getAttribute('data-theme') !== 'light');
 };
+
+// Another tab changed the theme: follow it.
+window.addEventListener('storage', (e) => {
+    if (e.key === 'theme') window.applyTheme(e.newValue === 'light', false);
+});
 
 window.saveTrustName = function () {
     const name = document.getElementById('trust-name-input').value.trim();
@@ -84,27 +140,9 @@ window.applySettingsProviderUI = function (provider) {
 document.addEventListener('DOMContentLoaded', () => {
     // init server settings
     window.loadAppSettings();
-    const theme = localStorage.getItem('theme');
-    if (theme === 'light') {
-        document.documentElement.setAttribute('data-theme', 'light');
-        const tog = document.getElementById('theme-toggle');
-        if (tog) tog.checked = true;
-    }
+    window.applyTheme(localStorage.getItem('theme') === 'light', false);
 
-    // init font
-    const fs = localStorage.getItem('font-size') || 14;
-    document.documentElement.style.fontSize = fs + 'px';
-    const sld = document.getElementById('font-slider');
-    if (sld) sld.value = fs;
-
-    // click outside theme pop to close
-    document.addEventListener('click', (e) => {
-        const pop = document.getElementById('theme-pop');
-        const fab = document.getElementById('settings-fab');
-        if (pop && pop.style.display === 'block') {
-            if (!pop.contains(e.target) && !fab.contains(e.target)) {
-                pop.style.display = 'none';
-            }
-        }
-    });
+    // Font size is no longer adjustable: drop any saved choice and use the default.
+    localStorage.removeItem('font-size');
+    document.documentElement.style.fontSize = DEFAULT_FONT_PX + 'px';
 });

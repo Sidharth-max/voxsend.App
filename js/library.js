@@ -70,13 +70,13 @@ window.saveToLibrary = async function() {
 };
 
 window.openLibrary = async function () {
-    document.getElementById('lib-modal').style.display = 'flex';
+    window.vxShowModal(document.getElementById('lib-modal'));
     // Load fresh messages from the server every time the library opens
     await window.loadMessages();
 };
 
 window.closeLibrary = function () {
-    document.getElementById('lib-modal').style.display = 'none';
+    window.vxHideModal(document.getElementById('lib-modal'));
 };
 
 window.renderLibrary = function (filtered) {

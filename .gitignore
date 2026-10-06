@@ -30,3 +30,6 @@ voxsend.db
 voxsend.db-shm
 voxsend.db-wal
 *.json
+
+# Database backups made by the schedule migration (contain real data)
+*.db.bak-*

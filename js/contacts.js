@@ -161,6 +161,14 @@ window.handleCSV = function(event) {
 
 let editingPhone = null;
 
+const escAttr = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+// Clicking a number shows every Sarvam conversation with that person.
+document.addEventListener('click', e => {
+    const link = e.target.closest && e.target.closest('#contacts-tbody .c-phone-link');
+    if (link && window.openPersonConversations) window.openPersonConversations(link.dataset.phone, link.dataset.name);
+});
+
 window.renderContacts = function() {
     const filterGroup = document.getElementById('filter-group');
     const searchQ = document.getElementById('search-contacts');
@@ -181,7 +189,10 @@ window.renderContacts = function() {
     // but for now, we'll let the event listeners handle resetting it.
     
     document.getElementById('contacts-count').textContent = `${contacts.length} total`;
-    document.getElementById('check-all').checked = filtered.length > 0 && filtered.every(c => c.selected);
+    const checkAll = document.getElementById('check-all');
+    const selCount = filtered.filter(c => c.selected).length;
+    checkAll.checked = filtered.length > 0 && selCount === filtered.length;
+    checkAll.indeterminate = selCount > 0 && selCount < filtered.length;
     
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="empty">No contacts found.</td></tr>';
@@ -196,18 +207,18 @@ window.renderContacts = function() {
             <td class="c-num"><div class="mono" style="color:var(--text3); font-size: 0.75rem;">${i + 1}</div></td>
             <td class="c-main">
                 <div class="c-name-wrap">
-                    <div class="c-name" style="font-weight:500;color:var(--text); font-size: 0.85rem;">${c.name || '—'}</div>
-                    <button class="btn btn-secondary btn-sm mobile-edit" onclick="editContact('${c.phone}')">EDIT</button>
+                    <button type="button" class="c-name c-phone-link c-name-link" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show Sarvam conversations">${escAttr(c.name || '—')}</button>
+                    <button class="btn btn-secondary btn-sm mobile-edit" onclick="editContact('${escAttr(c.phone)}')" aria-label="Edit contact">Edit</button>
                 </div>
                 <div class="c-details-wrap">
-                    <div class="c-phone mono" style="color:var(--text2); font-size: 0.8rem;">${c.phone}</div>
+                    <button type="button" class="c-phone c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show Sarvam conversations">${escAttr(c.phone)}</button>
                     ${c.group ? `<span class="badge c-group" style="font-size: 0.65rem;">${c.group}</span>` : ''}
                 </div>
             </td>
-            <td class="c-phone-desktop"><div class="mono" style="color:var(--text2); font-size: 0.8rem;">${c.phone}</div></td>
+            <td class="c-phone-desktop"><button type="button" class="c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show Sarvam conversations">${escAttr(c.phone)}</button></td>
             <td class="c-group-desktop">${c.group ? `<span class="badge" style="font-size: 0.65rem;">${c.group}</span>` : '—'}</td>
             <td class="c-actions-desktop">
-                <button class="btn btn-secondary btn-sm" onclick="editContact('${c.phone}')" style="width:auto; padding:4px 10px; font-size:10px;">EDIT</button>
+                <button class="btn btn-secondary btn-sm c-edit-btn" onclick="editContact('${escAttr(c.phone)}')" aria-label="Edit contact">Edit</button>
             </td>
         </tr>
     `).join('');
@@ -231,12 +242,12 @@ window.editContact = function(phone) {
     document.getElementById('edit-group').value = c.group || '';
 
     const modal = document.getElementById('edit-contact-modal');
-    if (modal) modal.style.display = 'flex';
+    window.vxShowModal(modal);
 };
 
 window.closeEditContact = function() {
     const modal = document.getElementById('edit-contact-modal');
-    if (modal) modal.style.display = 'none';
+    window.vxHideModal(modal);
     editingPhone = null;
 };
 

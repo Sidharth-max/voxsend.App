@@ -1,9 +1,11 @@
 /* ── METRICS ────────────────────────────── */
         .metrics {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            /* Columns follow the visible tiles, so a hidden tile (cost, for Sarvam) leaves no gap */
+            grid-auto-flow: column;
+            grid-auto-columns: 1fr;
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
             margin-bottom: 20px;
         }
@@ -11,11 +13,11 @@
         .metric {
             padding: 18px 20px;
             background: var(--surface);
-            border-right: 1px solid var(--border);
         }
 
-        .metric:last-child {
-            border-right: none
+        /* Divider before each visible tile after the first (a hidden tile adds no edge) */
+        .metric + .metric {
+            border-left: 1px solid var(--border);
         }
 
         .metric-val {
@@ -54,12 +56,13 @@
             border-radius: 12px;
             margin-bottom: 24px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .block:hover {
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            /* clip (not hidden): still rounds the corners, but lets sticky toolbars inside work */
+            overflow: clip;
+            /* Body fills the card when a grid row stretches it taller than its content */
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-card);
+            transition: box-shadow 0.25s ease;
         }
 
         .block-head {
@@ -82,6 +85,8 @@
         .block-body {
             padding: 18px;
             background: var(--surface2);
+            flex: 1 1 auto;
+            min-height: 0;
         }
 
         /* ── FORM ───────────────────────────────── */
@@ -269,6 +274,8 @@
         /* ── TOGGLE ─────────────────────────────── */
         .toggle {
             position: relative;
+            display: inline-block; /* a <label>: without this it collapses to 0x0 and the switch is invisible */
+            vertical-align: middle;
             width: 36px;
             height: 20px;
             flex-shrink: 0
@@ -326,17 +333,17 @@
             font-weight: 600;
             cursor: pointer;
             width: 100%;
-            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, filter 0.2s ease;
             user-select: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: var(--shadow-btn);
             font-family: 'Geist', sans-serif;
             letter-spacing: .01em;
             min-height: 44px;
         }
 
         .btn:hover:not(:disabled) {
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-card-hover);
             filter: brightness(1.1);
         }
 
@@ -345,8 +352,17 @@
         }
 
         .btn:disabled {
-            opacity: 0.3;
+            opacity: 0.45;
             cursor: not-allowed;
+        }
+
+        /* Disabled primary: a quiet themed surface instead of a washed-out grey pill */
+        .btn:not(.btn-secondary):not(.btn-danger):not(.btn-warning):disabled {
+            opacity: 1;
+            background: var(--surface2);
+            color: var(--text3);
+            border: 1px solid var(--border);
+            box-shadow: none;
         }
 
         .btn-secondary {
@@ -389,7 +405,7 @@
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
             border: 1px solid var(--border);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--shadow-pop);
         }
 
         /* ── PROGRESS ───────────────────────────── */
@@ -569,11 +585,67 @@
             background: var(--surface2);
         }
 
-        .checkbox {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--text);
+        /* ── CHECKBOX (custom; real input kept for a11y + JS) ── */
+        input[type="checkbox"].checkbox {
+            -webkit-appearance: none;
+            appearance: none;
+            position: relative;
+            display: inline-grid;
+            place-content: center;
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            padding: 0;
+            vertical-align: middle;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 5px;
+            color: var(--bg);
             cursor: pointer;
+            outline: none;
+            transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        input[type="checkbox"].checkbox::before {
+            content: "";
+            width: 12px;
+            height: 12px;
+            background: currentColor;
+            transform: scale(0);
+            transition: transform .12s ease;
+            -webkit-mask: var(--cb-mark) center / contain no-repeat;
+            mask: var(--cb-mark) center / contain no-repeat;
+            --cb-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3L9.5 3.6' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+
+        input[type="checkbox"].checkbox:indeterminate::before {
+            --cb-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 6h6' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+        }
+
+        input[type="checkbox"].checkbox:hover:not(:disabled) {
+            border-color: var(--text2);
+        }
+
+        input[type="checkbox"].checkbox:checked,
+        input[type="checkbox"].checkbox:indeterminate {
+            background: var(--text);
+            border-color: var(--text);
+        }
+
+        input[type="checkbox"].checkbox:checked::before,
+        input[type="checkbox"].checkbox:indeterminate::before {
+            transform: scale(1);
+        }
+
+        input[type="checkbox"].checkbox:focus-visible {
+            box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text2);
+        }
+
+        input[type="checkbox"].checkbox:disabled {
+            opacity: .35;
+            cursor: not-allowed;
         }
 
         .controls-row {
@@ -594,7 +666,7 @@
             margin-bottom: 16px;
         }
 
-        .search-input {
+        input.search-input {
             width: 100%;
             background: var(--surface);
             border: 1px solid var(--border);
@@ -688,15 +760,20 @@
             #theme-pop {
                 bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + 60px) !important;
             }
+            /* Title and badge stay on one line; control groups wrap to their own full row */
             .block-head {
-                flex-direction: column !important;
-                align-items: flex-start !important;
-                gap: 12px !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                align-items: center !important;
+                gap: 10px 12px !important;
                 padding: 14px !important;
             }
             .block-head > * {
-                width: 100% !important;
                 margin: 0 !important;
+            }
+            .block-head > div,
+            .block-head > .lang-pills {
+                width: 100% !important;
             }
             .lang-pills {
                 display: flex !important;
@@ -707,17 +784,17 @@
                 text-align: center !important;
             }
             .metrics {
-                display: flex !important;
-                flex-direction: column !important;
+                display: grid !important;
+                grid-auto-flow: row !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
                 border: none !important;
                 gap: 10px !important;
-                grid-template-columns: none !important;
             }
             .metric {
                 width: 100% !important;
                 padding: 14px 18px !important;
                 border: 1px solid var(--border) !important;
-                border-radius: 8px !important;
+                border-radius: 12px !important;
                 border-right: 1px solid var(--border) !important;
                 background: var(--surface) !important;
             }
@@ -853,13 +930,13 @@
             margin-bottom: 12px;
             transition: transform .2s, border-color .2s, box-shadow .2s;
             cursor: default;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow-card);
         }
 
         .hist-card:hover {
             border-color: var(--border2);
             transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: var(--shadow-card-hover);
         }
 
         .hist-card-hd {
@@ -942,8 +1019,9 @@
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.8);
+            background: var(--overlay);
             backdrop-filter: blur(4px);
+            animation: vx-fade-in .2s ease both;
             z-index: 2000;
             display: none;
             align-items: center;
@@ -960,12 +1038,13 @@
             max-height: 90vh;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            animation: modalUp 0.3s ease-out;
+            box-shadow: var(--shadow-pop);
+            overflow: hidden;
+            animation: modalUp .24s cubic-bezier(.4, 0, .2, 1) both;
         }
 
         @keyframes modalUp {
-            from { opacity: 0; transform: translateY(20px); }
+            from { opacity: 0; transform: translateY(12px) scale(.98); }
             to { opacity: 1; transform: translateY(0); }
         }
 
@@ -1007,9 +1086,8 @@
             display: flex;
             gap: 12px;
             justify-content: flex-end;
+            flex-wrap: wrap;
             background: var(--surface2);
-            border-bottom-left-radius: 2rem;
-            border-bottom-right-radius: 2rem;
         }
 
         .empty {
@@ -1073,10 +1151,10 @@
     padding: 12px 20px;
     border-radius: 8px;
     font-size: 0.9286rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-pop);
     opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.3s, transform 0.3s;
+    transform: translateY(12px);
+    transition: opacity .24s cubic-bezier(.4, 0, .2, 1), transform .24s cubic-bezier(.4, 0, .2, 1);
     pointer-events: auto;
 }
 
@@ -1142,7 +1220,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 1.25rem;
-    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--shadow-pop);
     padding: 12px;
     color: var(--text);
     font-family: 'Geist', sans-serif;
@@ -1177,8 +1255,8 @@
 .vx-time-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .vx-time-col {
     max-height: 210px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+    overscroll-behavior: contain; /* scrolling to 11 PM must not scroll (and close) the page */
     border: 1px solid var(--border); border-radius: 12px; padding: 4px;
-    scrollbar-width: thin;
 }
 .vx-time-opt {
     border: none; background: transparent; color: var(--text2); border-radius: 8px;
@@ -1226,3 +1304,824 @@
 /* Settings rows that do not apply to the current provider */
 .row-item.is-off .row-right { opacity: .35; pointer-events: none; }
 .row-item.is-off .row-label { color: var(--text2); }
+
+/* ── SCHEDULE FORM + SCHEDULED CALLS (layout only; existing tokens/components) ── */
+.sched-group { margin-bottom: 16px; }
+.sched-group > .field-label { margin-bottom: 6px; }
+.sched-form .lang-pills { display: flex; flex-wrap: wrap; width: max-content; max-width: 100%; }
+.sched-cols { display: flex; gap: 12px; flex-wrap: wrap; }
+.sched-col { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; }
+.sched-col > .field-label { margin-bottom: 6px; }
+.sched-col input[type=number] { min-height: 42px; }
+.sched-stack { display: flex; flex-direction: column; gap: 8px; }
+.sched-add { width: auto; margin-top: 8px; }
+.sched-toggle-row { padding: 0; border: none; flex-wrap: nowrap; }
+.sched-form .cost-strip { margin-top: 4px; }
+@media (max-width: 599px) {
+    .sched-form .lang-pills { width: 100%; }
+    .sched-form .btn.sched-add { width: auto; }
+}
+
+.sched-card { cursor: default; }
+.sched-card:hover { transform: none; }
+.sched-card .hist-card-hd { gap: 12px; margin-bottom: 10px; }
+.sched-card-title { font-size: 0.9286rem; font-weight: 500; color: var(--text); line-height: 1.4; }
+.sched-card .hist-card-stats { flex-wrap: wrap; gap: 6px 16px; }
+.sched-card .hist-card-actions { justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; }
+.sched-card .vx-disclosure { margin-top: 0; }
+.sched-times-list { margin-top: 10px; border-top: 1px solid var(--border); }
+.sched-times-list .row-item { padding: 10px 0; flex-wrap: nowrap; gap: 10px; }
+.sched-times-list .row-item:first-child { padding-top: 10px; }
+.sched-times-list .row-item > div:first-child { min-width: 0; }
+.sched-time-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.sched-time-right .vx-pop-btn { padding: 4px 12px; }
+.sched-cancel-all { color: var(--error); border-color: rgba(239, 68, 68, 0.2); }
+.sched-cancel-all:hover { color: var(--error); }
+.badge.badge-success { background: rgba(62, 207, 142, .08); color: var(--success); border-color: rgba(62, 207, 142, .15); }
+.badge.badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--error); border-color: rgba(239, 68, 68, 0.2); }
+.badge.badge-muted { background: var(--surface2); color: var(--text2); border-color: var(--border); }
+/* Edit / per-time actions: keep buttons on one line; on phones the status badge sits under
+   the date so the date, Edit and Cancel fit one row. */
+.sched-card .vx-pop-btn { white-space: nowrap; }
+.sched-time-badge-sm { display: none; }
+@media (max-width: 599px) {
+    .sched-time-right .badge { display: none; }
+    .sched-time-badge-sm { display: inline-flex; margin-top: 4px; }
+}
+
+/* ── Selects: one shared chevron for every <select> (same icon as the old #vobiz-voice) ── */
+html select,
+html select.lang-pill {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 10px 10px;
+    padding-right: 36px;
+    cursor: pointer;
+}
+:root[data-theme="light"] select,
+:root[data-theme="light"] select.lang-pill {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+html select::-ms-expand { display: none; }
+:root[data-theme="light"] select.select-pill { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
+/* Small pill selects in block headers (voice, recipients group) */
+html select.select-pill {
+    width: auto;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 2rem;
+    padding: 0 28px 0 12px;
+    background-position: right 10px center;
+    background-color: var(--surface);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 10px 10px;
+    font-size: 0.7857rem;
+    color: var(--text2);
+    max-width: 100%;
+}
+@media (max-width: 599px) {
+    html select { padding-right: 36px; }
+    html select.select-pill { padding: 0 28px 0 12px; font-size: 0.8571rem; }
+}
+/* Custom pickers replace the browser's own date/time indicators */
+input[type=date]::-webkit-calendar-picker-indicator,
+input[type=time]::-webkit-calendar-picker-indicator,
+input[type=datetime-local]::-webkit-calendar-picker-indicator { display: none; -webkit-appearance: none; }
+
+/* ── Schedule form: one 16px rhythm between every section ── */
+.sched-form > .sched-group,
+.sched-form #sched-range-wrap > .sched-group,
+.sched-form > .cost-strip { margin: 0 0 16px; }
+.sched-form > .sched-group > .field-label,
+.sched-form .sched-col > .field-label { margin-bottom: 6px; }
+.sched-form .sched-add { margin-top: 8px; }
+.sched-form > .hint { margin-top: 8px; }
+/* Brief highlight after "Change" jumps to the recipients picker */
+.rcpt-flash { box-shadow: 0 0 0 1px var(--border2); transition: box-shadow .2s ease; }
+/* RECIPIENTS header: group pick + CLEAR share one row, also on phones */
+.rcpt-head-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rcpt-head-actions select.select-pill { flex: 0 1 auto; min-width: 0; }
+.rcpt-head-actions .btn { flex: 0 0 auto; min-height: 0 !important; width: auto !important; }
+@media (max-width: 767px) {
+    .rcpt-head-actions select.select-pill { flex: 1 1 auto; height: 34px; text-align: left; text-align-last: left; }
+    .rcpt-head-actions .btn { height: 34px !important; }
+}
+
+
+/* Sarvam brand gradient text (colours from sarvam.ai: sr-orange to sr-indigo), slowly drifting */
+.sarvam-gradient {
+    background: linear-gradient(100deg, #ee7944 0%, #f59970 18%, #81a0e9 38%, #556adc 50%, #81a0e9 62%, #f59970 82%, #ee7944 100%);
+    background-size: 200% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: #ee7944;
+    font-weight: 600;
+    animation: sarvam-drift 6s linear infinite;
+}
+
+@keyframes sarvam-drift {
+    from { background-position: 0% 50%; }
+    to   { background-position: -200% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sarvam-gradient { animation: none; }
+}
+
+/* ===== Custom select (js/select.js) ===== */
+/* The real <select> stays in the DOM as the source of truth, but can never be focused or
+   tapped, so the browser/OS picker never opens. */
+select.vx-select-native { display: none !important; }
+
+/* Trigger: shared bits */
+.vx-select-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    max-width: 100%;
+    font-family: 'Geist', sans-serif;
+    line-height: normal;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.2s ease;
+}
+.vx-select-label { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.vx-select-chev { display: inline-flex; flex-shrink: 0; color: var(--text2); }
+.vx-select-btn:disabled { cursor: default; opacity: .5; }
+.vx-select-btn:focus-visible { outline: none; border-color: var(--border2); }
+
+/* Field trigger: identical box to the text inputs (search, Account SID, ...). The button
+   carries the input's font-size so its height matches the input exactly; the label uses the
+   input's placeholder size (0.9286rem), as the old select text looked too big beside it. */
+.vx-select-btn.vx-select-field {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2rem;
+    color: var(--text);
+    font-size: 0.9286rem;
+    padding: 10px 18px;
+}
+.vx-select-field .vx-select-label { font-size: 0.9286rem; }
+/* Invisible strut at the button's (input-sized) font, so the box is exactly as tall as an
+   input with the same font-size and padding, whatever the font metrics. */
+.vx-select-btn.vx-select-field::before { content: '\200b'; width: 0; margin-right: -10px; overflow: hidden; }
+.vx-select-btn.vx-select-field:hover,
+.vx-select-btn.vx-select-field[aria-expanded="true"] { border-color: var(--border2); }
+
+/* Pill trigger: same look as the old select-pill (voice, recipients group) */
+.vx-select-btn.vx-select-pill {
+    width: auto;
+    height: 26px; /* = the btn-sm pills beside it (CLEAR) */
+    gap: 8px;
+    padding: 0 10px 0 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2rem;
+    color: var(--text2);
+    font-size: 0.7857rem;
+}
+.vx-select-btn.vx-select-pill:hover,
+.vx-select-btn.vx-select-pill[aria-expanded="true"] { color: var(--text); border-color: var(--border2); }
+
+/* Search + group filter toolbars: the filter sits level with the search box (no stretching
+   to the search's bottom margin) and takes a sensible width beside it. */
+.controls-row > .vx-select-btn { align-self: flex-start; flex: 1 1 0; max-width: 200px; }
+.rcpt-head-actions .vx-select-btn.vx-select-pill { flex: 0 1 auto; min-width: 0; }
+/* Voice pick beside the Hindi / English / Gujarati pills: same height as that group */
+.lang-pills ~ * > .vx-select-btn.vx-select-pill { height: 24px; }
+
+@media (max-width: 767px) {
+    .rcpt-head-actions .vx-select-btn.vx-select-pill { flex: 1 1 auto; height: 34px; }
+}
+@media (max-width: 599px) {
+    .vx-select-btn.vx-select-field { font-size: 1.1429rem; }
+    .vx-select-btn.vx-select-pill { font-size: 0.8571rem; }
+    .controls-row > .vx-select-btn { width: 100%; max-width: none; flex: 0 0 auto; }
+}
+
+/* Option list: the date/time picker popover surface (.vx-pop) */
+.vx-pop.vx-select-pop {
+    z-index: 10001; /* above modals (2000) and the login layer, so a select in a modal works */
+    padding: 4px;
+    max-height: min(320px, calc(100vh - 24px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    outline: none;
+}
+.vx-select-group + .vx-select-group,
+.vx-select-opt + .vx-select-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border); }
+.vx-select-group-label {
+    padding: 6px 10px 4px;
+    font-size: 0.7143rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text3);
+}
+.vx-select-opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px 8px 8px;
+    border-radius: 0.75rem;
+    font-size: 0.8571rem;
+    color: var(--text2);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.vx-select-opt:hover,
+.vx-select-opt:focus { background: var(--surface2); color: var(--text); outline: none; }
+.vx-select-opt.is-selected { color: var(--text); }
+.vx-select-opt.is-disabled { opacity: .4; cursor: default; }
+.vx-select-opt.is-disabled:hover { background: transparent; color: var(--text2); }
+.vx-select-check { width: 12px; display: inline-flex; flex-shrink: 0; visibility: hidden; }
+.vx-select-opt.is-selected .vx-select-check { visibility: visible; }
+@media (max-width: 599px) {
+    .vx-select-opt { padding: 11px 14px 11px 10px; font-size: 0.9286rem; }
+}
+
+
+/* ── POLISH: shared sizes ───────────────────────────── */
+/* One icon size per button size, so icons line up wherever they appear. */
+.btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.btn-sm svg { width: 16px; height: 16px; }
+.btn-sm { gap: 6px; }
+
+/* Page header: title on the left, page actions + theme toggle on the right */
+.page-hd {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+.page-hd-text { min-width: 0; flex: 1 1 auto; }
+.page-hd-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+.page-hd-actions .btn { width: auto; }
+
+/* Theme toggle (lives in the open page's header; moved there by go() in js/app.js) */
+.theme-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.theme-btn:hover { background: var(--border); border-color: var(--border2); }
+.theme-btn svg { width: 18px; height: 18px; }
+
+/* Shown only where the bottom bar is (phones / small tablets) */
+.mobile-only { display: none !important; }
+@media (max-width: 768px) {
+    .block.mobile-only { display: flex !important; }
+    .page-back.mobile-only { display: inline-flex !important; }
+}
+
+.page-back {
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    padding: 0;
+    margin-bottom: 8px;
+    color: var(--text2);
+    font: inherit;
+    font-size: 0.8571rem;
+    cursor: pointer;
+}
+.page-back:hover { color: var(--text); }
+
+/* A settings row that opens another page */
+.row-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text2);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.row-link .row-label, .row-link .row-sub { display: block; }
+.row-link:hover .row-label { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Phones: header actions become 36px round icon buttons, matching the theme toggle */
+@media (max-width: 600px) {
+    .page-hd { gap: 12px; }
+    .page-hd-actions { gap: 8px; }
+    .page-hd-actions .hd-btn {
+        width: 36px !important;
+        height: 36px;
+        min-height: 36px;
+        padding: 0;
+        border-radius: 50%;
+        flex: 0 0 auto !important;
+    }
+    .page-hd-actions .hd-btn .hd-btn-label {
+        position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap;
+    }
+    /* Contacts toolbar: a tidy 2×2 grid instead of 3 + one oversized Delete */
+    .dir-block .header-actions {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px !important;
+    }
+}
+
+/* Modal footers: buttons of one height; on phones they share the row evenly */
+.modal-ft .btn { width: auto; }
+@media (max-width: 600px) {
+    .modal { max-height: 85vh; }
+    .modal-ft .btn { flex: 1 1 auto; }
+}
+
+.btn-warning { background: #f59e0b; color: #000; border: 1px solid #f59e0b; box-shadow: none; }
+
+/* ── Sarvam conversation (History → Sarvam Conversations) ── */
+.convo { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; }
+.convo-msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    line-height: 1.5;
+}
+.convo-msg.is-agent { align-self: flex-start; border-bottom-left-radius: 4px; }
+.convo-msg.is-caller { align-self: flex-end; border-bottom-right-radius: 4px; background: var(--surface2); border-color: var(--border2); }
+.convo-who { font-size: 0.7143rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); margin-bottom: 4px; }
+.convo-text { font-size: 0.9286rem; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.convo-en { font-size: 0.8214rem; color: var(--text2); margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); white-space: pre-wrap; overflow-wrap: anywhere; }
+.convo-vars {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 14px;
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8571rem;
+}
+.convo-vars dt { color: var(--text2); }
+.convo-vars dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+    .convo-msg { max-width: 92%; }
+    .convo-vars { grid-template-columns: 1fr; gap: 2px; }
+    .convo-vars dd { margin-bottom: 8px; }
+}
+
+/* ── Motion: shared fades (timing matches js/app.js vxCollapse / vxHideModal) ── */
+@keyframes vx-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vx-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes vx-sink { to { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes vx-pop-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes vx-tab-in { from { opacity: 0; transform: translateY(6px); } }
+
+.modal-overlay.is-leaving { animation: vx-fade-out .18s ease forwards; }
+.modal-overlay.is-leaving .modal { animation: vx-sink .18s ease forwards; }
+
+.vx-pop { animation: vx-pop-in .16s cubic-bezier(.4, 0, .2, 1) both; transform-origin: top center; }
+.vx-pop.is-leaving { animation: vx-fade-out .14s ease forwards; }
+
+/* Switching tabs: the new page settles in */
+/* backwards (not both): no transform is left behind once it ends, since a leftover transform
+   would trap sticky bars below the blurred top edge */
+.tab-section.active { animation: vx-tab-in .22s cubic-bezier(.4, 0, .2, 1) backwards; }
+
+.vx-chev { transition: transform .24s cubic-bezier(.4, 0, .2, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+    .modal-overlay, .modal, .vx-pop, .tab-section.active,
+    .modal-overlay.is-leaving, .modal-overlay.is-leaving .modal, .vx-pop.is-leaving { animation: none !important; }
+}
+
+/* Caller line: contact name first, number beside it */
+.convo-caller { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.convo-name { font-size: 0.9643rem; font-weight: 600; color: var(--text); }
+.convo-phone { font-size: 0.8571rem; color: var(--text); }
+.convo-name + .convo-phone { color: var(--text2); }
+
+/* Expanding panels lay out on their own, so the page around them is not recalculated */
+.vx-disclosure-body { contain: layout paint; }
+
+/* Conversation toggle: a larger, easy-to-hit pill */
+#sarvam-calls-list .vx-disclosure { margin-top: 10px; }
+#sarvam-calls-list .vx-disclosure-btn {
+    gap: 8px;
+    padding: 7px 14px 7px 11px;
+    min-height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 2rem;
+    background: var(--surface);
+    font-size: 0.8571rem;
+    font-weight: 500;
+    color: var(--text);
+    transition: background-color .2s ease, border-color .2s ease;
+}
+#sarvam-calls-list .vx-disclosure-btn:hover { background: var(--surface2); border-color: var(--border2); }
+#sarvam-calls-list .vx-chev { width: 12px; height: 12px; }
+/* No margin on the animated body itself (a margin would snap instead of animating) */
+#sarvam-calls-list .vx-disclosure-body { margin-top: 0; }
+a.convo-phone { text-decoration: none; }
+a.convo-phone:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Contacts: numbers open that person's Sarvam conversations */
+.c-phone-link {
+    background: none; border: none; padding: 0; cursor: pointer;
+    font-family: 'Geist Mono', monospace; font-size: 0.8rem; color: var(--text2);
+    text-align: left;
+}
+.c-phone-link:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Lazy-loaded conversation lists */
+.feed-status {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    min-height: 44px; padding: 8px 0 4px;
+    font-size: 0.8214rem; color: var(--text3);
+}
+.feed-status:empty { display: none; }
+#sarvam-calls-list > .block,
+#convo-modal-list > .block {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 96px;
+}
+
+/* Person conversations modal: wider, its list scrolls inside */
+.modal.convo-modal { max-width: 680px; }
+.convo-modal .modal-body { background: var(--bg); }
+.convo-modal-sub { font-size: 0.8214rem; color: var(--text2); margin-top: 2px; }
+.convo-modal-sub:empty { display: none; }
+#convo-modal-list .vx-disclosure { margin-top: 10px; }
+#convo-modal-list .vx-disclosure-btn {
+    gap: 8px; padding: 7px 14px 7px 11px; min-height: 34px;
+    border: 1px solid var(--border); border-radius: 2rem; background: var(--surface);
+    font-size: 0.8571rem; font-weight: 500; color: var(--text);
+}
+#convo-modal-list .vx-chev { width: 12px; height: 12px; }
+#convo-modal-list .vx-disclosure-body { margin-top: 0; }
+@media (max-width: 600px) {
+    #convo-modal { padding: 12px; }
+    .modal.convo-modal { max-height: 90vh; }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   MOBILE UX (phones and small tablets, where the bottom bar shows)
+   ════════════════════════════════════════════════════════════ */
+.c-name-link { font-family: inherit; font-size: 0.85rem; font-weight: 500; color: var(--text); }
+.c-name-link:hover { color: var(--text); }
+.c-edit-btn { width: auto; min-height: 32px; padding: 4px 12px; font-size: 0.75rem; }
+.b-row { cursor: pointer; }
+
+@media (max-width: 768px) {
+    /* Floating tab bar (Apple Music 7 style): a pill that floats above the content with a
+       plain blurred, slightly see-through background, and minimises while scrolling down. */
+    .bottomnav {
+        --nav-gap: 12px;
+        left: 50% !important;
+        right: auto !important;
+        bottom: calc(var(--nav-gap) + env(safe-area-inset-bottom)) !important;
+        width: min(calc(100% - 2 * var(--nav-gap)), 420px);
+        height: 64px !important;
+        padding: 6px !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--surface) 58%, transparent) !important;
+        backdrop-filter: blur(26px);
+        -webkit-backdrop-filter: blur(26px);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+        transform: translateX(-50%);
+        /* iOS-like ease: quick start, long soft landing */
+        transition: height .5s cubic-bezier(.32, .72, 0, 1), width .5s cubic-bezier(.32, .72, 0, 1),
+            opacity .4s ease, background-color .4s ease, transform .5s cubic-bezier(.32, .72, 0, 1);
+        overflow: hidden;
+    }
+    :root[data-theme="light"] .bottomnav {
+        background: color-mix(in srgb, #fff 62%, transparent) !important;
+        box-shadow: 0 8px 24px rgba(16, 24, 40, 0.1);
+    }
+    .bottomnav-inner { height: 100% !important; position: relative; }
+    .bn-item {
+        position: relative;
+        z-index: 1;
+        gap: 3px !important;
+        border-radius: 999px;
+        color: var(--text2) !important;
+        transition: color .25s ease;
+    }
+    .bn-item.active { color: var(--text) !important; }
+    .bn-item svg { width: 22px !important; height: 22px !important; transition: transform .5s cubic-bezier(.32, .72, 0, 1); }
+    .bn-item span {
+        display: block !important;
+        font-size: 0.6875rem;
+        font-weight: 500;
+        line-height: 1;
+        max-height: 12px;
+        transition: opacity .25s ease, max-height .5s cubic-bezier(.32, .72, 0, 1);
+    }
+    /* The highlight behind the active tab; js/app.js slides it between tabs */
+    /* Sized as a share of the bar (index × 1/n), so it stays on its tab while the bar resizes */
+    .bn-indicator {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: calc(100% / var(--bn-count, 4));
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--text) 10%, transparent);
+        transform: translateX(calc(var(--bn-index, 0) * 100%));
+        transition: transform .45s cubic-bezier(.3, 1.2, .5, 1);
+        pointer-events: none;
+    }
+
+    /* Content softens and fades into the bottom edge behind the bar (progressive blur) */
+    .bottomnav-fade {
+        display: block !important;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: calc(110px + env(safe-area-inset-bottom));
+        z-index: 99;
+        pointer-events: none;
+        background: linear-gradient(to top, color-mix(in srgb, var(--bg) 85%, transparent), transparent);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        -webkit-mask-image: linear-gradient(to top, #000 35%, transparent);
+        mask-image: linear-gradient(to top, #000 35%, transparent);
+    }
+
+    /* Minimised while scrolling down: shorter, narrower, see-through; labels fold away */
+    .bottomnav.is-min {
+        height: 50px !important;
+        width: min(calc(100% - 2 * var(--nav-gap)), 280px);
+        opacity: .88;
+    }
+    .bottomnav.is-min .bn-item span { opacity: 0; max-height: 0; }
+    .bottomnav.is-min .bn-item svg { transform: scale(.92); }
+
+    /* Content can scroll fully clear of the floating bar */
+    .main, .content { padding-bottom: 0 !important; }
+    .tab-section { padding-bottom: calc(64px + 24px + 12px + env(safe-area-inset-bottom)) !important; }
+
+    /* Toasts sit above the bottom bar, centred */
+    #toast-container {
+        left: 12px !important;
+        right: 12px !important;
+        bottom: calc(64px + 24px + env(safe-area-inset-bottom)) !important;
+        align-items: center;
+    }
+
+    /* Page header: tighter, so content starts higher */
+    .page-hd { margin-bottom: 18px !important; padding-bottom: 14px !important; }
+    .page-desc { font-size: 0.8571rem; line-height: 1.45; }
+
+    /* Touch targets: at least 40-44px tall */
+    .lang-pill { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+    .btn, .btn-sm { min-height: 40px; }
+    .vx-pop-btn { min-height: 36px; padding: 8px 14px !important; }
+    .vx-disclosure-btn { min-height: 36px; }
+    #numbers-toggle { min-height: 36px; padding: 0 4px; }
+    .vx-select-btn { min-height: 40px; }
+    .lang-pills ~ * > .vx-select-btn.vx-select-pill { height: 40px; }
+    input[type="checkbox"].checkbox { width: 22px; height: 22px; }
+
+    /* Broadcast: one top-to-bottom flow — stats, message, recipients, pick contacts, send */
+    .broadcast-grid { display: flex !important; flex-direction: column; gap: 0 !important; }
+    .broadcast-main, .broadcast-side { display: contents !important; }
+    .broadcast-grid .metrics { order: 1; }
+    #message-block { order: 2; }
+    #recipients-block { order: 3; }
+    #pick-contacts-block { order: 4; }
+    #deploy-block { order: 5; }
+    /* The picker scrolls inside itself instead of pushing Send far down the page */
+    #pick-contacts-block .table-wrap { max-height: 46vh !important; }
+    .b-row td { padding-top: 12px !important; padding-bottom: 12px !important; }
+
+    /* Contacts: the directory first, importing after it */
+    .contacts-grid { display: flex !important; flex-direction: column; }
+    .contacts-grid > .dir-block { order: 1; }
+    .contacts-grid > #import-block { order: 2; }
+}
+
+/* Phones: modals become bottom sheets that slide up from the bottom edge */
+@media (max-width: 600px) {
+    .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+    .modal-overlay .modal {
+        max-width: 100% !important;
+        width: 100%;
+        max-height: 88vh;
+        border-radius: 18px 18px 0 0;
+        border-bottom: none;
+        padding-bottom: env(safe-area-inset-bottom);
+        animation: vx-sheet-up .28s cubic-bezier(.2, .8, .2, 1) both;
+    }
+    .modal-overlay .modal::before {
+        content: "";
+        display: block;
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border2);
+        margin: 8px auto 0;
+        flex-shrink: 0;
+    }
+    .modal-overlay.is-leaving .modal { animation: vx-sheet-down .2s ease forwards; }
+    .modal-hd { padding: 12px 18px 14px; }
+    .modal-body { padding: 16px 18px; }
+    .modal-ft { padding: 12px 18px; }
+    #convo-modal { padding: 0 !important; }
+}
+@keyframes vx-sheet-up { from { transform: translateY(100%); } }
+@keyframes vx-sheet-down { to { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) {
+    .modal-overlay .modal, .modal-overlay.is-leaving .modal { animation: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bottomnav, .bn-indicator, .bn-item span, .bn-item svg { transition: none !important; }
+}
+
+/* Language picker is hidden in Sarvam mode (beats the phone rule that forces .lang-pills to flex) */
+#msg-lang-pills.is-hidden { display: none !important; }
+
+.bottomnav-fade { display: none; }
+/* The open page reads slightly bolder (bottom bar label and sidebar item) */
+.bn-item.active span { font-weight: 650 !important; }
+.nav-item.active span { font-weight: 600; }
+
+
+/* ── Sticky toolbars ──────────────────────────────────────────
+   Section switchers and list filters stay in reach while a long list scrolls: they ride
+   just below the top edge on a blurred pill, like the floating bottom bar. */
+.sticky-bar {
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    z-index: 30;
+    transition: box-shadow .35s ease, background-color .35s ease, border-color .35s ease;
+}
+.sticky-bar.is-stuck {
+    background: color-mix(in srgb, var(--surface) 60%, transparent) !important;
+    border-color: var(--border2) !important;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28);
+}
+:root[data-theme="light"] .sticky-bar.is-stuck {
+    background: color-mix(in srgb, #fff 62%, transparent) !important;
+    box-shadow: 0 8px 26px rgba(16, 24, 40, 0.1);
+}
+
+/* History switcher: a full-width pill with comfortable 44px segments */
+#hist-subtabs {
+    display: flex;
+    margin-bottom: 20px;
+    padding: 4px;
+    border-radius: 999px;
+}
+#hist-subtabs .lang-pill {
+    flex: 1 1 0;
+    min-height: 40px;
+    border-radius: 999px;
+    font-size: 0.8571rem;
+    transition: background-color .25s ease, color .25s ease, font-weight .25s ease;
+}
+#hist-subtabs .lang-pill.active { font-weight: 600; }
+
+/* Contacts search + group filter */
+.sticky-tools {
+    padding: 6px;
+    margin: -6px -6px 8px;
+    border: 1px solid transparent;
+    border-radius: 1.6rem;
+    background: transparent;
+}
+@media (max-width: 768px) {
+    .sticky-tools { flex-direction: row !important; flex-wrap: nowrap !important; }
+    .sticky-tools > input { flex: 1 1 60% !important; min-width: 0; }
+    .sticky-tools > select, .sticky-tools > .vx-select-btn { flex: 0 0 38% !important; min-width: 0; }
+}
+
+@media (max-width: 768px) {
+    /* The page (not each tab) scrolls on phones; a never-scrolling tab scroller would trap sticky bars */
+    .tab-section { overflow: visible !important; }
+}
+
+/* ── Bottom sheets / modals: compact blurred header, content scrolls beneath it ── */
+.modal { overflow-y: auto; overscroll-behavior: contain; }
+.modal-body { flex: none; overflow: visible; }
+.modal-hd {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: 12px 16px;
+    gap: 12px;
+    background: color-mix(in srgb, var(--bg) 62%, transparent);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+.modal-hd > div:first-child { min-width: 0; }
+.modal-title { font-size: 1rem; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.convo-modal-sub { font-size: 0.7857rem; margin-top: 1px; }
+.modal-close {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+    color: var(--text2);
+}
+.modal-close svg { width: 16px; height: 16px; }
+.modal-ft {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: color-mix(in srgb, var(--surface2) 70%, transparent);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+:root[data-theme="light"] .modal-hd { background: color-mix(in srgb, #fff 66%, transparent); }
+
+@media (max-width: 600px) {
+    /* The grab handle lives in the sticky header, so it stays visible while scrolling */
+    .modal-overlay .modal::before { display: none !important; }
+    .modal-hd { padding: 16px 16px 10px !important; }
+    .modal-hd::before {
+        content: "";
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        width: 36px;
+        height: 4px;
+        margin-left: -18px;
+        border-radius: 2px;
+        background: var(--border2);
+    }
+}
+
+/* Active tab in the bottom bar: the app's red (same as Clear / Delete), on a faint red highlight */
+:root { --accent-red: #ef4444; }
+.bn-item.active { color: var(--accent-red) !important; }
+.bn-indicator { background: color-mix(in srgb, var(--accent-red) 14%, transparent) !important; }
+#hist-subtabs .lang-pill { border: none !important; }
+
+/* ── Top edge blur ──────────────────────────────────────────────
+   Shown only while a selector bar (e.g. History's switcher) is pinned at the top: the content
+   behind and around it softens, like the bottom bar's edge. Hidden otherwise. */
+.top-fade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--fade-h, 32px);
+    opacity: 0;
+    visibility: hidden;
+    transition: height .35s cubic-bezier(.32, .72, 0, 1), opacity .3s ease, visibility 0s linear .3s;
+    z-index: 25; /* below sticky bars (30), above content */
+    pointer-events: none;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 85%, transparent), transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+@media (max-width: 768px) {
+    .top-fade {
+        position: fixed;
+        height: var(--fade-h, calc(env(safe-area-inset-top, 0px) + 56px));
+        z-index: 25;
+    }
+}
+
+.top-fade.is-on { opacity: 1; visibility: visible; transition: height .35s cubic-bezier(.32, .72, 0, 1), opacity .3s ease; }

@@ -11,9 +11,24 @@
 
     function close() {
         if (!openPop) return;
-        openPop.pop.remove();
+        window.vxRemove(openPop.pop);
         openPop.anchor.setAttribute('aria-expanded', 'false');
         openPop = null;
+    }
+
+    // Puts the popover under (or above) its field, kept inside the viewport.
+    function place(pop, anchor) {
+        const r = anchor.getBoundingClientRect();
+        const w = pop.offsetWidth, h = pop.offsetHeight;
+        let left = Math.min(r.left, window.innerWidth - w - 12);
+        left = Math.max(12, left);
+        let top = r.bottom + 6;
+        if (top + h > window.innerHeight - 12 && r.top - h - 6 > 12) top = r.top - h - 6;
+        // Short screens: keep the whole popover (and its buttons) on screen.
+        if (top + h > window.innerHeight - 12) top = Math.max(12, window.innerHeight - h - 12);
+        top = Math.max(12, top);
+        pop.style.left = left + 'px';
+        pop.style.top = top + 'px';
     }
 
     // Opens a popover under the anchor, kept inside the viewport (works at phone width).
@@ -26,14 +41,7 @@
         pop.setAttribute('role', 'dialog');
         build(pop);
         document.body.appendChild(pop);
-        const r = anchor.getBoundingClientRect();
-        const w = pop.offsetWidth, h = pop.offsetHeight;
-        let left = Math.min(r.left, window.innerWidth - w - 12);
-        left = Math.max(12, left);
-        let top = r.bottom + 6;
-        if (top + h > window.innerHeight - 12 && r.top - h - 6 > 12) top = r.top - h - 6;
-        pop.style.left = left + 'px';
-        pop.style.top = top + 'px';
+        place(pop, anchor);
         anchor.setAttribute('aria-expanded', 'true');
         openPop = { pop, anchor };
         const focusEl = pop.querySelector('.is-selected') || pop.querySelector('button');
@@ -46,8 +54,12 @@
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && openPop) { const a = openPop.anchor; close(); a.focus(); }
     });
-    window.addEventListener('resize', close);
-    document.addEventListener('scroll', e => { if (openPop && !openPop.pop.contains(e.target)) close(); }, true);
+    // A page scroll or resize must not close the picker: on phones the page scrolls on its
+    // own (momentum, address bar, a drag that starts beside a column), and closing there
+    // left a half-picked time (e.g. only ":30" tapped) in the box. Follow the field instead.
+    const follow = e => { if (openPop && !(e && e.target && e.target.nodeType === 1 && openPop.pop.contains(e.target))) place(openPop.pop, openPop.anchor); };
+    window.addEventListener('resize', follow);
+    document.addEventListener('scroll', follow, true);
 
     function setValue(field, value) {
         field.dataset.value = value || '';
@@ -161,10 +173,19 @@
     }
 
     // ── Time ─────────────────────────────────────────────
+    // Each tap on an hour or minute is saved to the field straight away, so the choice is
+    // kept however the popover closes (tap outside, page scroll, Escape). Cancel restores
+    // the value the field had when it was opened.
     function buildTime(pop, field) {
         pop.classList.add('vx-time');
-        const [curH, curM] = (field.dataset.value || '10:00').split(':').map(Number);
+        const original = field.dataset.value || '';
+        const [curH, curM] = (original || '10:00').split(':').map(Number);
         let h = curH, m = curM;
+        // An empty box shows 10 AM as a suggestion only. Until an hour is tapped (or "Set
+        // time" accepts the suggestion) a minute tap is held, not saved, so a box can never
+        // quietly become a copy of another time such as 10:30.
+        let hourChosen = !!original;
+        const commit = () => setValue(field, `${pad(h)}:${pad(m)}`);
 
         const cols = document.createElement('div');
         cols.className = 'vx-time-cols';
@@ -190,15 +211,18 @@
         const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
         if (!minutes.includes(m)) minutes.push(m), minutes.sort((a, b) => a - b);
         cols.append(
-            col(Array.from({ length: 24 }, (_, i) => i), h, hourLabel, v => { h = v; }),
-            col(minutes, m, v => ':' + pad(v), v => { m = v; })
+            col(Array.from({ length: 24 }, (_, i) => i), h, hourLabel, v => { h = v; hourChosen = true; commit(); }),
+            col(minutes, m, v => ':' + pad(v), v => { m = v; if (hourChosen) commit(); })
         );
         pop.appendChild(cols);
 
         const foot = document.createElement('div');
         foot.className = 'vx-pop-foot';
-        foot.appendChild(footBtn('Cancel', () => { close(); field.focus(); }));
-        const ok = footBtn('Set time', () => { setValue(field, `${pad(h)}:${pad(m)}`); close(); field.focus(); });
+        foot.appendChild(footBtn('Cancel', () => {
+            if ((field.dataset.value || '') !== original) setValue(field, original);
+            close(); field.focus();
+        }));
+        const ok = footBtn('Set time', () => { commit(); close(); field.focus(); });
         ok.classList.add('is-primary');
         foot.appendChild(ok);
         pop.appendChild(foot);
@@ -246,10 +270,10 @@
         body.hidden = true;
         let built = false;
         btn.addEventListener('click', () => {
-            const openNow = body.hidden;
+            const openNow = btn.getAttribute('aria-expanded') !== 'true';
             if (openNow && !built) { buildBody(body); built = true; }
-            body.hidden = !openNow;
             btn.setAttribute('aria-expanded', String(openNow));
+            window.vxCollapse(body, openNow, () => { body.hidden = false; }, () => { body.hidden = true; });
         });
         wrap.append(btn, body);
         return wrap;

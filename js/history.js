@@ -26,7 +26,11 @@ window.loadHistory = async function() {
     window.loadVobizLogs();
 };
 
-window.setHistTab = function(tab) {
+// Until the user picks a History sub-tab, Sarvam setups open on Sarvam Conversations.
+let histTabPicked = false;
+
+window.setHistTab = function(tab, picked) {
+    if (picked) histTabPicked = true;
     ['broadcast', 'vobiz', 'sarvam'].forEach(t => {
         const btn = document.getElementById('sub-' + t);
         const cont = document.getElementById('hist-' + t + '-content');
@@ -36,92 +40,244 @@ window.setHistTab = function(tab) {
     if (tab === 'vobiz') window.loadVobizLogs();
     if (tab === 'sarvam') window.loadSarvamCalls();
 };
+window.histTabWasPicked = () => histTabPicked;
 
 const SARVAM_STATUS = {
     queued: ['Waiting for result', ''], connected: ['Answered', 'badge-success'],
     no_answer: ['No answer', 'badge-danger'], busy: ['Busy', 'badge-danger'], failed: ['Failed', 'badge-danger']
 };
 
-// Sarvam transcript turns vary in shape; pull out a speaker and the spoken text.
+// Sarvam transcript turns vary in shape; pull out a speaker, the words as spoken, and an
+// English translation when Sarvam sends one ({ role, indic_text, en_text }).
 const transcriptTurn = (turn) => {
-    if (typeof turn === 'string') return { who: '', text: turn };
+    if (typeof turn === 'string') return { who: '', text: turn, en: '' };
+    if (!turn || typeof turn !== 'object') return { who: '', text: String(turn ?? ''), en: '' };
     const role = String(turn.role || turn.speaker || turn.sender || '').toLowerCase();
     const who = /user|caller|human|customer/.test(role) ? 'Caller' : (role ? 'Agent' : '');
-    return { who, text: turn.content || turn.text || turn.message || turn.transcript || JSON.stringify(turn) };
+    const pick = (...keys) => keys.map(k => turn[k]).find(v => typeof v === 'string' && v.trim()) || '';
+    const en = pick('en_text', 'english_text', 'translation');
+    const text = pick('indic_text', 'content', 'text', 'message', 'transcript', 'utterance') || en;
+    return { who, text, en: en && en.trim() !== text.trim() ? en : '' };
 };
 
-window.loadSarvamCalls = async function() {
-    const list = document.getElementById('sarvam-calls-list');
-    const empty = document.getElementById('sarvam-calls-empty');
-    if (!list) return;
-    let rows = [];
-    try { rows = await fetch('/api/sarvam/calls').then(r => r.json()); } catch (e) { return; }
-    list.innerHTML = '';
-    if (empty) empty.style.display = rows.length ? 'none' : 'block';
+// "call_summary" -> "Call summary"
+const prettyKey = k => String(k).replace(/[_-]+/g, ' ').trim().replace(/^./, c => c.toUpperCase());
 
-    rows.forEach(r => {
-        const item = document.createElement('div');
-        item.className = 'block panel';
-        item.style.marginBottom = '10px';
-        const body = document.createElement('div');
-        body.className = 'block-body';
+// Contacts name lookup, matched on the last 10 digits so +91 / 0 prefixes still match.
+const phoneKey = p => String(p || '').replace(/\D/g, '').slice(-10);
+const loadContactNames = async () => {
+    const names = new Map();
+    try {
+        const book = await fetch('/api/contacts').then(r => r.json());
+        (Array.isArray(book) ? book : []).forEach(c => { if (c.name && phoneKey(c.phone)) names.set(phoneKey(c.phone), c.name); });
+    } catch (e) {}
+    return names;
+};
 
-        const head = document.createElement('div');
-        head.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;';
-        const left = document.createElement('div');
-        const num = document.createElement('div');
-        num.className = 'mono';
-        num.style.color = 'var(--text)';
-        num.textContent = r.phone || 'Unknown number';
-        const when = document.createElement('div');
-        when.className = 'hint';
-        const secs = r.duration ? ` · ${Math.round(r.duration)}s` : '';
-        when.textContent = new Date((r.created_at || '').replace(' ', 'T') + 'Z').toLocaleString() + secs;
-        left.append(num, when);
-        const [label, cls] = SARVAM_STATUS[r.status] || [r.status, ''];
-        const badge = document.createElement('span');
-        badge.className = 'badge ' + cls;
-        badge.textContent = label;
-        head.append(left, badge);
-        body.appendChild(head);
+// One Sarvam call as a card: caller, status, conversation, collected details.
+function renderSarvamCard(r, names) {
+    const item = document.createElement('div');
+    item.className = 'block panel';
+    item.style.marginBottom = '10px';
+    const body = document.createElement('div');
+    body.className = 'block-body';
 
-        if (r.failure_reason) {
-            const fr = document.createElement('div');
-            fr.className = 'hint';
-            fr.style.cssText = 'color:var(--error); margin-top:6px;';
-            fr.textContent = r.failure_reason;
-            body.appendChild(fr);
-        }
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;';
+    const left = document.createElement('div');
+    const num = document.createElement('div');
+    num.className = 'convo-caller';
+    const name = names.get(phoneKey(r.phone));
+    if (name) {
+        const n = document.createElement('span');
+        n.className = 'convo-name';
+        n.textContent = name;
+        num.appendChild(n);
+    }
+    // Tapping the number calls it exactly as stored (+91...), never a locally rewritten 0...
+    const dial = String(r.phone || '').replace(/[^\d+]/g, '');
+    const ph = document.createElement(dial ? 'a' : 'span');
+    ph.className = 'mono convo-phone';
+    if (dial) {
+        ph.href = 'tel:' + (dial.startsWith('+') ? dial : (dial.length === 10 ? '+91' + dial : '+' + dial));
+        ph.title = 'Call ' + r.phone;
+    }
+    ph.textContent = r.phone || 'Unknown number';
+    num.appendChild(ph);
+    const when = document.createElement('div');
+    when.className = 'hint';
+    const secs = r.duration ? ` · ${Math.round(r.duration)}s` : '';
+    when.textContent = new Date((r.created_at || '').replace(' ', 'T') + 'Z').toLocaleString() + secs;
+    left.append(num, when);
+    const [label, cls] = SARVAM_STATUS[r.status] || [r.status, ''];
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + cls;
+    badge.textContent = label;
+    head.append(left, badge);
+    body.appendChild(head);
 
-        const turns = Array.isArray(r.transcript) ? r.transcript : [];
-        if (turns.length) {
-            const det = window.VxDisclosure(`Conversation (${turns.length} turns)`, box => {
+    if (r.failure_reason) {
+        const fr = document.createElement('div');
+        fr.className = 'hint';
+        fr.style.cssText = 'color:var(--error); margin-top:6px;';
+        fr.textContent = r.failure_reason;
+        body.appendChild(fr);
+    }
+
+    const turns = Array.isArray(r.transcript) ? r.transcript : [];
+    if (turns.length) {
+        const det = window.VxDisclosure(`Conversation (${turns.length} ${turns.length === 1 ? 'turn' : 'turns'})`, body => {
+            // Own wrapper: a display rule on the disclosure body would override its hidden state
+            const box = document.createElement('div');
+            box.className = 'convo';
+            body.appendChild(box);
             turns.forEach(t => {
-                const { who, text } = transcriptTurn(t);
-                const line = document.createElement('div');
-                line.style.cssText = 'margin-top:8px; font-size:0.9rem; line-height:1.5;';
-                const w = document.createElement('strong');
-                w.style.color = who === 'Caller' ? 'var(--text)' : 'var(--text2)';
-                w.textContent = who ? who + ': ' : '';
-                line.append(w, document.createTextNode(text));
-                box.appendChild(line);
+                const { who, text, en } = transcriptTurn(t);
+                if (!text) return;
+                const msg = document.createElement('div');
+                msg.className = 'convo-msg ' + (who === 'Caller' ? 'is-caller' : 'is-agent');
+                const w = document.createElement('div');
+                w.className = 'convo-who';
+                w.textContent = who || 'Speaker';
+                const said = document.createElement('div');
+                said.className = 'convo-text';
+                said.textContent = text;
+                msg.append(w, said);
+                if (en) {
+                    const tr = document.createElement('div');
+                    tr.className = 'convo-en';
+                    tr.textContent = en;
+                    msg.appendChild(tr);
+                }
+                box.appendChild(msg);
             });
-            });
-            body.appendChild(det);
-        }
+        });
+        body.appendChild(det);
+    }
 
-        const vars = r.agent_variables && Object.keys(r.agent_variables).length ? r.agent_variables : null;
-        if (vars) {
-            const v = document.createElement('div');
-            v.className = 'hint mono';
-            v.style.cssText = 'margin-top:8px; white-space:pre-wrap;';
-            v.textContent = Object.entries(vars).map(([k, val]) => `${k}: ${typeof val === 'object' ? JSON.stringify(val) : val}`).join('\n');
-            body.appendChild(v);
-        }
+    // Details the agent collected (name, summary, ...). Empty values are left out.
+    const vars = Object.entries(r.agent_variables || {}).filter(([, val]) =>
+        val !== null && val !== undefined && String(typeof val === 'object' ? JSON.stringify(val) : val).trim() &&
+        !(typeof val === 'object' && !Object.keys(val).length));
+    if (vars.length) {
+        const dl = document.createElement('dl');
+        dl.className = 'convo-vars';
+        vars.forEach(([k, val]) => {
+            const dt = document.createElement('dt');
+            dt.textContent = prettyKey(k);
+            const dd = document.createElement('dd');
+            dd.textContent = typeof val === 'object'
+                ? (Array.isArray(val) ? val.join(', ') : Object.entries(val).map(([a, b]) => `${prettyKey(a)}: ${b}`).join(' · '))
+                : String(val);
+            dl.append(dt, dd);
+        });
+        body.appendChild(dl);
+    }
 
-        item.appendChild(body);
-        list.appendChild(item);
-    });
+    item.appendChild(body);
+    return item;
+}
+
+// A list of Sarvam calls that loads page by page as it scrolls into view, until every
+// call is shown. opts.phone limits it to one person. Returns { reload }.
+function SarvamFeed(list, empty, opts = {}) {
+    const PAGE = 30;
+    let names = new Map(), next = null, done = false, busy = false, gen = 0, shown = 0;
+    const status = document.createElement('div');
+    status.className = 'feed-status';
+    const io = 'IntersectionObserver' in window
+        ? new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) loadMore(); }, { rootMargin: '600px 0px' })
+        : null;
+
+    const setStatus = (text, retry) => {
+        status.textContent = text;
+        if (retry) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn btn-secondary btn-sm';
+            b.textContent = 'Retry';
+            b.onclick = () => loadMore();
+            status.append(' ', b);
+        }
+    };
+
+    async function loadMore() {
+        if (busy || done) return;
+        busy = true;
+        const mine = gen;
+        setStatus('Loading conversations…');
+        const q = new URLSearchParams({ limit: PAGE });
+        if (next) q.set('cursor', next);
+        if (opts.phone) q.set('phone', opts.phone);
+        let data;
+        try {
+            const res = await fetch('/api/sarvam/calls?' + q);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            data = await res.json();
+        } catch (e) {
+            if (mine === gen) { busy = false; setStatus('Could not load conversations.', true); }
+            return;
+        }
+        if (mine !== gen) return; // a reload started meanwhile
+        const frag = document.createDocumentFragment();
+        (data.rows || []).forEach(r => frag.appendChild(renderSarvamCard(r, names)));
+        list.insertBefore(frag, status);
+        shown += (data.rows || []).length;
+        next = data.next;
+        done = !next;
+        busy = false;
+        if (empty) empty.style.display = shown ? 'none' : 'block';
+        if (done) {
+            if (io) io.disconnect();
+            setStatus(shown ? `All ${shown} conversation${shown === 1 ? '' : 's'} loaded` : '');
+        } else {
+            setStatus(`Showing ${shown} of ${data.total}`);
+            // Short pages may leave the marker on screen: keep going without waiting for a scroll
+            if (io) { io.unobserve(status); io.observe(status); } else loadMore();
+        }
+    }
+
+    async function reload(newOpts) {
+        if (newOpts) opts = newOpts;
+        gen++;
+        busy = false; done = false; next = null; shown = 0;
+        list.innerHTML = '';
+        list.appendChild(status);
+        if (empty) empty.style.display = 'none';
+        setStatus('Loading conversations…');
+        const mine = gen;
+        const n = await loadContactNames();
+        if (mine !== gen) return;
+        names = n;
+        if (io) io.observe(status);
+        await loadMore();
+    }
+
+    return { reload };
+}
+
+let historyFeed = null;
+window.loadSarvamCalls = function() {
+    const list = document.getElementById('sarvam-calls-list');
+    if (!list) return;
+    if (!historyFeed) historyFeed = SarvamFeed(list, document.getElementById('sarvam-calls-empty'));
+    return historyFeed.reload();
+};
+
+// All Sarvam conversations with one person (opened from Contacts).
+let personFeed = null;
+window.openPersonConversations = function(phone, name) {
+    const modal = document.getElementById('convo-modal');
+    if (!modal) return;
+    document.getElementById('convo-modal-title').textContent = name || phone;
+    const sub = document.getElementById('convo-modal-phone');
+    sub.textContent = name ? phone : '';
+    if (!personFeed) personFeed = SarvamFeed(document.getElementById('convo-modal-list'), document.getElementById('convo-modal-empty'));
+    window.vxShowModal(modal);
+    personFeed.reload({ phone });
+};
+window.closePersonConversations = function() {
+    window.vxHideModal(document.getElementById('convo-modal'));
 };
 
 window.loadVobizLogs = async function() {
@@ -132,7 +288,7 @@ window.loadVobizLogs = async function() {
         const res = await fetch('/api/vobiz/logs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sid: c.vobiz_id, token: c.vobiz_token })
+            body: '{}'
         });
         const data = await res.json();
         // Vobiz API returns logs in 'data' array
@@ -270,7 +426,7 @@ window.updateMetrics = async function() {
             const res = await fetch('/api/vobiz/balance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sid: c.vobiz_id, token: c.vobiz_token })
+                body: '{}'
             });
             const data = await res.json();
             if (data.balance !== undefined) {
@@ -457,11 +613,11 @@ window.showHistoryDetails = function(index) {
         }
     }
 
-    document.getElementById('hist-modal').style.display = 'flex';
+    window.vxShowModal(document.getElementById('hist-modal'));
 };
 
 window.closeHistoryDetails = function() {
-    document.getElementById('hist-modal').style.display = 'none';
+    window.vxHideModal(document.getElementById('hist-modal'));
 };
 
 window.repeatBroadcast = function(index) {

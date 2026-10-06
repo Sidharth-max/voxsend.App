@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Twilio Call Broadcast — Broadcast</title>
+    <title>VoxSend — Call Broadcast</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap"
         rel="stylesheet" />
@@ -12,9 +12,21 @@
     <link rel="stylesheet" href="css/layout.css" />
     <link rel="stylesheet" href="css/components.css" />
     <link rel="stylesheet" href="css/theme.css" />
-    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0a0a0a" />
+    <!-- Phones must not turn numbers into their own call links (they can mangle +91 into 0...) -->
+    <meta name="format-detection" content="telephone=no" />
+    <script>
+        // Saved theme before first paint, so a light-mode load never flashes dark (no animation).
+        try {
+            if (localStorage.getItem('theme') === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fafafa');
+            }
+        } catch (e) {}
+    </script>
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 </head>
 
@@ -24,8 +36,8 @@
         style="position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; align-items:center; justify-content:center;">
         <div style="width:100%; max-width:320px; padding:20px;">
             <div style="text-align:center; margin-bottom:24px;">
-                <div class="brand-name" style="font-size: 1.7143rem;">Twilio Call Broadcast</div>
-                <div class="brand-sub">Broadcast System</div>
+                <div class="brand-name" style="font-size: 1.7143rem;">VoxSend</div>
+                <div class="brand-sub">Call Broadcast</div>
             </div>
             <div class="block">
                 <div class="block-body">
@@ -52,8 +64,8 @@
         <aside class="sidebar" id="main-sidebar">
             <div class="sidebar-brand">
                 <div class="sidebar-brand-text">
-                    <span class="brand-name">Twilio Call Broadcast</span>
-                    <span class="brand-sub">Broadcast System</span>
+                    <span class="brand-name brand-provider" data-provider-title>&nbsp;</span>
+                    <span class="brand-sub">Call Broadcast<span class="brand-provider-meta" data-provider-meta></span></span>
                 </div>
                 <!-- Collapse toggle button -->
                 <button class="sidebar-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse/Expand sidebar">
@@ -67,9 +79,9 @@
                 <div class="nav-section-label">Main</div>
 
                 <div class="nav-item active" id="snav-broadcast" onclick="go('broadcast')">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="8" cy="8" r="6" />
-                        <path d="M8 5v3l2 1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                        <circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none" />
+                        <path d="M5.5 5.5a3.5 3.5 0 0 0 0 5M10.5 5.5a3.5 3.5 0 0 1 0 5M3.4 3.4a6.5 6.5 0 0 0 0 9.2M12.6 3.4a6.5 6.5 0 0 1 0 9.2" />
                     </svg>
                     <span>Broadcast</span>
                 </div>
@@ -101,10 +113,9 @@
                 </div>
 
                 <div class="nav-item" id="snav-settings" onclick="go('settings')">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="8" cy="8" r="2" />
-                        <path
-                            d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                        <circle cx="12" cy="12" r="3" />
                     </svg>
                     <span>Settings</span>
                 </div>
@@ -131,7 +142,7 @@
 
         <!-- ── TOP BAR (tablet) ──────────────── -->
         <header class="topbar">
-            <span class="topbar-brand">Twilio Call Broadcast</span>
+            <span class="topbar-brand brand-provider" data-provider-title>&nbsp;</span>
             <div class="topbar-tabs">
                 <div class="topbar-tab active" id="tnav-broadcast" onclick="go('broadcast')">Send</div>
                 <div class="topbar-tab" id="tnav-contacts" onclick="go('contacts')">Contacts</div>
@@ -144,12 +155,17 @@
         <!-- ── MAIN ──────────────────────────── -->
         <main class="main">
             <div class="content">
+                <!-- Soft blurred top edge: content fades as it scrolls up under it -->
+                <div class="top-fade" aria-hidden="true"></div>
 
                 <!-- BROADCAST TAB -->
                 <div class="tab-section active" id="tab-broadcast">
                     <div class="page-hd">
-                        <div class="page-title">New Broadcast</div>
-                        <div class="page-desc">Compose a voice message and send to all members.</div>
+                        <div class="page-hd-text">
+                            <div class="page-title">New Broadcast</div>
+                            <div class="page-desc">Compose a voice message and send to all members.</div>
+                        </div>
+                        <div class="page-hd-actions"></div>
                     </div>
 
                     <div class="broadcast-grid">
@@ -170,7 +186,7 @@
                             </div>
 
                             <!-- Message -->
-                            <div class="block panel">
+                            <div class="block panel" id="message-block">
                                 <div class="block-head"
                                     style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                                     <span class="block-title">Message</span>
@@ -181,7 +197,7 @@
                                             <button class="btn btn-secondary btn-sm" onclick="saveToLibrary()"
                                                 style="width:auto; height:26px; font-size:10px; padding:0 12px; border-radius: 2rem;">SAVE</button>
                                         </div>
-                                        <div class="lang-pills" style="display: flex; flex-wrap: wrap;">
+                                        <div class="lang-pills" id="msg-lang-pills" style="display: flex; flex-wrap: wrap;">
                                             <button class="lang-pill active" onclick="setLang('hi')"
                                                 id="pill-hi">Hindi</button>
                                             <button class="lang-pill" onclick="setLang('en')"
@@ -191,7 +207,7 @@
                                         </div>
 
                                         <div id="vobiz-voice-wrap" style="display:none; margin-left:12px;">
-                                            <select id="vobiz-voice" class="lang-pill" style="height:28px; border:1px solid var(--border); border-radius:2rem; padding:0 24px 0 12px; background-position: right 8px center; width:auto; -webkit-appearance:none; appearance:none; background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 9l6 6 6-6%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat;">
+                                            <select id="vobiz-voice" class="lang-pill select-pill">
                                                 <option value="Polly.Aditi">Polly Aditi (Hindi)</option>
                                                 <option value="Polly.Kajal">Polly Kajal (Hindi)</option>
                                                 <option value="Polly.Raveena">Polly Raveena (Eng Indian)</option>
@@ -202,12 +218,9 @@
                                 </div>
                                 <div class="block-body">
                                     <div id="sarvam-mode-note" class="hint" style="display:none; margin-bottom:12px; padding:10px 12px; border:1px solid var(--border); border-radius:10px;">
-                                        <strong style="color:var(--text)">Sarvam agent mode.</strong>
-                                        Your Sarvam agent runs the whole call: it plays its saved greeting and answers callers' questions
-                                        using the instructions you set up on Sarvam. Leave the message empty to use that greeting, or type one
-                                        to replace only the opening greeting for this broadcast. Conversations appear under History → Sarvam Conversations.
+                                        Sarvam calls use the selected agent's own greeting and script. No message needed.
                                     </div>
-                                    <div class="field">
+                                    <div class="field" id="msg-field">
                                         <label class="field-label" id="msg-label">Voice message text</label>
                                         <textarea id="msg" class="hindi"
                                             placeholder="नमस्ते! हमारा कार्यक्रम कल 11 बजे है। कृपया समय पर पधारें। धन्यवाद।"
@@ -221,22 +234,33 @@
                             </div>
 
                             <!-- Recipients -->
-                            <div class="block panel">
-                                <div class="block-head" style="justify-content: space-between;">
-                                    <div style="display:flex; gap:12px; align-items:center;">
+                            <div class="block panel" id="recipients-block">
+                                <div class="block-head" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                    <div style="display:flex; gap:12px; align-items:center; min-width:0;">
                                         <span class="block-title">Recipients</span>
                                         <span class="hint mono" id="num-count" style="margin:0">0 numbers</span>
                                     </div>
-                                    <button class="btn btn-secondary btn-sm" onclick="clearNumbers()"
-                                        style="width:auto; height:26px; font-size:10px; padding:0 12px; border-radius: 2rem; color:var(--error);">CLEAR</button>
+                                    <div class="rcpt-head-actions">
+                                        <select id="rcpt-group-pick" class="lang-pill select-pill" aria-label="Call a contact group" onchange="pickRecipientGroup(this.value)">
+                                            <option value="">Pick a group…</option>
+                                        </select>
+                                        <button class="btn btn-secondary btn-sm" onclick="clearNumbers()"
+                                            style="width:auto; height:26px; font-size:10px; padding:0 12px; border-radius: 2rem; color:var(--error);">CLEAR</button>
+                                    </div>
                                 </div>
                                 <div class="block-body">
                                     <div class="field">
-                                        <label class="field-label">Phone numbers — one per line, with country
-                                            code</label>
+                                        <div class="flex-between" style="gap:12px;">
+                                            <span class="row-sub" id="rcpt-summary" style="min-width:0;">Pick a group, choose contacts, or type numbers</span>
+                                            <button type="button" class="vx-disclosure-btn" id="numbers-toggle" aria-expanded="true" aria-controls="numbers-editor"
+                                                onclick="toggleNumbersEditor()" style="flex-shrink:0;"><svg class="vx-chev" width="10" height="10" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit numbers</button>
+                                        </div>
+                                        <div id="numbers-editor" style="margin-top:10px;">
+                                        <label class="field-label" for="numbers">Phone numbers — one per line, with country code</label>
                                         <textarea class="mono" id="numbers" style="min-height:100px" inputmode="tel"
                                             placeholder="Phone numbers — one per line, with country code"></textarea>
                                         <p class="hint">e.g. +91XXXXXXXXXX for India</p>
+                                        </div>
                                         <p class="hint" id="dup-hint" style="display:none; color:var(--error); font-style:italic;">
                                             Removed 0 duplicate numbers automatically.
                                         </p>
@@ -245,7 +269,7 @@
                             </div>
 
                             <!-- Deploy -->
-                            <div class="block panel">
+                            <div class="block panel" id="deploy-block">
                                 <div class="block-head"><span class="block-title">Deploy</span></div>
                                 <div class="block-body">
                                     <button class="btn" id="send-btn" onclick="blast()">
@@ -256,31 +280,100 @@
                                         </svg>
                                         Send to All Members
                                     </button>
-                                    <div class="field" style="margin-top:18px;">
-                                        <label class="field-label">Or schedule for later</label>
-                                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                                            <div style="flex:1; min-width:140px;">
-                                                <span class="hint">From</span>
-                                                <div data-vx-picker="date" id="sched-from" data-placeholder="Pick a date" oninput="updateSchedulePreview()"></div>
-                                            </div>
-                                            <div style="flex:1; min-width:140px;">
-                                                <span class="hint">To (optional)</span>
-                                                <div data-vx-picker="date" id="sched-to" data-placeholder="Same day" data-clearable oninput="updateSchedulePreview()"></div>
+                                    <div class="field sched-form" style="margin-top:22px;">
+                                        <div class="row-label" style="margin-bottom:16px;" id="sched-title">Or schedule for later</div>
+                                        <div class="cost-strip" id="sched-edit-banner" style="display:none; margin:0 0 16px;">
+                                            <span class="ci" id="sched-edit-text">Editing a schedule</span>
+                                        </div>
+
+                                        <div class="sched-group" id="sched-recipients">
+                                            <div class="row-item sched-toggle-row">
+                                                <div style="min-width:0;">
+                                                    <div class="row-label">Calls <span id="sched-rcpt-count">0 numbers</span></div>
+                                                    <div class="row-sub" id="sched-rcpt-sub">Nobody selected yet</div>
+                                                </div>
+                                                <button type="button" class="vx-pop-btn" onclick="goToRecipients()" style="flex-shrink:0;">Change</button>
                                             </div>
                                         </div>
-                                        <div style="margin-top:10px;">
-                                            <span class="hint">Times each day</span>
-                                            <div id="sched-times" style="display:flex; flex-direction:column; gap:8px; margin-top:4px;"></div>
-                                            <button class="btn btn-secondary btn-sm" onclick="addScheduleTime()"
-                                                style="width:auto; margin-top:8px; padding:4px 14px;">+ Add time</button>
+
+                                        <div class="sched-group">
+                                            <span class="field-label">Repeat</span>
+                                            <div class="lang-pills" id="sched-mode" role="group" aria-label="Repeat">
+                                                <button type="button" class="lang-pill" data-mode="dates" onclick="setScheduleMode('dates')">Specific dates</button>
+                                                <button type="button" class="lang-pill active" data-mode="daily" onclick="setScheduleMode('daily')">Daily</button>
+                                                <button type="button" class="lang-pill" data-mode="weekly" onclick="setScheduleMode('weekly')">Weekly</button>
+                                            </div>
                                         </div>
-                                        <p class="hint" id="sched-preview" style="margin-top:10px;">Pick a date and at least one time.</p>
-                                        <button class="btn btn-secondary" id="schedule-btn" onclick="scheduleBlast()" disabled
-                                            style="margin-top:6px;">Schedule</button>
+
+                                        <div id="sched-dates-wrap" class="sched-group" style="display:none;">
+                                            <span class="field-label">Dates</span>
+                                            <div id="sched-dates" class="sched-stack"></div>
+                                            <button type="button" class="btn btn-secondary btn-sm sched-add" onclick="addScheduleDate()">+ Add date</button>
+                                        </div>
+
+                                        <div id="sched-range-wrap">
+                                            <div class="sched-group">
+                                                <span class="field-label">Ends</span>
+                                                <div class="lang-pills" id="sched-end-mode" role="group" aria-label="Ends">
+                                                    <button type="button" class="lang-pill active" data-end="date" onclick="setScheduleEnd('date')">On a date</button>
+                                                    <button type="button" class="lang-pill" data-end="count" onclick="setScheduleEnd('count')">After N days</button>
+                                                </div>
+                                            </div>
+                                            <div class="sched-group sched-cols">
+                                                <div class="sched-col">
+                                                    <span class="field-label">From</span>
+                                                    <div data-vx-picker="date" id="sched-from" data-placeholder="Pick a date" oninput="updateSchedulePreview()"></div>
+                                                </div>
+                                                <div class="sched-col" id="sched-end-date-wrap">
+                                                    <span class="field-label">Until</span>
+                                                    <div data-vx-picker="date" id="sched-to" data-placeholder="Same day" data-clearable oninput="updateSchedulePreview()"></div>
+                                                </div>
+                                                <div class="sched-col" id="sched-end-count-wrap" style="display:none;">
+                                                    <span class="field-label">Number of days</span>
+                                                    <input type="number" id="sched-count" min="1" max="200" step="1" value="5" inputmode="numeric"
+                                                        aria-label="Number of days" oninput="updateSchedulePreview()" />
+                                                </div>
+                                            </div>
+                                            <div id="sched-weekdays-wrap" class="sched-group" style="display:none;">
+                                                <span class="field-label">On these days</span>
+                                                <div class="lang-pills" id="sched-weekdays" role="group" aria-label="Weekdays"></div>
+                                            </div>
+                                            <div id="sched-skipwe-wrap" class="sched-group">
+                                                <div class="row-item sched-toggle-row">
+                                                    <div>
+                                                        <div class="row-label">Skip weekends</div>
+                                                        <div class="row-sub">No calls on Saturday or Sunday</div>
+                                                    </div>
+                                                    <label class="toggle">
+                                                        <input type="checkbox" id="sched-skip-weekends" onchange="updateSchedulePreview()" />
+                                                        <div class="tog-track">
+                                                            <div class="tog-thumb"></div>
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="sched-group">
+                                            <span class="field-label">Times each day</span>
+                                            <div id="sched-times" class="sched-stack"></div>
+                                            <button type="button" class="btn btn-secondary btn-sm sched-add" onclick="addScheduleTime()">+ Add time</button>
+                                        </div>
+
+                                        <div class="cost-strip" id="sched-preview" aria-live="polite">
+                                            <span class="ci">Pick a date and at least one time.</span>
+                                        </div>
+                                        <div class="sched-cols">
+                                            <button class="btn btn-secondary" id="schedule-btn" onclick="scheduleBlast()" disabled style="flex:1 1 160px;">Schedule</button>
+                                            <button class="btn btn-secondary" id="sched-discard-btn" onclick="discardScheduleEdit()" style="display:none; flex:1 1 160px;">Discard</button>
+                                        </div>
                                         <p class="hint">Uses your browser's time zone. The server places the calls at each time, so it must be running then.</p>
                                     </div>
-                                    <div id="sched-wrap" style="display:none; margin-top:14px;">
-                                        <label class="field-label">Scheduled calls</label>
+                                    <div id="sched-wrap" style="display:none; margin-top:22px;">
+                                        <div class="flex-between" style="margin-bottom:12px;">
+                                            <span class="row-label">Scheduled calls</span>
+                                            <span class="badge" id="sched-count-badge"></span>
+                                        </div>
                                         <div id="sched-list"></div>
                                     </div>
                                     <div class="prog-wrap" id="prog-wrap" style="margin-top:24px;">
@@ -301,7 +394,7 @@
                         </div> <!-- end broadcast-main -->
 
                         <div class="broadcast-side">
-                            <div class="block dir-block panel">
+                            <div class="block dir-block panel" id="pick-contacts-block">
                                 <div class="block-head">
                                     <span class="block-title">Select Contacts</span>
                                     <span class="badge" id="b-contacts-count">0 total</span>
@@ -341,13 +434,16 @@
                 <!-- CONTACTS TAB -->
                 <div class="tab-section" id="tab-contacts">
                     <div class="page-hd">
-                        <div class="page-title">Contacts</div>
-                        <div class="page-desc">Import and manage phone numbers for broadcasting.</div>
+                        <div class="page-hd-text">
+                            <div class="page-title">Contacts</div>
+                            <div class="page-desc">Import and manage phone numbers for broadcasting.</div>
+                        </div>
+                        <div class="page-hd-actions"></div>
                     </div>
 
                     <div class="contacts-grid">
                         <!-- Upload -->
-                        <div class="block">
+                        <div class="block" id="import-block">
                             <div class="block-head"><span class="block-title">Import Contacts</span></div>
                             <div class="block-body">
                                 <label class="file-drop" id="file-drop">
@@ -390,7 +486,7 @@
                                 <span class="badge" id="contacts-count">0 total</span>
                             </div>
                             <div class="block-body">
-                                <div class="controls-row">
+                                <div class="controls-row sticky-bar sticky-tools">
                                     <input type="text" id="search-contacts" placeholder="Search by name or phone..."
                                         oninput="renderContacts()" />
                                     <select id="filter-group" onchange="renderContacts()">
@@ -438,21 +534,24 @@
 
                 <!-- HISTORY TAB -->
                 <div class="tab-section" id="tab-history">
-                    <div class="page-hd" style="display:flex; justify-content:space-between; align-items:center;">
-                        <div>
+                    <div class="page-hd">
+                        <div class="page-hd-text">
                             <div class="page-title">History & Logs</div>
                             <div class="page-desc">Track your broadcast performance and detailed call logs.</div>
                         </div>
-                        <div style="display:flex; gap:12px; align-items:center;">
+                        <div class="page-hd-actions">
                             <span id="hist-badge" class="badge" style="background:rgba(240,173,78,.1); color:#f0ad4e; border-color:rgba(240,173,78,.3); display:none;">Local Fallback</span>
-                            <button class="btn btn-danger btn-sm" onclick="deleteAllHistory()" style="width:auto">Clear History</button>
+                            <button class="btn btn-danger btn-sm hd-btn" onclick="deleteAllHistory()" aria-label="Clear history" title="Clear history">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
+                                <span class="hd-btn-label">Clear History</span>
+                            </button>
                         </div>
                     </div>
 
-                    <div class="lang-pills" style="margin-bottom:20px;">
-                        <button class="lang-pill active" id="sub-broadcast" onclick="setHistTab('broadcast')">Broadcast History</button>
-                        <button class="lang-pill" id="sub-vobiz" onclick="setHistTab('vobiz')" style="display:none">Vobiz Call Logs</button>
-                        <button class="lang-pill" id="sub-sarvam" onclick="setHistTab('sarvam')" style="display:none">Sarvam Conversations</button>
+                    <div class="lang-pills sticky-bar" id="hist-subtabs" role="tablist" aria-label="History view">
+                        <button class="lang-pill" id="sub-sarvam" onclick="setHistTab('sarvam', true)" style="display:none">Sarvam Conversations</button>
+                        <button class="lang-pill active" id="sub-broadcast" onclick="setHistTab('broadcast', true)">Broadcast History</button>
+                        <button class="lang-pill" id="sub-vobiz" onclick="setHistTab('vobiz', true)" style="display:none">Vobiz Call Logs</button>
                     </div>
 
                     <div id="hist-broadcast-content">
@@ -487,8 +586,15 @@
                 <!-- API TAB -->
                 <div class="tab-section" id="tab-api">
                     <div class="page-hd">
-                        <div class="page-title">API Config</div>
-                        <div class="page-desc">Credentials are saved locally in your browser only.</div>
+                        <div class="page-hd-text">
+                            <button type="button" class="page-back mobile-only" onclick="go('settings')">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+                                Settings
+                            </button>
+                            <div class="page-title">API Config</div>
+                            <div class="page-desc">Provider keys are stored on the server. Unlock with your PIN to view or change them.</div>
+                        </div>
+                        <div class="page-hd-actions"></div>
                     </div>
 
                     <div class="block">
@@ -625,18 +731,33 @@
 
                 <!-- SETTINGS TAB -->
                 <div class="tab-section" id="tab-settings">
-                    <div class="page-hd" style="display:flex; justify-content:space-between; align-items:center;">
-                        <div>
+                    <div class="page-hd">
+                        <div class="page-hd-text">
                             <h1 class="page-title">Settings</h1>
                             <p class="page-desc">System configuration and user management</p>
                         </div>
-                        <button class="btn btn-secondary btn-sm" onclick="logout()" style="width:auto; gap:8px;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                style="width:16px;height:16px">
+                        <div class="page-hd-actions">
+                        <button class="btn btn-secondary btn-sm hd-btn" onclick="logout()" aria-label="Log out" title="Log out">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
                             </svg>
-                            <span>Logout</span>
+                            <span class="hd-btn-label">Logout</span>
                         </button>
+                        </div>
+                    </div>
+
+                    <!-- On phones API Config lives here instead of in the bottom bar -->
+                    <div class="block mobile-only">
+                        <div class="block-head"><span class="block-title">Integrations</span></div>
+                        <div class="block-body">
+                            <button type="button" class="row-link" onclick="go('api')">
+                                <span>
+                                    <span class="row-label">API Config</span>
+                                    <span class="row-sub">Calling provider, keys and public URL</span>
+                                </span>
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="block">
@@ -727,7 +848,7 @@
                             <p style="font-size: 0.9286rem;color:var(--text2);line-height:1.7">
                                 Built for <strong style="color:var(--text)" id="display-trust-name">Call
                                     Broadcast</strong>.<br>
-                                Powered by Twilio Voice API + Google TTS (Hindi/English).
+                                Powered by <span class="sarvam-gradient">Sarvam AI</span> voice agents, with Twilio and Vobiz for voice calls (Hindi/English).
                             </p>
                         </div>
                     </div>
@@ -737,49 +858,33 @@
             </div> <!-- end content -->
         </main> <!-- end main -->
 
-        <!-- SETTINGS FAB -->
-        <div id="settings-fab" onclick="toggleThemePop()"
-            style="position:fixed; bottom:80px; right:20px; width:44px; height:44px; border-radius:50%; background:var(--surface2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:90; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-            <svg viewBox="0 0 16 16" fill="none" stroke="var(--text)" stroke-width="1.5"
+        <!-- THEME TOGGLE: one tap switches light/dark (js/settings.js). go() moves it into the open
+             page's header. Sun/moon morph is in css/theme.css. -->
+        <button type="button" id="settings-fab" class="theme-btn" onclick="toggleTheme()"
+            aria-label="Switch to light mode" title="Switch to light mode">
+            <svg class="theme-fab-icon tf-anim" viewBox="0 0 24 24" aria-hidden="true" focusable="false"
                 style="width:20px;height:20px;">
-                <circle cx="8" cy="8" r="2" />
-                <path
-                    d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+                <mask id="theme-fab-cut">
+                    <rect width="24" height="24" fill="#fff" />
+                    <circle class="tf-cut tf-anim" cx="17.5" cy="7" r="6" fill="#000" />
+                </mask>
+                <circle class="tf-core tf-anim" cx="12" cy="12" r="7" fill="currentColor" mask="url(#theme-fab-cut)" />
+                <g class="tf-rays tf-anim" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <path
+                        d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.28 5.28l2.12 2.12M16.6 16.6l2.12 2.12M5.28 18.72l2.12-2.12M16.6 7.4l2.12-2.12" />
+                </g>
             </svg>
-        </div>
-
-        <div id="theme-pop"
-            style="display:none; position:fixed; bottom:130px; right:20px; width:220px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; z-index:90; box-shadow:0 8px 24px rgba(0,0,0,0.3);">
-            <div
-                style="font-size: 0.7857rem; font-weight:500; color:var(--text2); text-transform:uppercase; margin-bottom:12px; letter-spacing:.05em;">
-                Appearance</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <span style="font-size: 0.9286rem; color:var(--text);">Light Mode</span>
-                <label class="toggle">
-                    <input type="checkbox" id="theme-toggle" onchange="setThemeMode(this.checked)" />
-                    <div class="tog-track">
-                        <div class="tog-thumb"></div>
-                    </div>
-                </label>
-            </div>
-            <div
-                style="font-size: 0.7857rem; font-weight:500; color:var(--text2); text-transform:uppercase; margin-bottom:12px; letter-spacing:.05em;">
-                Font Size</div>
-            <input type="range" id="font-slider" min="12" max="18" value="14" step="1" oninput="setFontSize(this.value)"
-                style="width:100%; accent-color:var(--text);" />
-            <div
-                style="display:flex; justify-content:space-between; margin-top:6px; font-size: 0.7857rem; color:var(--text3); font-family:'Geist Mono',monospace;">
-                <span>12px</span><span>18px</span>
-            </div>
-        </div>
+        </button>
 
         <!-- ── BOTTOM NAV (mobile) ────────────── -->
-        <nav class="bottomnav">
+        <div class="bottomnav-fade" aria-hidden="true"></div>
+        <nav class="bottomnav" aria-label="Main">
             <div class="bottomnav-inner">
+                <div class="bn-indicator" aria-hidden="true"></div>
                 <div class="bn-item active" id="bnav-broadcast" onclick="go('broadcast')">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="8" cy="8" r="6" />
-                        <path d="M8 5v3l2 1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                        <circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none" />
+                        <path d="M5.5 5.5a3.5 3.5 0 0 0 0 5M10.5 5.5a3.5 3.5 0 0 1 0 5M3.4 3.4a6.5 6.5 0 0 0 0 9.2M12.6 3.4a6.5 6.5 0 0 1 0 9.2" />
                     </svg>
                     <span>Send</span>
                 </div>
@@ -797,18 +902,10 @@
                     </svg>
                     <span>History</span>
                 </div>
-                <div class="bn-item" id="bnav-api" onclick="go('api')">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="2" y="2" width="12" height="12" rx="2" />
-                        <path d="M6 6l-2 2 2 2M10 6l2 2-2 2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    <span>Config</span>
-                </div>
                 <div class="bn-item" id="bnav-settings" onclick="go('settings')">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="8" cy="8" r="2" />
-                        <path
-                            d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                        <circle cx="12" cy="12" r="3" />
                     </svg>
                     <span>Settings</span>
                 </div>
@@ -878,8 +975,29 @@
             </div>
             <div class="modal-ft">
                 <button class="btn btn-secondary btn-sm" id="mdl-repeat" style="width:auto">Repeat Broadcast</button>
-                <button class="btn btn-sm" id="mdl-retry-failed" style="width:auto; display:none; background:var(--warning, #f59e0b); color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:600; padding:0 14px; height:32px; font-size:11px;">↺ Retry Failed</button>
+                <button class="btn btn-sm btn-warning" id="mdl-retry-failed" style="display:none">↺ Retry Failed</button>
                 <button class="btn btn-primary btn-sm" onclick="closeHistoryDetails()" style="width:auto">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- One person's Sarvam conversations (opened by clicking a number in Contacts) -->
+    <div id="convo-modal" class="modal-overlay" onclick="if (event.target === this) closePersonConversations()">
+        <div class="modal convo-modal">
+            <div class="modal-hd">
+                <div>
+                    <div class="modal-title" id="convo-modal-title">Conversations</div>
+                    <div class="convo-modal-sub mono" id="convo-modal-phone"></div>
+                </div>
+                <button class="modal-close" onclick="closePersonConversations()" aria-label="Close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="convo-modal-list" class="history-list"></div>
+                <div id="convo-modal-empty" class="empty" style="display:none;">No Sarvam conversations with this number yet.</div>
             </div>
         </div>
     </div>
@@ -901,7 +1019,7 @@
                         <circle cx="11" cy="11" r="8" />
                         <path d="m21 21-4.3-4.3" />
                     </svg>
-                    <input type="text" class="search-input" placeholder="       Search saved messages..."
+                    <input type="text" class="search-input" placeholder="Search saved messages..."
                         oninput="filterLibrary(this.value)">
                 </div>
                 <div id="lib-items">
@@ -917,6 +1035,7 @@
 
     <script src="js/app.js"></script>
     <script src="js/pickers.js"></script>
+    <script src="js/select.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/history.js"></script>
     <script src="js/library.js"></script>
@@ -966,7 +1085,21 @@
 
         window.addEventListener('load', function () {
             if (!('serviceWorker' in navigator)) return;
-            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+            // Always fetch sw.js fresh, check for a new version on load and whenever the app
+            // comes back to the foreground, and reload once when a new worker takes over.
+            var reloadedForUpdate = false;
+            var hadController = !!navigator.serviceWorker.controller; // first install: no reload needed
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (reloadedForUpdate || !hadController) return;
+                reloadedForUpdate = true;
+                window.location.reload();
+            });
+            navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' }).then(function (reg) {
+                reg.update().catch(function () {});
+                document.addEventListener('visibilitychange', function () {
+                    if (document.visibilityState === 'visible') reg.update().catch(function () {});
+                });
+            }).catch(function () {});
         });
     </script>
 </body>
