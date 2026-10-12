@@ -242,7 +242,7 @@ function placeContactHist() {
         if (!h.panel.isOpen()) { h.tr.remove(); return; }
         const link = tbody.querySelector(`.c-phone-link[data-phone="${CSS.escape(phone)}"]`);
         const row = link && link.closest('tr');
-        if (row) row.after(h.tr); else h.tr.remove();
+        if (row) { row.after(h.tr); row.classList.add('is-open'); } else h.tr.remove();
     });
 }
 document.addEventListener('click', e => {
@@ -255,6 +255,7 @@ document.addEventListener('click', e => {
     if (!h.panel.isOpen()) row.after(h.tr);
     const open = h.panel.toggle();
     row.querySelectorAll('.c-phone-link').forEach(l => l.setAttribute('aria-expanded', String(open)));
+    row.classList.toggle('is-open', open);
     if (!open) setTimeout(() => { if (!h.panel.isOpen()) h.tr.remove(); }, 400);
 });
 

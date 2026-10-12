@@ -205,7 +205,8 @@ window.applyProviderUI = function(provider) {
     const vTab = document.getElementById('sub-vobiz');
     const sTab = document.getElementById('sub-sarvam');
     if (vTab) vTab.style.display = window.currentProvider === 'vobiz' ? '' : 'none';
-    if (sTab) sTab.style.display = sarvam ? '' : 'none';
+    // Call history (synced Sarvam calls) is always available, whatever the current provider.
+    if (sTab) sTab.style.display = '';
     const activeSub = document.querySelector('#sub-vobiz.active, #sub-sarvam.active');
     if (activeSub && activeSub.style.display === 'none' && window.setHistTab) window.setHistTab('broadcast');
     else if (sarvam && window.setHistTab && !(window.histTabWasPicked && window.histTabWasPicked())

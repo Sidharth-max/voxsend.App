@@ -71,9 +71,13 @@
 
 /* Inline call history (View-all modal rows, Contacts rows) */
 .nums-row-hd { cursor: pointer; }
-.nums-row-hd:hover { background: var(--surface2); }
+/* Hover/open background bleeds 16px past the text (negative margin), so text stays aligned
+   with closed rows and the expanded call cards. */
+.nums-modal .nums-list .nums-row-hd { padding: 14px 16px !important; margin: 0 -16px; border-radius: 14px; transition: background-color .15s ease; }
+.nums-row-hd:hover, .nums-row-hd[aria-expanded="true"] { background: var(--surface2); }
+.nums-modal .nums-list .nums-row-hd[aria-expanded="true"] { border-bottom-color: transparent !important; }
 .nums-row-hd[aria-expanded="true"] .row-label { color: var(--text); font-weight: 600; }
-.vx-inline-hist { padding: 4px 0 12px; }
+.vx-inline-hist { padding: 8px 0 12px; }
 .vx-inline-hist-msg { padding: 10px 0; }
 .nums-row:not(:last-child) .vx-inline-hist:not([hidden]) { border-bottom: 1px solid var(--divider); }
 .table tr.c-hist-row, #tab-contacts .table tr.c-hist-row { display: table-row; padding: 0; min-height: 0; background: transparent; }
@@ -83,3 +87,26 @@
     .table tr.c-hist-row > td { display: block; padding: 0 !important; }
 }
 .nums-row:not(:last-child) > .row-item { border-bottom: 1px solid var(--divider) !important; }
+
+/* Contacts: the open row gets the same rounded active background */
+#contacts-tbody tr.c-row.is-open { background: var(--surface2); }
+#contacts-tbody tr.c-row.is-open > td:first-child { border-top-left-radius: 14px; border-bottom-left-radius: 14px; }
+#contacts-tbody tr.c-row.is-open > td:last-child { border-top-right-radius: 14px; border-bottom-right-radius: 14px; }
+#contacts-tbody tr.c-row.is-open { border-bottom-color: transparent; }
+@media (max-width: 768px) {
+    #contacts-tbody tr.c-row.is-open { border-radius: 14px; margin: 4px 0 0; }
+    .table tr.c-hist-row, #tab-contacts .table tr.c-hist-row { padding: 0 14px; }
+}
+.nums-modal .nums-list .nums-row-hd { background: transparent; }
+.nums-modal .nums-list .nums-row-hd:hover, .nums-modal .nums-list .nums-row-hd[aria-expanded="true"] { background: var(--surface2); }
+/* History tabs: three labels fit on one line at phone width */
+@media (max-width: 480px) {
+    #tab-history .lang-pills .lang-pill { white-space: nowrap; padding-left: 10px; padding-right: 10px; font-size: .8125rem; }
+}
+.nums-modal .modal { background: var(--surface) !important; }
+.nums-modal .nums-list .row-item { background: transparent !important; }
+.nums-modal .nums-list .nums-row-hd:hover, .nums-modal .nums-list .nums-row-hd[aria-expanded="true"] { background: var(--surface2) !important; }
+/* Divider on the row wrapper (not the rounded, outset header) */
+.nums-modal .nums-list .nums-row > .row-item { border-bottom: 0 !important; }
+.nums-modal .nums-list .nums-row:not(:last-child) { border-bottom: 1px solid var(--divider); }
+.nums-modal .nums-list .nums-row:not(:last-child) .vx-inline-hist:not([hidden]) { border-bottom: 0; }
