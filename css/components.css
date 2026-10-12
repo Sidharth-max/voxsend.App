@@ -2126,6 +2126,15 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
     transition: background-color .25s ease, color .25s ease, font-weight .25s ease;
 }
 
+/* ── Bottom nav: original pill size/spacing; icon colour marks the active page (no highlight blob) ── */
+@media (max-width: 768px) {
+    .bn-item svg { width: 23px !important; height: 23px !important; }
+    .bn-indicator { display: none !important; }
+    .bn-item, .bn-item:hover { background: transparent !important; }
+    .bn-item.active { color: #fff !important; }
+    :root[data-theme="light"] .bn-item.active { color: #111 !important; }
+}
+
 /* Switches: visible in dark mode, accent when on */
 .tog-track { background: var(--surface2); border-color: var(--border2); }
 .tog-thumb { background: var(--text2); }

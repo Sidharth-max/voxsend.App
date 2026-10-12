@@ -73,8 +73,8 @@ function go(name) {
         const tb = document.getElementById('tnav-' + t);
         if (tb) tb.classList.toggle('active', t === name);
     });
-    // bottom nav (API Config has no item there; it is reached from Settings)
-    const bnActive = name === 'api' ? 'settings' : name;
+    // bottom nav (API has its own item)
+    const bnActive = name;
     TABS.forEach(t => {
         const bn = document.getElementById('bnav-' + t);
         if (bn) bn.classList.toggle('active', t === bnActive);
