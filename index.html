@@ -601,6 +601,10 @@
                                 <option value="">All agents</option>
                             </select>
                         </div>
+                        <div class="lang-pills" id="calls-reasons" role="tablist" aria-label="Failure reason"
+                            style="display:flex; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin-bottom:12px; padding:4px; border-radius:999px;">
+                            <button class="lang-pill active" data-reason="" onclick="setCallReason('')">All</button>
+                        </div>
                         <div class="controls-row">
                             <select id="calls-range" onchange="loadCalls()" aria-label="Time range">
                                 <option value="1">Last 24 hours</option>
@@ -608,12 +612,12 @@
                                 <option value="30">Last 30 days</option>
                                 <option value="">All time</option>
                             </select>
-                            <button class="btn btn-secondary btn-sm" id="calls-sync-btn" onclick="syncCalls()" style="width:auto">Sync from Sarvam</button>
+                            <span class="hint" id="calls-synced" style="align-self:center;"></span>
                         </div>
                         <p class="hint" id="calls-summary" style="margin-bottom:12px;">Call results and conversations from Sarvam. New calls are synced in the background.</p>
                         <div id="sarvam-calls-list" class="history-list"></div>
                         <div id="sarvam-calls-empty" class="empty" style="display:none;">No calls found.</div>
-                        <button class="btn btn-secondary btn-sm" id="calls-more" onclick="loadCalls(true)" style="width:auto; display:none; margin-top:10px;">Load more</button>
+                        <div id="calls-sentinel" class="hint" style="text-align:center; padding:10px 0; display:none;">Loading…</div>
                     </div>
                 </div>
 

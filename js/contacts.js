@@ -207,15 +207,15 @@ window.renderContacts = function() {
             <td class="c-num"><div class="mono" style="color:var(--text3); font-size: 0.75rem;">${i + 1}</div></td>
             <td class="c-main">
                 <div class="c-name-wrap">
-                    <button type="button" class="c-name c-phone-link c-name-link" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show Sarvam conversations">${escAttr(c.name || '—')}</button>
+                    <button type="button" class="c-name c-phone-link c-name-link" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.name || '—')}</button>
                     <button class="btn btn-secondary btn-sm mobile-edit" onclick="editContact('${escAttr(c.phone)}')" aria-label="Edit contact">Edit</button>
                 </div>
                 <div class="c-details-wrap">
-                    <button type="button" class="c-phone c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show Sarvam conversations">${escAttr(c.phone)}</button>
+                    <button type="button" class="c-phone c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.phone)}</button>
                     ${c.group ? `<span class="badge c-group" style="font-size: 0.65rem;">${c.group}</span>` : ''}
                 </div>
             </td>
-            <td class="c-phone-desktop"><button type="button" class="c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show Sarvam conversations">${escAttr(c.phone)}</button></td>
+            <td class="c-phone-desktop"><button type="button" class="c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.phone)}</button></td>
             <td class="c-group-desktop">${c.group ? `<span class="badge" style="font-size: 0.65rem;">${c.group}</span>` : '—'}</td>
             <td class="c-actions-desktop">
                 <button class="btn btn-secondary btn-sm c-edit-btn" onclick="editContact('${escAttr(c.phone)}')" aria-label="Edit contact">Edit</button>

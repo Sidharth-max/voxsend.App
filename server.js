@@ -186,7 +186,7 @@ app.delete('/api/agents/:id', wrap(async (req, res) => { await config.deleteAgen
 
 // call history (Sarvam analytics + webhooks)
 app.get('/api/calls', wrap(async (req, res) => res.json(await callsync.list(req.query))));
-app.post('/api/calls/sync', wrap(async (req, res) => ok(res, { result: await callsync.syncNow({ days: parseInt((req.body || {}).days, 10) || null }) })));
+app.post('/api/calls/sync', wrap(async (req, res) => ok(res, { result: await callsync.syncNow({ days: parseInt((req.body || {}).days, 10) || null, auto: !!(req.body || {}).auto }) })));
 app.get('/api/calls/:id', wrap(async (req, res) => res.json(await callsync.get(req.params.id))));
 app.get('/api/calls/:id/transcript', wrap(async (req, res) => res.json(await callsync.transcript(req.params.id, { refresh: req.query.refresh === '1' }))));
 app.get('/api/calls/:id/recording', wrap(async (req, res) => callsync.streamRecording(req.params.id, req, res)));

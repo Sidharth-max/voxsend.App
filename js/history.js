@@ -38,7 +38,7 @@ window.setHistTab = function(tab, picked) {
         if (cont) cont.style.display = t === tab ? 'block' : 'none';
     });
     if (tab === 'vobiz') window.loadVobizLogs();
-    if (tab === 'sarvam') { window.loadCallAgents(); window.loadCalls(); }
+    if (tab === 'sarvam') { window.loadCallAgents(); window.loadCalls(); window.syncCalls(); }
     if (tab === 'scheduled' && window.loadSchedules) window.loadSchedules();
 };
 window.histTabWasPicked = () => histTabPicked;
@@ -74,6 +74,10 @@ window.loadCallAgents = async function() {
     } catch (e) { /* the filter just stays at "All agents" */ }
 };
 
+let callsReason = '';
+const REASON_LABELS = { __none: 'No reason', NO_ANSWER: 'No answer', BUSY: 'Busy', REJECTED: 'Rejected', INVALID_NUMBER: 'Invalid number' };
+const reasonLabel = r => REASON_LABELS[r] || String(r).toLowerCase().replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+
 const callQuery = () => {
     const p = new URLSearchParams();
     const q = document.getElementById('calls-search').value.trim();
@@ -84,57 +88,104 @@ const callQuery = () => {
     if (ag) p.set('agentId', ag);
     const days = document.getElementById('calls-range').value;
     if (days) p.set('from', new Date(Date.now() - Number(days) * 86400000).toISOString());
+    if (callsReason) p.set('reason', callsReason);
     return p;
 };
 
+window.setCallReason = function(reason) {
+    callsReason = reason;
+    window.loadCalls();
+};
+
+// Failure-reason tabs: "All" plus one per reason present under the other filters.
+function renderReasonTabs(reasons) {
+    const row = document.getElementById('calls-reasons');
+    if (!row) return;
+    const list = (reasons || []).filter(x => x.n > 0);
+    if (callsReason && !list.some(x => x.reason === callsReason)) list.push({ reason: callsReason, n: 0 });
+    row.innerHTML = '';
+    const mk = (value, label) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lang-pill' + (value === callsReason ? ' active' : '');
+        b.style.flex = '0 0 auto';
+        b.style.whiteSpace = 'nowrap';
+        b.dataset.reason = value;
+        b.textContent = label;
+        b.onclick = () => window.setCallReason(value);
+        row.appendChild(b);
+    };
+    mk('', 'All');
+    list.forEach(x => mk(x.reason, `${reasonLabel(x.reason)} (${x.n})`));
+}
+
+// Paging: a sentinel near the list end loads the next page; one fetch at a time.
+let callsTotal = 0, callsLoading = false, callsGen = 0, callsObserver = null;
 window.loadCalls = async function(more) {
     const list = document.getElementById('sarvam-calls-list');
     const empty = document.getElementById('sarvam-calls-empty');
-    const moreBtn = document.getElementById('calls-more');
+    const sentinel = document.getElementById('calls-sentinel');
     const summary = document.getElementById('calls-summary');
     if (!list) return;
-    callsOffset = more === true ? callsOffset : 0;
+    if (more === true && (callsLoading || callsOffset >= callsTotal)) return;
+    const gen = more === true ? callsGen : ++callsGen; // a filter change cancels older pages
+    if (more !== true) callsOffset = 0;
+    callsLoading = true;
     const p = callQuery();
     p.set('limit', '50');
     p.set('offset', String(callsOffset));
     let data;
     try {
         const res = await fetch('/api/calls?' + p.toString());
-        if (!res.ok) return;
-        data = await res.json();
-    } catch (e) { return; }
+        data = res.ok ? await res.json() : null;
+    } catch (e) { data = null; }
+    if (gen !== callsGen) return;
+    callsLoading = false;
+    if (!data) return;
     if (more !== true) list.innerHTML = '';
     const items = data.items || [];
     items.forEach(r => list.appendChild(callCard(r)));
     callsOffset += items.length;
+    callsTotal = data.total || 0;
+    if (more !== true) renderReasonTabs(data.reasons);
+    showSynced(data.synced_at);
     if (empty) empty.style.display = data.total ? 'none' : 'block';
-    if (moreBtn) moreBtn.style.display = callsOffset < data.total ? '' : 'none';
-    if (summary) summary.textContent = data.total ? `Showing ${callsOffset} of ${data.total} call${data.total === 1 ? '' : 's'}.` : 'Call results and conversations from Sarvam. New calls are synced in the background.';
-};
-
-window.syncCalls = async function() {
-    const btn = document.getElementById('calls-sync-btn');
-    btn.disabled = true;
-    btn.textContent = 'Syncing…';
-    const days = document.getElementById('calls-range').value;
-    const res = await fetch('/api/calls/sync', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ days: days ? Number(days) : 30 })
-    }).then(r => r.json()).catch(() => ({ success: false, message: 'Network error.' }));
-    btn.disabled = false;
-    btn.textContent = 'Sync from Sarvam';
-    const r = res.result || {};
-    if (res.success && !r.skipped && !r.error) {
-        const n = r.fetched || 0;
-        const errs = (r.errors || []).length;
-        window.showToast(`Synced ${n} call${n === 1 ? '' : 's'}.` + (errs ? ` ${errs} agent${errs === 1 ? '' : 's'} could not be synced.` : ''), errs ? 'error' : 'success');
-        window.loadCalls();
-    } else if (res.success) {
-        window.showToast(r.skipped || r.error, 'error');
-    } else {
-        window.showToast(res.message || 'Sync failed.', 'error');
+    if (sentinel) sentinel.style.display = callsOffset < callsTotal ? 'block' : 'none';
+    if (summary) summary.textContent = data.total ? `Showing ${callsOffset} of ${data.total} call${data.total === 1 ? '' : 's'}.` : 'Call results and conversations from Sarvam. New calls sync automatically.';
+    if (sentinel && 'IntersectionObserver' in window && !callsObserver) {
+        callsObserver = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) window.loadCalls(true); }, { rootMargin: '0px 0px 300px 0px' });
+        callsObserver.observe(sentinel);
     }
 };
+
+// "Synced 12s ago" (muted), refreshed every few seconds.
+let lastSyncedAt = null;
+function showSynced(at) {
+    if (at) lastSyncedAt = new Date(at);
+    const el = document.getElementById('calls-synced');
+    if (!el) return;
+    if (!lastSyncedAt) { el.textContent = ''; return; }
+    const s = Math.max(0, Math.round((Date.now() - lastSyncedAt) / 1000));
+    el.textContent = 'Synced ' + (s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.round(s / 3600)}h`) + ' ago';
+}
+setInterval(() => showSynced(), 5000);
+
+// Automatic sync: when Call history opens and every 60s while it is visible. Silent on errors
+// (the server backs off by itself when Sarvam rate-limits).
+const callsVisible = () => {
+    const c = document.getElementById('hist-sarvam-content');
+    return !document.hidden && c && c.style.display !== 'none' && c.offsetParent !== null;
+};
+window.syncCalls = async function() {
+    const res = await fetch('/api/calls/sync', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auto: true })
+    }).then(r => r.json()).catch(() => null);
+    const r = res && res.result;
+    if (r && r.at) showSynced(r.at);
+    if (r && r.fetched && callsVisible() && callsOffset <= 50) window.loadCalls();
+};
+setInterval(() => { if (callsVisible()) window.syncCalls(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (callsVisible()) window.syncCalls(); });
 
 function callCard(r) {
     const item = document.createElement('div');
@@ -150,14 +201,17 @@ function callCard(r) {
     const num = document.createElement('div');
     num.className = 'mono';
     num.style.color = 'var(--text)';
-    num.textContent = r.phone || 'Unknown number';
+    const phoneOk = r.phone && !/^NO_/.test(r.phone) && !/^[0-9a-f]{24,}$/i.test(r.phone);
+    num.textContent = phoneOk ? r.phone : 'Unknown number';
     const when = document.createElement('div');
     when.className = 'hint';
     const bits = [];
     if (r.sort_at) bits.push(new Date(r.sort_at).toLocaleString());
     if (r.duration) bits.push(`${Math.round(r.duration)}s`);
     if (r.agent_label) bits.push(r.agent_label);
-    if (r.ended_by) bits.push(`ended by ${r.ended_by}`);
+    const endedBy = { USER_ENDS: 'caller', AGENT_ENDS: 'agent' }[r.ended_by] || (r.ended_by && !/^NO_/.test(r.ended_by) ? String(r.ended_by).toLowerCase().replace(/_/g, ' ') : '');
+    if (endedBy) bits.push(`ended by ${endedBy}`);
+    if (r.attempt_id) bits.push(`ID ${String(r.attempt_id).slice(0, 8)}…`);
     when.textContent = bits.join(' · ');
     left.append(num, when);
     const [label, cls] = SARVAM_STATUS[r.status] || [r.status || 'Unknown', ''];
@@ -167,11 +221,11 @@ function callCard(r) {
     head.append(left, badge);
     body.appendChild(head);
 
-    if (r.failure_reason) {
+    if (r.failure_reason && !/^NO_/.test(r.failure_reason)) {
         const fr = document.createElement('div');
         fr.className = 'hint';
         fr.style.cssText = 'color:var(--error); margin-top:6px;';
-        fr.textContent = r.failure_reason;
+        fr.textContent = reasonLabel(r.failure_reason);
         body.appendChild(fr);
     }
 
@@ -617,4 +671,26 @@ window.repeatBroadcast = function(index) {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.loadHistory();
+});
+
+// Tapping a contact's name or number (Contacts list) opens History > Call history for that
+// number. The search matches on the last 10 digits, so +91 / 0 / bare forms all match.
+window.openContactHistory = function(phone) {
+    const digits = String(phone || '').replace(/\D/g, '');
+    const key = digits.length > 10 ? digits.slice(-10) : digits;
+    if (typeof window.go === 'function') window.go('history');
+    window.setHistTab('sarvam', true);
+    const search = document.getElementById('calls-search');
+    if (search) search.value = key;
+    const range = document.getElementById('calls-range');
+    if (range) range.value = ''; // all time
+    callsReason = '';
+    window.loadCalls();
+};
+document.addEventListener('click', e => {
+    const link = e.target.closest && e.target.closest('.c-phone-link[data-phone]');
+    if (!link) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.openContactHistory(link.dataset.phone);
 });
