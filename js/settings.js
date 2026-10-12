@@ -137,6 +137,122 @@ window.applySettingsProviderUI = function (provider) {
     });
 };
 
+// ── Sarvam agents ───────────────────────────────────
+let agentEditingId = null;
+
+window.loadAgents = async function () {
+    const list = document.getElementById('agents-list');
+    if (!list) return;
+    let rows = [];
+    try {
+        const res = await fetch('/api/agents');
+        if (!res.ok) return;
+        rows = await res.json();
+    } catch (e) { return; }
+    document.getElementById('agents-count').textContent = String(rows.length);
+    list.innerHTML = '';
+    if (!rows.length) {
+        list.innerHTML = '<div class="row-item"><div class="row-sub">No agents yet. Add one below.</div></div>';
+        return;
+    }
+    rows.forEach(a => {
+        const line = document.createElement('div');
+        line.className = 'row-item' + (a.active ? '' : ' is-off');
+        const left = document.createElement('div');
+        left.style.minWidth = '0';
+        const name = document.createElement('div');
+        name.className = 'row-label';
+        name.textContent = a.label;
+        const sub = document.createElement('div');
+        sub.className = 'row-sub mono';
+        sub.textContent = a.app_id + (a.version ? ` · v${a.version}` : ' · latest');
+        left.append(name, sub);
+        if (a.notes) {
+            const n = document.createElement('div');
+            n.className = 'row-sub';
+            n.textContent = a.notes;
+            left.appendChild(n);
+        }
+        const right = document.createElement('div');
+        right.className = 'row-right';
+        right.style.cssText = 'display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;';
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (a.is_default ? 'badge-success' : 'badge-muted');
+        badge.textContent = a.is_default ? 'Default' : (a.active ? 'Active' : 'Inactive');
+        right.appendChild(badge);
+        const btn = (label, fn) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'vx-pop-btn';
+            b.textContent = label;
+            b.onclick = fn;
+            right.appendChild(b);
+        };
+        btn('Edit', () => editAgent(a));
+        if (!a.is_default) btn('Make default', () => agentAction(`/api/agents/${a.id}/default`, 'POST', null, `${a.label} is now the default agent.`));
+        if (!a.is_default) btn(a.active ? 'Hide' : 'Show', () => agentAction(`/api/agents/${a.id}`, 'PUT', { ...a, active: !a.active }, a.active ? `${a.label} is hidden from the picker.` : `${a.label} is back in the picker.`));
+        if (!a.is_default) btn('Delete', async () => {
+            if (!(await window.showConfirm(`Delete the agent "${a.label}"? Past calls keep their history.`))) return;
+            agentAction(`/api/agents/${a.id}`, 'DELETE', null, 'Agent deleted.');
+        });
+        line.append(left, right);
+        list.appendChild(line);
+    });
+};
+
+async function agentAction(url, method, body, okMsg) {
+    const res = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined
+    }).then(r => r.json()).catch(() => ({ success: false, message: 'Network error.' }));
+    if (res.success) window.showToast(okMsg, 'success');
+    else window.showToast(res.message || 'Could not save.', 'error');
+    window.loadAgents();
+    if (window.loadAgentPicker) window.loadAgentPicker();
+    return res.success;
+}
+
+function editAgent(a) {
+    agentEditingId = a.id;
+    document.getElementById('agent-form-title').textContent = `Edit "${a.label}"`;
+    document.getElementById('agent-label').value = a.label;
+    document.getElementById('agent-app-id').value = a.app_id;
+    document.getElementById('agent-version').value = a.version || '';
+    document.getElementById('agent-notes').value = a.notes || '';
+    document.getElementById('agent-save-btn').textContent = 'Save agent';
+    document.getElementById('agent-cancel-btn').style.display = '';
+    document.getElementById('agent-form').dataset.active = a.active ? '1' : '0';
+    document.getElementById('agent-label').focus();
+}
+
+window.resetAgentForm = function () {
+    agentEditingId = null;
+    ['agent-label', 'agent-app-id', 'agent-version', 'agent-notes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('agent-form-title').textContent = 'Add an agent';
+    document.getElementById('agent-save-btn').textContent = 'Add agent';
+    document.getElementById('agent-cancel-btn').style.display = 'none';
+};
+
+window.saveAgentForm = async function () {
+    const body = {
+        label: document.getElementById('agent-label').value.trim(),
+        app_id: document.getElementById('agent-app-id').value.trim(),
+        version: document.getElementById('agent-version').value.trim() || null,
+        notes: document.getElementById('agent-notes').value.trim(),
+        active: agentEditingId ? document.getElementById('agent-form').dataset.active === '1' : true
+    };
+    if (!body.label || !body.app_id) return window.showToast('Enter a name and the agent ID.', 'error');
+    if (body.version && !/^\d+$/.test(body.version)) return window.showToast('Version must be a number, or leave it empty.', 'error');
+    const ok = await agentAction(agentEditingId ? `/api/agents/${agentEditingId}` : '/api/agents', agentEditingId ? 'PUT' : 'POST', body,
+        agentEditingId ? 'Agent saved.' : 'Agent added.');
+    if (ok) window.resetAgentForm();
+};
+
+window.loadSettings = function () {
+    window.loadAppSettings();
+    window.loadAgents();
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     // init server settings
     window.loadAppSettings();

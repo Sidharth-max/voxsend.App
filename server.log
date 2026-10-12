@@ -1,2 +1,0 @@
-[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
-Server running at http://localhost:3000

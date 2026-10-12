@@ -95,6 +95,65 @@ const currentMessage = () => {
 
 const SARVAM_PLACEHOLDER = "Optional — leave empty to use the Sarvam agent's own greeting";
 
+// ── Sarvam agent picker ─────────────────────────────
+let agentList = [];
+const selectedAgentId = () => {
+    const el = document.getElementById('agent-pick');
+    return el && el.value ? Number(el.value) : null;
+};
+const defaultAgentId = () => { const d = agentList.find(a => a.is_default) || agentList[0]; return d ? d.id : null; };
+const agentOptionLabel = a => a.label + (a.version ? ` · v${a.version}` : '') + (a.is_default ? ' (default)' : '');
+
+window.loadAgentPicker = async function(keepId) {
+    const el = document.getElementById('agent-pick');
+    if (!el) return;
+    let rows = [];
+    try {
+        const res = await fetch('/api/agents?all=0');
+        rows = res.ok ? await res.json() : [];
+    } catch (e) { rows = []; }
+    agentList = Array.isArray(rows) ? rows : [];
+    const want = keepId !== undefined ? keepId : (el.value ? Number(el.value) : null);
+    el.innerHTML = '';
+    agentList.forEach(a => {
+        const o = document.createElement('option');
+        o.value = String(a.id);
+        o.textContent = agentOptionLabel(a);
+        el.appendChild(o);
+    });
+    const pick = agentList.some(a => a.id === want) ? want : defaultAgentId();
+    if (pick) el.value = String(pick);
+    updateAgentPickerVisibility();
+};
+
+// Sets the picker to an agent (e.g. when editing a schedule). An agent that is now inactive is shown
+// as an extra option so saving does not silently switch agents.
+const setAgentPicker = (id, label) => {
+    const el = document.getElementById('agent-pick');
+    if (!el) return;
+    if (id && !agentList.some(a => a.id === id)) {
+        const o = document.createElement('option');
+        o.value = String(id);
+        o.textContent = (label || 'Agent ' + id) + ' (inactive)';
+        o.dataset.extra = '1';
+        el.appendChild(o);
+    }
+    el.querySelectorAll('option[data-extra]').forEach(o => { if (Number(o.value) !== id) o.remove(); });
+    const v = id || defaultAgentId();
+    if (v) el.value = String(v);
+    updateAgentPickerVisibility();
+};
+
+function updateAgentPickerVisibility() {
+    const wrap = document.getElementById('agent-pick-wrap');
+    if (wrap) wrap.style.display = isSarvam() && agentList.length ? 'block' : 'none';
+    // The title's "Agent vN" follows the agent picked for this broadcast.
+    const id = selectedAgentId();
+    const a = agentList.find(x => x.id === id);
+    if (a) { providerAgentVersion = a.version ? String(a.version) : ''; if (typeof renderProviderBrand === 'function') renderProviderBrand(window.currentProvider); }
+}
+document.addEventListener('change', e => { if (e.target && e.target.id === 'agent-pick') updateAgentPickerVisibility(); });
+
 // Sidebar / top bar title = the active calling service, styled in its own brand colours.
 const PROVIDER_BRAND = { sarvam: 'Sarvam AI', twilio: 'Twilio', vobiz: 'Vobiz' };
 let providerAgentVersion = null; // Sarvam app version from saved settings ('' = latest committed)
@@ -136,6 +195,7 @@ window.applyProviderUI = function(provider) {
     if (label) label.textContent = sarvam ? 'Message override (optional)' : 'Voice message text';
     const vWrap = document.getElementById('vobiz-voice-wrap');
     if (vWrap) vWrap.style.display = window.currentProvider === 'vobiz' ? 'block' : 'none';
+    updateAgentPickerVisibility();
 
     // Sarvam bills in its own credits, so the ₹/min estimate does not apply.
     const costTile = document.getElementById('m-cost-tile');
@@ -249,7 +309,8 @@ let pollInterval = null;
 
 window.checkActiveBroadcast = async function() {
     const c = await window.getCfg();
-    providerAgentVersion = c.sarvam_app_version || '';
+    // Version of the default agent (the picker updates it when another agent is chosen).
+    providerAgentVersion = c.agent ? (c.agent.version ? String(c.agent.version) : '') : null;
     window.applyProviderUI(c.provider);
 
     fetch('/api/broadcast/status').then(res => res.json()).then(status => {
@@ -325,9 +386,10 @@ window.blast = async function() {
     if (logEl) logEl.innerHTML = '';
     
     const provider = c.provider || 'twilio';
-
-    if (c.missing) {
-        window.addLog('err', `${c.missing}. Check API tab.`);
+    // Credentials stay on the server; the browser only learns whether they are complete.
+    if (!c.configured[provider]) {
+        const what = { vobiz: 'Vobiz credentials or Public URL', sarvam: 'Sarvam settings', twilio: 'Twilio credentials' }[provider] || 'credentials';
+        window.addLog('err', `Missing ${what}! Check API tab.`);
         return;
     }
 
@@ -338,6 +400,7 @@ window.blast = async function() {
         nums,
         msg,
         lang: lang,
+        agentId: provider === 'sarvam' ? selectedAgentId() : null,
         sentBy: window.currentUser ? window.currentUser.username : 'Unknown',
         provider: provider,
         voice: selectedVoice
@@ -599,6 +662,7 @@ window.scheduleBlast = async function() {
                 nums, msg, lang,
                 voice: voiceEl ? voiceEl.value : null,
                 provider: editing ? editing.provider : (c.provider || 'twilio'),
+                agentId: (editing ? editing.provider : c.provider) === 'sarvam' ? selectedAgentId() : null,
                 runAts: runs.map(r => r.toISOString()),
                 rule,
                 sentBy: window.currentUser ? window.currentUser.username : 'Unknown'
@@ -775,6 +839,7 @@ window.startEditSchedule = async function(groupId) {
     if (['hi', 'en', 'gu'].includes(g.language)) window.setLang(g.language);
     const voiceEl = document.getElementById('vobiz-voice');
     if (voiceEl && g.voice) voiceEl.value = g.voice;
+    if (g.provider === 'sarvam') setAgentPicker(g.agent_id || null, g.agent_label);
     // Recipients
     updateRecipientsField(g.recipients || []);
 
@@ -818,6 +883,7 @@ window.startEditSchedule = async function(groupId) {
 const exitScheduleEdit = () => {
     const saved = scheduleEditing ? scheduleEditing.savedNumbers : null;
     scheduleEditing = null;
+    setAgentPicker(null);
     document.getElementById('sched-title').textContent = 'Or schedule for later';
     document.getElementById('sched-edit-banner').style.display = 'none';
     document.getElementById('sched-discard-btn').style.display = 'none';
@@ -999,6 +1065,7 @@ window.loadSchedules = async function(force) {
             stat(String(first.total), first.total === 1 ? 'number' : 'numbers'),
             stat(null, PROVIDER_LABELS[first.provider] || first.provider)
         );
+        if (first.provider === 'sarvam' && first.agent_label) stats.append(stat(null, first.agent_label));
         if (entries.length > 1) stats.append(stat(`${pending.length}/${entries.length}`, 'left'));
         if (pending.length) {
             const next = stat(null, 'Next ');
@@ -1046,7 +1113,15 @@ window.loadSchedules = async function(force) {
                 right.className = 'sched-time-right';
                 const [label, cls] = SCHED_STATUS[r.status] || [r.status, 'badge-muted'];
                 right.appendChild(makeBadge(label, cls));
-                if (r.status === 'pending') {
+                if (r.resumable && r.broadcast_id && !r.resume_requested) {
+                    const rb = document.createElement('button');
+                    rb.type = 'button';
+                    rb.className = 'vx-pop-btn';
+                    rb.textContent = `Resume (${r.not_dialled} left)`;
+                    rb.setAttribute('aria-label', `Resume the ${fmtFull(r.run_at)} broadcast: call the ${r.not_dialled} numbers not dialled yet`);
+                    rb.onclick = () => window.resumeBroadcast(r.broadcast_id, r.not_dialled);
+                    right.appendChild(rb);
+                } else if (r.status === 'pending') {
                     const ed = document.createElement('button');
                     ed.type = 'button';
                     ed.className = 'vx-pop-btn';
@@ -1319,6 +1394,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (bFilter) bFilter.addEventListener('change', () => { broadcastVisibleLimit = 100; });
     
     window.checkActiveBroadcast();
+    window.loadAgentPicker();
     window.resetScheduleForm();
     window.loadSchedules();
     setInterval(window.loadSchedules, 30000);
@@ -1339,6 +1415,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ta) ta.addEventListener('input', () => { numbersEditorChoice = true; });
 });
 
+// Resume an interrupted or stopped broadcast. Only numbers that were never dialled are called;
+// anyone already attempted (answered, failed or unknown) is skipped.
+window.resumeBroadcast = async function(broadcastId, left) {
+    const ok = await window.showConfirm(`Resume this broadcast? It calls only the ${left || ''} number${left === 1 ? '' : 's'} not dialled yet. Numbers already attempted are skipped.`);
+    if (!ok) return;
+    const res = await fetch(`/api/broadcasts/${encodeURIComponent(broadcastId)}/resume`, { method: 'POST' })
+        .then(r => r.json()).catch(() => ({ success: false, message: 'Network error.' }));
+    window.showToast(res.message || (res.success ? 'Resuming.' : 'Could not resume.'), res.success ? 'success' : 'error');
+    if (res.success) setTimeout(() => window.checkActiveBroadcast(), 1500);
+    window.loadSchedules(true);
+    if (window.loadHistory) window.loadHistory();
+};
 // Tapping anywhere on a contact row in the picker ticks its box (a bigger target on phones).
 document.addEventListener('click', e => {
     const row = e.target.closest && e.target.closest('#b-contacts-tbody .b-row');

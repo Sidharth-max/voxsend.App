@@ -206,6 +206,10 @@
                                                 id="pill-gu" style="display:none">Gujarati</button>
                                         </div>
 
+                                        <div id="agent-pick-wrap" style="display:none;">
+                                            <select id="agent-pick" class="lang-pill select-pill" aria-label="Sarvam agent" title="Sarvam agent used for these calls"></select>
+                                        </div>
+
                                         <div id="vobiz-voice-wrap" style="display:none; margin-left:12px;">
                                             <select id="vobiz-voice" class="lang-pill select-pill">
                                                 <option value="Polly.Aditi">Polly Aditi (Hindi)</option>
@@ -549,7 +553,7 @@
                     </div>
 
                     <div class="lang-pills sticky-bar" id="hist-subtabs" role="tablist" aria-label="History view">
-                        <button class="lang-pill" id="sub-sarvam" onclick="setHistTab('sarvam', true)" style="display:none">Sarvam Conversations</button>
+                        <button class="lang-pill" id="sub-sarvam" onclick="setHistTab('sarvam', true)" style="display:none">Call history</button>
                         <button class="lang-pill active" id="sub-broadcast" onclick="setHistTab('broadcast', true)">Broadcast History</button>
                         <button class="lang-pill" id="sub-vobiz" onclick="setHistTab('vobiz', true)" style="display:none">Vobiz Call Logs</button>
                     </div>
@@ -577,9 +581,32 @@
                     </div>
 
                     <div id="hist-sarvam-content" style="display:none;">
-                        <p class="hint" style="margin-bottom:12px;">Answers come from your Sarvam agent's own instructions. Transcripts arrive only when the Public URL is reachable by Sarvam.</p>
+                        <div class="controls-row">
+                            <input type="text" id="calls-search" placeholder="Search by phone or call ID..."
+                                oninput="queueCallsReload()" />
+                            <select id="calls-status" onchange="loadCalls()" aria-label="Call result">
+                                <option value="">All results</option>
+                                <option value="answered">Answered</option>
+                                <option value="not_answered">Not answered</option>
+                                <option value="failed">Failed</option>
+                            </select>
+                            <select id="calls-agent" onchange="loadCalls()" aria-label="Agent">
+                                <option value="">All agents</option>
+                            </select>
+                        </div>
+                        <div class="controls-row">
+                            <select id="calls-range" onchange="loadCalls()" aria-label="Time range">
+                                <option value="1">Last 24 hours</option>
+                                <option value="7" selected>Last 7 days</option>
+                                <option value="30">Last 30 days</option>
+                                <option value="">All time</option>
+                            </select>
+                            <button class="btn btn-secondary btn-sm" id="calls-sync-btn" onclick="syncCalls()" style="width:auto">Sync from Sarvam</button>
+                        </div>
+                        <p class="hint" id="calls-summary" style="margin-bottom:12px;">Call results and conversations from Sarvam. New calls are synced in the background.</p>
                         <div id="sarvam-calls-list" class="history-list"></div>
-                        <div id="sarvam-calls-empty" class="empty" style="display:none;">No Sarvam calls yet.</div>
+                        <div id="sarvam-calls-empty" class="empty" style="display:none;">No calls found.</div>
+                        <button class="btn btn-secondary btn-sm" id="calls-more" onclick="loadCalls(true)" style="width:auto; display:none; margin-top:10px;">Load more</button>
                     </div>
                 </div>
 
@@ -592,7 +619,7 @@
                                 Settings
                             </button>
                             <div class="page-title">API Config</div>
-                            <div class="page-desc">Provider keys are stored on the server. Unlock with your PIN to view or change them.</div>
+                            <div class="page-desc">Credentials are stored encrypted on the server. Saved values are only ever shown masked.</div>
                         </div>
                         <div class="page-hd-actions"></div>
                     </div>
@@ -691,7 +718,7 @@
                                         <label class="field-label">Agent ID</label>
                                         <input type="text" id="sarvam-app-id" class="mono" placeholder="agent (app) id"
                                             autocomplete="new-password" />
-                                        <p class="hint">An announcement agent: it says the opening message it is given, then ends the call.</p>
+                                        <p class="hint">Fallback agent, used only when no agent is set up in Settings → Sarvam Agents.</p>
                                     </div>
                                     <div class="field">
                                         <label class="field-label">Agent Version (optional)</label>
@@ -772,6 +799,39 @@
                         </div>
                     </div>
 
+                    <div class="block" id="agents-block">
+                        <div class="block-head" style="justify-content: space-between;">
+                            <span class="block-title">Sarvam Agents</span>
+                            <span class="badge" id="agents-count">0</span>
+                        </div>
+                        <div class="block-body">
+                            <p class="hint" style="margin-bottom:12px;">Agents you can pick on the Broadcast screen. The default agent is preselected; inactive agents are hidden from the picker.</p>
+                            <div id="agents-list"></div>
+                            <div id="agent-form" style="margin-top:16px;">
+                                <div class="field">
+                                    <label class="field-label" for="agent-label" id="agent-form-title">Add an agent</label>
+                                    <input type="text" id="agent-label" placeholder="Name shown in the picker (e.g. Event reminder)" maxlength="80" />
+                                </div>
+                                <div class="field">
+                                    <label class="field-label" for="agent-app-id">Agent ID</label>
+                                    <input type="text" id="agent-app-id" class="mono" placeholder="agent (app) id from Sarvam" autocomplete="off" />
+                                </div>
+                                <div class="field">
+                                    <label class="field-label" for="agent-version">Agent Version (optional)</label>
+                                    <input type="text" id="agent-version" class="mono" placeholder="Latest committed" inputmode="numeric" autocomplete="off" />
+                                </div>
+                                <div class="field">
+                                    <label class="field-label" for="agent-notes">Notes (optional)</label>
+                                    <input type="text" id="agent-notes" placeholder="What this agent says" maxlength="500" />
+                                </div>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <button class="btn btn-secondary btn-sm" id="agent-save-btn" onclick="saveAgentForm()" style="width:auto">Add agent</button>
+                                    <button class="btn btn-secondary btn-sm" id="agent-cancel-btn" onclick="resetAgentForm()" style="width:auto; display:none;">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="block">
                         <div class="block-head"><span class="block-title">Call Behavior</span></div>
                         <div class="block-body">
@@ -839,6 +899,27 @@
                             </div>
                             <button class="btn btn-secondary btn-sm" onclick="saveAppSettings()"
                                 style="width:auto; margin-top:20px;">Save Behavior</button>
+                        </div>
+                    </div>
+
+                    <div class="block">
+                        <div class="block-head"><span class="block-title">Appearance</span></div>
+                        <div class="block-body">
+                            <div class="row-item">
+                                <div>
+                                    <div class="row-label">Light mode</div>
+                                    <div class="row-sub">Same as the round button at the bottom right</div>
+                                </div>
+                                <div class="row-right">
+                                    <label class="toggle">
+                                        <input type="checkbox" id="theme-toggle" aria-label="Light mode"
+                                            onchange="setThemeMode(this.checked)" />
+                                        <div class="tog-track">
+                                            <div class="tog-thumb"></div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

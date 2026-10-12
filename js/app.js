@@ -99,14 +99,17 @@ function go(name) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Non-secret settings only; API keys stay on the server.
+// Public settings only: provider, public URL and which providers are fully configured.
+// Secrets never reach the browser; the server uses its own stored credentials.
 window.getCfg = async function() {
     try {
         const res = await fetch('/api/config');
-        if (!res.ok) return {};
-        return await res.json();
+        if (!res.ok) return { configured: {} };
+        const c = await res.json();
+        c.configured = c.configured || {};
+        return c;
     } catch (e) {
-        return {};
+        return { configured: {} };
     }
 }
 
@@ -152,84 +155,61 @@ window.toggleProviderFields = function() {
     if (window.updateMetrics) window.updateMetrics();
 };
 
+// Input id for each stored credential field.
+const CRED_INPUTS = {
+    sid: 'sid', token: 'token', from: 'from',
+    vobiz_id: 'vobiz-id', vobiz_token: 'vobiz-token', vobiz_from: 'vobiz-from',
+    sarvam_key: 'sarvam-key', sarvam_org: 'sarvam-org', sarvam_workspace: 'sarvam-workspace',
+    sarvam_app_id: 'sarvam-app-id', sarvam_app_version: 'sarvam-app-version',
+    sarvam_connection_id: 'sarvam-connection-id', sarvam_from: 'sarvam-from'
+};
+
 window.saveCfg = function() {
     // Extra safety check
     if (document.getElementById('api-lock-overlay').style.display !== 'none') {
         return window.showToast("Unlock required", "error");
     }
 
+    // Saved values are shown masked as placeholders; only boxes you typed into are sent.
     const credentials = {
-        sid: document.getElementById('sid').value,
-        token: document.getElementById('token').value,
-        from: document.getElementById('from').value,
-        vobiz_id: document.getElementById('vobiz-id').value,
-        vobiz_token: document.getElementById('vobiz-token').value,
-        vobiz_from: document.getElementById('vobiz-from').value,
-        sarvam_key: document.getElementById('sarvam-key').value,
-        sarvam_org: document.getElementById('sarvam-org').value.trim(),
-        sarvam_workspace: document.getElementById('sarvam-workspace').value.trim(),
-        sarvam_app_id: document.getElementById('sarvam-app-id').value.trim(),
-        sarvam_app_version: document.getElementById('sarvam-app-version').value.trim(),
-        sarvam_connection_id: document.getElementById('sarvam-connection-id').value.trim(),
-        sarvam_from: document.getElementById('sarvam-from').value.trim(),
-        public_url: document.getElementById('public-url').value,
-        provider: document.getElementById('provider-select').value,
-        pin: apiPin
+        public_url: document.getElementById('public-url').value.trim(),
+        provider: document.getElementById('provider-select').value
     };
+    Object.entries(CRED_INPUTS).forEach(([key, id]) => {
+        const v = document.getElementById(id).value.trim();
+        if (v) credentials[key] = v;
+    });
 
     fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials)
     }).then(res => res.json()).then(res => {
-        if(res.success) {
+        if (res.success) {
             const btn = document.getElementById('save-btn');
             btn.textContent = 'Saved ✓';
             setTimeout(() => { btn.innerHTML = 'Save Credentials'; }, 2000);
             window.loadCfg();
+            if (window.loadAgentPicker) window.loadAgentPicker();
         } else {
-            window.showToast(res.message || res.error || 'Could not save', 'error');
+            window.showToast(res.message || 'Could not save.', 'error');
         }
-    }).catch(() => window.showToast('Cannot reach the server', 'error'));
+    }).catch(() => window.showToast('Network error while saving.', 'error'));
 };
 
 window.loadCfg = function() {
-    window.getCfg().then(c => {
-        // Secret keys are never sent back; a blank field keeps the saved key.
-        const secretFields = { token: 'token', vobiz_token: 'vobiz-token', sarvam_key: 'sarvam-key' };
-        Object.entries(secretFields).forEach(([key, id]) => {
+    fetch('/api/credentials').then(res => res.json()).then(c => {
+        const masked = c.masked || {};
+        Object.entries(CRED_INPUTS).forEach(([key, id]) => {
             const el = document.getElementById(id);
+            if (!el) return;
+            if (!el.dataset.emptyPlaceholder) el.dataset.emptyPlaceholder = el.getAttribute('placeholder') || '';
             el.value = '';
-            el.placeholder = c['has_' + key] ? 'Saved (leave blank to keep)' : 'Not set';
+            el.setAttribute('placeholder', masked[key] ? `Saved: ${masked[key]} (type to replace)` : el.dataset.emptyPlaceholder);
         });
-
-        // Load Twilio values
-        if (c.sid) document.getElementById('sid').value = c.sid;
-        if (c.from) document.getElementById('from').value = c.from;
-        
-        // Load Vobiz values
-        if (c.vobiz_id) document.getElementById('vobiz-id').value = c.vobiz_id;
-        if (c.vobiz_from) document.getElementById('vobiz-from').value = c.vobiz_from;
-        if (c.public_url) document.getElementById('public-url').value = c.public_url;
-
-        // Load Sarvam values
-        const sarvamFieldIds = {
-            sarvam_org: 'sarvam-org', sarvam_workspace: 'sarvam-workspace',
-            sarvam_app_id: 'sarvam-app-id', sarvam_app_version: 'sarvam-app-version',
-            sarvam_connection_id: 'sarvam-connection-id', sarvam_from: 'sarvam-from'
-        };
-        Object.entries(sarvamFieldIds).forEach(([key, id]) => {
-            if (c[key]) document.getElementById(id).value = c[key];
-        });
-        
-        // Set provider
-        if (c.provider) {
-            document.getElementById('provider-select').value = c.provider;
-        }
-        
-        // Update UI
+        document.getElementById('public-url').value = c.public_url || '';
+        if (c.provider) document.getElementById('provider-select').value = c.provider;
         window.toggleProviderFields();
-        
     }).catch(e => console.error('Error fetching credentials:', e));
 };
 
@@ -337,10 +317,8 @@ window.showPrompt = function(message, inputType = 'text', defaultVal = '') {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // initAuth opens the last tab once the session is confirmed.
     if (window.initAuth) window.initAuth();
-    
-    const lastTab = localStorage.getItem('last_active_tab') || 'broadcast';
-    go(lastTab);
 });
 
 

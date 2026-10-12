@@ -90,4 +90,4 @@ function verifyMetadata(apiKey, meta = {}) {
     return expected.length === given.length && crypto.timingSafeEqual(expected, given);
 }
 
-module.exports = { placeCall, missingSarvamConfig, signMetadata, verifyMetadata, LANGUAGE_NAMES };
+module.exports = { placeCall, missingSarvamConfig, signMetadata, verifyMetadata, LANGUAGE_NAMES, baseUrl };

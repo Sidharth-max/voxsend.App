@@ -1,35 +1,36 @@
-
-# Environment / secrets — never commit these
+# Secrets / env
 .env
 .env.*
-.env.local
-.env.*.local
 *.env
 !.env.example
-
-# Credentials
+test.env
+*.pem
+*.key
+master.key
+credentials
 credentials.json
-
-# Python
-__pycache__/
-*.pyc
-gg.py
-
-# Dependencies
-node_modules/
-
-# Misc
-replacements.txt
-
-# Data files
+# Data
+*.db
+*.db-*
+*.db.bak*
+*.sqlite
+*.sqlite-*
+backups/
 contacts.json
 messages.json
 settings.json
 history.json
-voxsend.db
-voxsend.db-shm
-voxsend.db-wal
-*.json
-
-# Database backups made by the schedule migration (contain real data)
-*.db.bak-*
+# Runtime
+logs/
+*.log
+node_modules/
+__pycache__/
+*.pyc
+# Editor / scratch
+.idea/
+*.orig
+*.bak-*
+Untitled-*
+test.html
+git-filter-repo
+replacements.txt

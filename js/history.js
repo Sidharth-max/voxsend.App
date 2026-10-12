@@ -38,44 +38,104 @@ window.setHistTab = function(tab, picked) {
         if (cont) cont.style.display = t === tab ? 'block' : 'none';
     });
     if (tab === 'vobiz') window.loadVobizLogs();
-    if (tab === 'sarvam') window.loadSarvamCalls();
+    if (tab === 'sarvam') { window.loadCallAgents(); window.loadCalls(); }
 };
 window.histTabWasPicked = () => histTabPicked;
 
 const SARVAM_STATUS = {
-    queued: ['Waiting for result', ''], connected: ['Answered', 'badge-success'],
-    no_answer: ['No answer', 'badge-danger'], busy: ['Busy', 'badge-danger'], failed: ['Failed', 'badge-danger']
+    queued: ['Waiting for result', ''], connected: ['Answered', 'badge-success'], completed: ['Answered', 'badge-success'],
+    answered: ['Answered', 'badge-success'], no_answer: ['No answer', 'badge-danger'], busy: ['Busy', 'badge-danger'],
+    not_connected: ['Not connected', 'badge-danger'], failed: ['Failed', 'badge-danger'], unknown: ['Unknown', '']
 };
 
-// Sarvam transcript turns vary in shape; pull out a speaker, the words as spoken, and an
-// English translation when Sarvam sends one ({ role, indic_text, en_text }).
-const transcriptTurn = (turn) => {
-    if (typeof turn === 'string') return { who: '', text: turn, en: '' };
-    if (!turn || typeof turn !== 'object') return { who: '', text: String(turn ?? ''), en: '' };
-    const role = String(turn.role || turn.speaker || turn.sender || '').toLowerCase();
-    const who = /user|caller|human|customer/.test(role) ? 'Caller' : (role ? 'Agent' : '');
-    const pick = (...keys) => keys.map(k => turn[k]).find(v => typeof v === 'string' && v.trim()) || '';
-    const en = pick('en_text', 'english_text', 'translation');
-    const text = pick('indic_text', 'content', 'text', 'message', 'transcript', 'utterance') || en;
-    return { who, text, en: en && en.trim() !== text.trim() ? en : '' };
+const escapeHtml = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+// ── Call history (Sarvam analytics, stored on the server) ──
+let callsOffset = 0;
+let callsTimer = null;
+window.queueCallsReload = function() {
+    clearTimeout(callsTimer);
+    callsTimer = setTimeout(() => window.loadCalls(), 300);
 };
 
-// "call_summary" -> "Call summary"
-const prettyKey = k => String(k).replace(/[_-]+/g, ' ').trim().replace(/^./, c => c.toUpperCase());
-
-// Contacts name lookup, matched on the last 10 digits so +91 / 0 prefixes still match.
-const phoneKey = p => String(p || '').replace(/\D/g, '').slice(-10);
-const loadContactNames = async () => {
-    const names = new Map();
+window.loadCallAgents = async function() {
+    const el = document.getElementById('calls-agent');
+    if (!el || el.dataset.loaded) return;
     try {
-        const book = await fetch('/api/contacts').then(r => r.json());
-        (Array.isArray(book) ? book : []).forEach(c => { if (c.name && phoneKey(c.phone)) names.set(phoneKey(c.phone), c.name); });
-    } catch (e) {}
-    return names;
+        const rows = await fetch('/api/agents').then(r => r.ok ? r.json() : []);
+        rows.forEach(a => {
+            const o = document.createElement('option');
+            o.value = String(a.id);
+            o.textContent = a.label + (a.active ? '' : ' (inactive)');
+            el.appendChild(o);
+        });
+        el.dataset.loaded = '1';
+    } catch (e) { /* the filter just stays at "All agents" */ }
 };
 
-// One Sarvam call as a card: caller, status, conversation, collected details.
-function renderSarvamCard(r, names) {
+const callQuery = () => {
+    const p = new URLSearchParams();
+    const q = document.getElementById('calls-search').value.trim();
+    if (q) p.set('q', q);
+    const st = document.getElementById('calls-status').value;
+    if (st) p.set('status', st);
+    const ag = document.getElementById('calls-agent').value;
+    if (ag) p.set('agentId', ag);
+    const days = document.getElementById('calls-range').value;
+    if (days) p.set('from', new Date(Date.now() - Number(days) * 86400000).toISOString());
+    return p;
+};
+
+window.loadCalls = async function(more) {
+    const list = document.getElementById('sarvam-calls-list');
+    const empty = document.getElementById('sarvam-calls-empty');
+    const moreBtn = document.getElementById('calls-more');
+    const summary = document.getElementById('calls-summary');
+    if (!list) return;
+    callsOffset = more === true ? callsOffset : 0;
+    const p = callQuery();
+    p.set('limit', '50');
+    p.set('offset', String(callsOffset));
+    let data;
+    try {
+        const res = await fetch('/api/calls?' + p.toString());
+        if (!res.ok) return;
+        data = await res.json();
+    } catch (e) { return; }
+    if (more !== true) list.innerHTML = '';
+    const items = data.items || [];
+    items.forEach(r => list.appendChild(callCard(r)));
+    callsOffset += items.length;
+    if (empty) empty.style.display = data.total ? 'none' : 'block';
+    if (moreBtn) moreBtn.style.display = callsOffset < data.total ? '' : 'none';
+    if (summary) summary.textContent = data.total ? `Showing ${callsOffset} of ${data.total} call${data.total === 1 ? '' : 's'}.` : 'Call results and conversations from Sarvam. New calls are synced in the background.';
+};
+
+window.syncCalls = async function() {
+    const btn = document.getElementById('calls-sync-btn');
+    btn.disabled = true;
+    btn.textContent = 'Syncing…';
+    const days = document.getElementById('calls-range').value;
+    const res = await fetch('/api/calls/sync', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: days ? Number(days) : 30 })
+    }).then(r => r.json()).catch(() => ({ success: false, message: 'Network error.' }));
+    btn.disabled = false;
+    btn.textContent = 'Sync from Sarvam';
+    const r = res.result || {};
+    if (res.success && !r.skipped && !r.error) {
+        const n = r.fetched || 0;
+        const errs = (r.errors || []).length;
+        window.showToast(`Synced ${n} call${n === 1 ? '' : 's'}.` + (errs ? ` ${errs} agent${errs === 1 ? '' : 's'} could not be synced.` : ''), errs ? 'error' : 'success');
+        window.loadCalls();
+    } else if (res.success) {
+        window.showToast(r.skipped || r.error, 'error');
+    } else {
+        window.showToast(res.message || 'Sync failed.', 'error');
+    }
+};
+
+function callCard(r) {
     const item = document.createElement('div');
     item.className = 'block panel';
     item.style.marginBottom = '10px';
@@ -85,31 +145,21 @@ function renderSarvamCard(r, names) {
     const head = document.createElement('div');
     head.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;';
     const left = document.createElement('div');
+    left.style.minWidth = '0';
     const num = document.createElement('div');
-    num.className = 'convo-caller';
-    const name = names.get(phoneKey(r.phone));
-    if (name) {
-        const n = document.createElement('span');
-        n.className = 'convo-name';
-        n.textContent = name;
-        num.appendChild(n);
-    }
-    // Tapping the number calls it exactly as stored (+91...), never a locally rewritten 0...
-    const dial = String(r.phone || '').replace(/[^\d+]/g, '');
-    const ph = document.createElement(dial ? 'a' : 'span');
-    ph.className = 'mono convo-phone';
-    if (dial) {
-        ph.href = 'tel:' + (dial.startsWith('+') ? dial : (dial.length === 10 ? '+91' + dial : '+' + dial));
-        ph.title = 'Call ' + r.phone;
-    }
-    ph.textContent = r.phone || 'Unknown number';
-    num.appendChild(ph);
+    num.className = 'mono';
+    num.style.color = 'var(--text)';
+    num.textContent = r.phone || 'Unknown number';
     const when = document.createElement('div');
     when.className = 'hint';
-    const secs = r.duration ? ` · ${Math.round(r.duration)}s` : '';
-    when.textContent = new Date((r.created_at || '').replace(' ', 'T') + 'Z').toLocaleString() + secs;
+    const bits = [];
+    if (r.sort_at) bits.push(new Date(r.sort_at).toLocaleString());
+    if (r.duration) bits.push(`${Math.round(r.duration)}s`);
+    if (r.agent_label) bits.push(r.agent_label);
+    if (r.ended_by) bits.push(`ended by ${r.ended_by}`);
+    when.textContent = bits.join(' · ');
     left.append(num, when);
-    const [label, cls] = SARVAM_STATUS[r.status] || [r.status, ''];
+    const [label, cls] = SARVAM_STATUS[r.status] || [r.status || 'Unknown', ''];
     const badge = document.createElement('span');
     badge.className = 'badge ' + cls;
     badge.textContent = label;
@@ -124,172 +174,84 @@ function renderSarvamCard(r, names) {
         body.appendChild(fr);
     }
 
-    const turns = Array.isArray(r.transcript) ? r.transcript : [];
-    if (turns.length) {
-        const det = window.VxDisclosure(`Conversation (${turns.length} ${turns.length === 1 ? 'turn' : 'turns'})`, body => {
-            // Own wrapper: a display rule on the disclosure body would override its hidden state
-            const box = document.createElement('div');
-            box.className = 'convo';
-            body.appendChild(box);
-            turns.forEach(t => {
-                const { who, text, en } = transcriptTurn(t);
-                if (!text) return;
-                const msg = document.createElement('div');
-                msg.className = 'convo-msg ' + (who === 'Caller' ? 'is-caller' : 'is-agent');
-                const w = document.createElement('div');
-                w.className = 'convo-who';
-                w.textContent = who || 'Speaker';
-                const said = document.createElement('div');
-                said.className = 'convo-text';
-                said.textContent = text;
-                msg.append(w, said);
-                if (en) {
-                    const tr = document.createElement('div');
-                    tr.className = 'convo-en';
-                    tr.textContent = en;
-                    msg.appendChild(tr);
-                }
-                box.appendChild(msg);
+    const vars = r.agent_variables && typeof r.agent_variables === 'object' && Object.keys(r.agent_variables).length ? r.agent_variables : null;
+    if (vars) {
+        const v = document.createElement('div');
+        v.className = 'hint mono';
+        v.style.cssText = 'margin-top:8px; white-space:pre-wrap;';
+        v.textContent = Object.entries(vars).map(([k, val]) => `${k}: ${typeof val === 'object' ? JSON.stringify(val) : val}`).join('\n');
+        body.appendChild(v);
+    }
+
+    const acts = document.createElement('div');
+    acts.style.cssText = 'display:flex; gap:4px 16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px;';
+    if (r.has_transcript || r.interaction_id) {
+        acts.appendChild(window.VxDisclosure(r.num_messages ? `Conversation (${r.num_messages} messages)` : 'Conversation', async box => {
+            box.innerHTML = '<div class="hint" style="margin-top:8px;">Loading…</div>';
+            let t;
+            try {
+                const res = await fetch(`/api/calls/${encodeURIComponent(r.attempt_id)}/transcript`);
+                t = await res.json();
+                if (!res.ok) throw new Error(t.message || 'Could not load the conversation.');
+            } catch (e) {
+                box.innerHTML = '';
+                const err = document.createElement('div');
+                err.className = 'hint';
+                err.style.cssText = 'margin-top:8px; color:var(--error);';
+                err.textContent = e.message || 'Could not load the conversation.';
+                box.appendChild(err);
+                return;
+            }
+            box.innerHTML = '';
+            const turns = t.turns || [];
+            if (!turns.length) {
+                const none = document.createElement('div');
+                none.className = 'hint';
+                none.style.marginTop = '8px';
+                none.textContent = t.note || 'No conversation was recorded for this call.';
+                box.appendChild(none);
+            }
+            turns.forEach(turn => {
+                const caller = /user|caller|human|customer/.test(turn.role || '');
+                const line = document.createElement('div');
+                line.style.cssText = 'margin-top:8px; font-size:0.9rem; line-height:1.5;';
+                const w = document.createElement('strong');
+                w.style.color = caller ? 'var(--text)' : 'var(--text2)';
+                w.textContent = (caller ? 'Caller' : 'Agent') + ': ';
+                line.append(w, document.createTextNode(turn.text));
+                box.appendChild(line);
             });
-        });
-        body.appendChild(det);
+        }));
     }
-
-    // Details the agent collected (name, summary, ...). Empty values are left out.
-    const vars = Object.entries(r.agent_variables || {}).filter(([, val]) =>
-        val !== null && val !== undefined && String(typeof val === 'object' ? JSON.stringify(val) : val).trim() &&
-        !(typeof val === 'object' && !Object.keys(val).length));
-    if (vars.length) {
-        const dl = document.createElement('dl');
-        dl.className = 'convo-vars';
-        vars.forEach(([k, val]) => {
-            const dt = document.createElement('dt');
-            dt.textContent = prettyKey(k);
-            const dd = document.createElement('dd');
-            dd.textContent = typeof val === 'object'
-                ? (Array.isArray(val) ? val.join(', ') : Object.entries(val).map(([a, b]) => `${prettyKey(a)}: ${b}`).join(' · '))
-                : String(val);
-            dl.append(dt, dd);
-        });
-        body.appendChild(dl);
+    if (r.has_recording) {
+        acts.appendChild(window.VxDisclosure('Recording', box => {
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            audio.preload = 'none';
+            audio.style.cssText = 'width:100%; margin-top:8px;';
+            audio.src = `/api/calls/${encodeURIComponent(r.attempt_id)}/recording`;
+            audio.onerror = () => {
+                const err = document.createElement('div');
+                err.className = 'hint';
+                err.style.marginTop = '6px';
+                err.textContent = 'No recording is available for this call.';
+                audio.replaceWith(err);
+            };
+            box.appendChild(audio);
+        }));
     }
-
+    if (acts.children.length) body.appendChild(acts);
     item.appendChild(body);
     return item;
 }
 
-// A list of Sarvam calls that loads page by page as it scrolls into view, until every
-// call is shown. opts.phone limits it to one person. Returns { reload }.
-function SarvamFeed(list, empty, opts = {}) {
-    const PAGE = 30;
-    let names = new Map(), next = null, done = false, busy = false, gen = 0, shown = 0;
-    const status = document.createElement('div');
-    status.className = 'feed-status';
-    const io = 'IntersectionObserver' in window
-        ? new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) loadMore(); }, { rootMargin: '600px 0px' })
-        : null;
-
-    const setStatus = (text, retry) => {
-        status.textContent = text;
-        if (retry) {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'btn btn-secondary btn-sm';
-            b.textContent = 'Retry';
-            b.onclick = () => loadMore();
-            status.append(' ', b);
-        }
-    };
-
-    async function loadMore() {
-        if (busy || done) return;
-        busy = true;
-        const mine = gen;
-        setStatus('Loading conversations…');
-        const q = new URLSearchParams({ limit: PAGE });
-        if (next) q.set('cursor', next);
-        if (opts.phone) q.set('phone', opts.phone);
-        let data;
-        try {
-            const res = await fetch('/api/sarvam/calls?' + q);
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            data = await res.json();
-        } catch (e) {
-            if (mine === gen) { busy = false; setStatus('Could not load conversations.', true); }
-            return;
-        }
-        if (mine !== gen) return; // a reload started meanwhile
-        const frag = document.createDocumentFragment();
-        (data.rows || []).forEach(r => frag.appendChild(renderSarvamCard(r, names)));
-        list.insertBefore(frag, status);
-        shown += (data.rows || []).length;
-        next = data.next;
-        done = !next;
-        busy = false;
-        if (empty) empty.style.display = shown ? 'none' : 'block';
-        if (done) {
-            if (io) io.disconnect();
-            setStatus(shown ? `All ${shown} conversation${shown === 1 ? '' : 's'} loaded` : '');
-        } else {
-            setStatus(`Showing ${shown} of ${data.total}`);
-            // Short pages may leave the marker on screen: keep going without waiting for a scroll
-            if (io) { io.unobserve(status); io.observe(status); } else loadMore();
-        }
-    }
-
-    async function reload(newOpts) {
-        if (newOpts) opts = newOpts;
-        gen++;
-        busy = false; done = false; next = null; shown = 0;
-        list.innerHTML = '';
-        list.appendChild(status);
-        if (empty) empty.style.display = 'none';
-        setStatus('Loading conversations…');
-        const mine = gen;
-        const n = await loadContactNames();
-        if (mine !== gen) return;
-        names = n;
-        if (io) io.observe(status);
-        await loadMore();
-    }
-
-    return { reload };
-}
-
-let historyFeed = null;
-window.loadSarvamCalls = function() {
-    const list = document.getElementById('sarvam-calls-list');
-    if (!list) return;
-    if (!historyFeed) historyFeed = SarvamFeed(list, document.getElementById('sarvam-calls-empty'));
-    return historyFeed.reload();
-};
-
-// All Sarvam conversations with one person (opened from Contacts).
-let personFeed = null;
-window.openPersonConversations = function(phone, name) {
-    const modal = document.getElementById('convo-modal');
-    if (!modal) return;
-    document.getElementById('convo-modal-title').textContent = name || phone;
-    const sub = document.getElementById('convo-modal-phone');
-    sub.textContent = name ? phone : '';
-    if (!personFeed) personFeed = SarvamFeed(document.getElementById('convo-modal-list'), document.getElementById('convo-modal-empty'));
-    window.vxShowModal(modal);
-    personFeed.reload({ phone });
-};
-window.closePersonConversations = function() {
-    window.vxHideModal(document.getElementById('convo-modal'));
-};
-
 window.loadVobizLogs = async function() {
     const c = await window.getCfg();
-    if (c.provider !== 'vobiz') return;
+    if (c.provider !== 'vobiz' || !c.configured.vobiz) return;
 
     try {
-        const res = await fetch('/api/vobiz/logs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: '{}'
-        });
+        // The server uses its own stored Vobiz credentials.
+        const res = await fetch('/api/vobiz/logs', { method: 'POST' });
         const data = await res.json();
         // Vobiz API returns logs in 'data' array
         const logs = data.data || data.cdrs || (Array.isArray(data) ? data : []);
@@ -416,18 +378,14 @@ window.updateMetrics = async function() {
 
     // Update wallet balance if Vobiz
     const c = await window.getCfg();
-    if (c.provider === 'vobiz' && c.vobiz_id) {
+    if (c.provider === 'vobiz' && c.configured.vobiz) {
         const walletWrap = document.getElementById('wallet-wrap');
         const walletBal = document.getElementById('wallet-balance');
 
         if (walletWrap) walletWrap.style.display = 'flex';
         
         try {
-            const res = await fetch('/api/vobiz/balance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: '{}'
-            });
+            const res = await fetch('/api/vobiz/balance', { method: 'POST' });
             const data = await res.json();
             if (data.balance !== undefined) {
                 const formatted = `₹${Number(data.balance).toFixed(2)}`;
@@ -482,6 +440,8 @@ window.retryFailedCalls = function(index) {
     go('broadcast');
 };
 
+const resumableHist = h => h.broadcast_id && ['interrupted', 'stopped'].includes(h.broadcast_status) && h.not_dialled > 0;
+
 window.renderHistory = function() {
     const list = document.getElementById('hist-list');
     if(!list) return;
@@ -529,9 +489,11 @@ window.renderHistory = function() {
             <div class="hist-card" onclick="showHistoryDetails(${h._index})" style="cursor:pointer">
                 <div class="hist-card-hd">
                     <div class="hist-card-time">${new Date(h.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                    <div class="hist-card-op">By ${h.sentBy || 'Operator'}</div>
+                    <div class="hist-card-op">By ${escapeHtml(h.sentBy || h.sent_by || 'Operator')}</div>
                 </div>
-                <div class="hist-card-msg">${h.message}</div>
+                <div class="hist-card-msg">${escapeHtml(h.message)}</div>
+                ${h.agent_label ? `<div class="row-sub" style="margin-top:4px;">${escapeHtml(h.agent_label)}</div>` : ''}
+                ${resumableHist(h) ? `<div class="row-sub" style="margin-top:6px; color:var(--error);">${h.broadcast_status === 'stopped' ? 'Stopped' : 'Interrupted'}: ${h.not_dialled} number${h.not_dialled === 1 ? '' : 's'} not dialled yet.</div>` : ''}
                 
                 <div class="status-rail">
                     <div class="status-bar-ok" style="width: ${okPerf}%"></div>
@@ -560,6 +522,10 @@ window.renderHistory = function() {
                         <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); repeatBroadcast(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px;">
                             RE-USE BROADCAST
                         </button>
+                        ${resumableHist(h) ? `
+                        <button class="btn btn-sm" onclick="event.stopPropagation(); resumeBroadcast(${Number(h.broadcast_id)}, ${Number(h.not_dialled)})" style="width:auto; height:32px; font-size:11px; padding:0 12px;">
+                            RESUME ${Number(h.not_dialled)} LEFT
+                        </button>` : ''}
                         ${window.getFailedNumbers(h).length > 0 ? `
                         <button class="btn btn-sm" onclick="event.stopPropagation(); retryFailedCalls(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px; background:var(--warning, #f59e0b); color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
                             ↺ RETRY ${window.getFailedNumbers(h).length} FAILED

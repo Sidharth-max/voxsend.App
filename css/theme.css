@@ -96,3 +96,42 @@ html.theme-anim #settings-fab .tf-anim {
         transition: none !important;
     }
 }
+
+/* ── THEME TOGGLE FAB (sun/moon) ─────────── */
+/* Dark (default) shows the moon, light shows the sun. Transitions run only while
+   <html> has .theme-anim, which js/settings.js adds for ~300ms on a toggle. */
+#settings-fab .tf-core,
+#settings-fab .tf-rays {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+#settings-fab .tf-rays { opacity: 0; transform: rotate(-45deg) scale(.6); }
+:root[data-theme="light"] #settings-fab .theme-fab-icon { transform: rotate(90deg); }
+:root[data-theme="light"] #settings-fab .tf-core { transform: scale(.6); }
+:root[data-theme="light"] #settings-fab .tf-cut { transform: translate(7px, -7px); }
+:root[data-theme="light"] #settings-fab .tf-rays { opacity: 1; transform: none; }
+#settings-fab:focus-visible { outline: 2px solid var(--border2); outline-offset: 3px; }
+
+/* Theme crossfade, only during a toggle. */
+html.theme-anim,
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+    transition: background-color .25s ease, color .25s ease, border-color .25s ease !important;
+}
+html.theme-anim .tog-thumb {
+    transition: transform .2s, background-color .25s ease !important;
+}
+html.theme-anim #settings-fab .tf-anim {
+    transition: transform .35s cubic-bezier(.4, 0, .2, 1), opacity .35s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    html.theme-anim,
+    html.theme-anim *,
+    html.theme-anim *::before,
+    html.theme-anim *::after,
+    html.theme-anim .tog-thumb,
+    html.theme-anim #settings-fab .tf-anim {
+        transition: none !important;
+    }
+}

@@ -1,0 +1,4 @@
+#!/bin/bash
+# voxsend CLI wrapper: runs cli/voxsend.js from this app directory (uses its .env in DB mode).
+DIR="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+exec node "$DIR/cli/voxsend.js" "$@"
