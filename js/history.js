@@ -31,7 +31,7 @@ let histTabPicked = false;
 
 window.setHistTab = function(tab, picked) {
     if (picked) histTabPicked = true;
-    ['broadcast', 'vobiz', 'sarvam'].forEach(t => {
+    ['broadcast', 'vobiz', 'sarvam', 'scheduled'].forEach(t => {
         const btn = document.getElementById('sub-' + t);
         const cont = document.getElementById('hist-' + t + '-content');
         if (btn) btn.classList.toggle('active', t === tab);
@@ -39,6 +39,7 @@ window.setHistTab = function(tab, picked) {
     });
     if (tab === 'vobiz') window.loadVobizLogs();
     if (tab === 'sarvam') { window.loadCallAgents(); window.loadCalls(); }
+    if (tab === 'scheduled' && window.loadSchedules) window.loadSchedules();
 };
 window.histTabWasPicked = () => histTabPicked;
 

@@ -379,6 +379,7 @@
                                             <span class="badge" id="sched-count-badge"></span>
                                         </div>
                                         <div id="sched-list"></div>
+                                        <div id="sched-empty" class="empty" style="display:none;">No active schedules.</div>
                                     </div>
                                     <div class="prog-wrap" id="prog-wrap" style="margin-top:24px;">
                                         <div class="prog-track">
@@ -555,7 +556,13 @@
                     <div class="lang-pills sticky-bar" id="hist-subtabs" role="tablist" aria-label="History view">
                         <button class="lang-pill" id="sub-sarvam" onclick="setHistTab('sarvam', true)" style="display:none">Call history</button>
                         <button class="lang-pill active" id="sub-broadcast" onclick="setHistTab('broadcast', true)">Broadcast History</button>
+                        <button class="lang-pill" id="sub-scheduled" onclick="setHistTab('scheduled', true)">Scheduled</button>
                         <button class="lang-pill" id="sub-vobiz" onclick="setHistTab('vobiz', true)" style="display:none">Vobiz Call Logs</button>
+                    </div>
+
+                    <div id="hist-scheduled-content" style="display:none;">
+                        <div id="sched-done-list" class="history-list"></div>
+                        <div id="sched-done-empty" class="empty" style="display:none;">No finished schedules yet.</div>
                     </div>
 
                     <div id="hist-broadcast-content">

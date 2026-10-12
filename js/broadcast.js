@@ -995,7 +995,7 @@ window.loadSchedules = async function(force) {
     if (!wrap || !list) return;
     let rows = [];
     try { rows = await fetch('/api/schedule').then(r => r.json()); } catch (e) { return; }
-    if (!Array.isArray(rows) || rows.length === 0) { wrap.style.display = 'none'; return; }
+    if (!Array.isArray(rows)) return;
 
     // Group entries that were scheduled together; groups with pending runs come first.
     const groups = new Map();
@@ -1008,7 +1008,10 @@ window.loadSchedules = async function(force) {
         if (!!nextA !== !!nextB) return nextA ? -1 : 1;
         if (nextA) return nextA.run_at.localeCompare(nextB.run_at);
         return b[b.length - 1].run_at.localeCompare(a[a.length - 1].run_at);
-    }).slice(0, 30);
+    });
+    const isActive = ([, e]) => e.some(r => r.status === 'pending');
+    const activeGroups = ordered.filter(isActive).slice(0, 30);
+    const doneGroups = ordered.filter(g => !isActive(g)).slice(0, 30);
 
     const fmtShort = iso => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     // The card header already shows the year; rows only add it when a schedule spans two years.
@@ -1019,13 +1022,20 @@ window.loadSchedules = async function(force) {
         return `${d.toLocaleDateString([], opts)} · ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
     };
     const fmtFull = iso => new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-    const activeCount = ordered.filter(([, e]) => e.some(r => r.status === 'pending')).length;
+    const activeCount = activeGroups.length;
     const countBadge = document.getElementById('sched-count-badge');
     if (countBadge) countBadge.textContent = `${activeCount} active`;
     wrap.style.display = 'block';
     list.innerHTML = '';
+    const emptyEl = document.getElementById('sched-empty');
+    if (emptyEl) emptyEl.style.display = activeGroups.length ? 'none' : 'block';
+    // Finished / cancelled / expired schedules live on History > Scheduled, read-only.
+    const doneList = document.getElementById('sched-done-list');
+    const doneEmpty = document.getElementById('sched-done-empty');
+    if (doneList) doneList.innerHTML = '';
+    if (doneEmpty) doneEmpty.style.display = doneGroups.length ? 'none' : 'block';
 
-    ordered.forEach(([groupId, entries]) => {
+    const renderCard = (readOnly, target) => ([groupId, entries]) => {
         const first = entries[0];
         const pending = entries.filter(r => r.status === 'pending');
         const card = document.createElement('div');
@@ -1113,7 +1123,9 @@ window.loadSchedules = async function(force) {
                 right.className = 'sched-time-right';
                 const [label, cls] = SCHED_STATUS[r.status] || [r.status, 'badge-muted'];
                 right.appendChild(makeBadge(label, cls));
-                if (r.resumable && r.broadcast_id && !r.resume_requested) {
+                if (readOnly) {
+                    // History view: status only, no actions.
+                } else if (r.resumable && r.broadcast_id && !r.resume_requested) {
                     const rb = document.createElement('button');
                     rb.type = 'button';
                     rb.className = 'vx-pop-btn';
@@ -1221,8 +1233,10 @@ window.loadSchedules = async function(force) {
         card.appendChild(numsBody);
         if (expandedSchedules.has(groupId)) detBtn.click();
         if (expandedNumbers.has(groupId)) numsBtn.click();
-        list.appendChild(card);
-    });
+        target.appendChild(card);
+    };
+    activeGroups.forEach(renderCard(false, list));
+    if (doneList) doneGroups.forEach(renderCard(true, doneList));
 };
 
 window.renderBroadcastContacts = function() {
