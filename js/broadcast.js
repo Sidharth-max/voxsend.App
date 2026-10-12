@@ -11,7 +11,35 @@ const cleanNumberEntry = (value = '') => {
     return cleaned;
 };
 
-const normalizeNumberKey = (value = '') => cleanNumberEntry(value).replace(/[^0-9]/g, '');
+// Typed numbers: bare 10-digit -> selected country code; leading 0 stripped; +... kept as is.
+const selectedCountryCode = () => {
+    const el = document.getElementById('numbers-cc');
+    return (el && el.value) || '91';
+};
+const normalizeTypedNumber = (value = '', cc = selectedCountryCode()) => {
+    const c = cleanNumberEntry(value);
+    if (!c) return '';
+    if (c.startsWith('+')) return c;
+    let d = c.replace(/^0+/, '');
+    if (d.length === 10) return '+' + cc + d;
+    if (d.startsWith(cc) && d.length === cc.length + 10) return '+' + d;
+    return '+' + d;
+};
+// Returns null when fine, else { reason, fix } for a line that looks wrong.
+const checkTypedNumber = (normalized, cc = selectedCountryCode()) => {
+    const d = normalized.replace(/\D/g, '');
+    if (d.length < 8 || d.length > 15) {
+        if (d.length === 10) return { reason: 'missing country code', fix: '+' + cc + d };
+        return { reason: 'wrong length', fix: null };
+    }
+    if (d.startsWith('91') && d.length !== 12) {
+        if (d.length === 10) return { reason: 'missing country code', fix: '+' + cc + d };
+        return { reason: 'Indian numbers have 10 digits after +91', fix: null };
+    }
+    if (!d.startsWith(cc) && d.length === 10) return { reason: `looks like a ${d.length}-digit number without a country code`, fix: '+' + cc + d };
+    return null;
+};
+const normalizeNumberKey = (value = '') => normalizeTypedNumber(value).replace(/[^0-9]/g, '');
 
 const buildUniqueNumberList = (entries = []) => {
     const seen = new Set();
@@ -30,8 +58,7 @@ const buildUniqueNumberList = (entries = []) => {
             return;
         }
         seen.add(key);
-        const formatted = cleaned.startsWith('+') ? cleaned : '+' + cleaned.replace(/^\++/, '');
-        unique.push(formatted);
+        unique.push(cleaned); // the textarea keeps what was typed; getNums() normalises
     });
 
     return { unique, duplicates, total };
@@ -254,8 +281,55 @@ window.getNums = function() {
     if (!numsEl) return [];
     const stats = buildUniqueNumberList(numsEl.value.split('\n'));
     reflectNumberStats(stats);
-    return stats.unique;
+    return stats.unique.map(n => normalizeTypedNumber(n));
 };
+
+// Live check under the textarea: valid / invalid counts and a one-tap fix for odd lines.
+window.renderNumberCheck = function() {
+    const numsEl = document.getElementById('numbers');
+    const box = document.getElementById('numbers-check');
+    if (!numsEl || !box) return;
+    const lines = numsEl.value.split('\n').map(l => l.trim()).filter(Boolean);
+    box.innerHTML = '';
+    if (!lines.length) { box.style.display = 'none'; return; }
+    let ok = 0;
+    const bad = [];
+    lines.forEach((line, i) => {
+        const n = normalizeTypedNumber(line);
+        const issue = checkTypedNumber(n);
+        if (issue) bad.push({ i, line, n, issue }); else ok++;
+    });
+    box.style.display = 'block';
+    const sum = document.createElement('div');
+    sum.className = 'hint';
+    sum.textContent = `${ok} valid` + (bad.length ? ` · ${bad.length} need a look` : '');
+    box.appendChild(sum);
+    bad.slice(0, 20).forEach(b => {
+        const row = document.createElement('div');
+        row.className = 'hint';
+        row.style.cssText = 'display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:var(--error); margin-top:4px;';
+        const t = document.createElement('span');
+        t.className = 'mono';
+        t.textContent = `${b.line}: ${b.issue.reason}` + (b.issue.fix ? ` — use ${b.issue.fix}?` : '');
+        row.appendChild(t);
+        if (b.issue.fix) {
+            const fx = document.createElement('button');
+            fx.type = 'button';
+            fx.className = 'vx-pop-btn';
+            fx.textContent = 'Fix';
+            fx.onclick = () => {
+                const all = numsEl.value.split('\n');
+                const k = all.findIndex(l => l.trim() === b.line);
+                if (k >= 0) all[k] = b.issue.fix;
+                numsEl.value = all.join('\n');
+                numsEl.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+            row.appendChild(fx);
+        }
+        box.appendChild(row);
+    });
+};
+document.addEventListener('change', e => { if (e.target && e.target.id === 'numbers-cc') { window.renderNumberCheck(); if (window.preview) window.preview(); } });
 
 window.preview = function() {
     const msgEl = document.getElementById('msg');
@@ -1380,6 +1454,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.value = cleanVal;
             }
             updateRecipientsField(this.value.split('\n'), { preserveTrailingNewline: /\n$/.test(cleanVal) });
+            window.renderNumberCheck();
         });
     }
 

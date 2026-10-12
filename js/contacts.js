@@ -84,7 +84,54 @@ window.updateGroups = function() {
         select.appendChild(opt);
     });
     if (groups.has(currentVal)) select.value = currentVal;
+    // Manual add form: existing groups + "New group…"
+    const pick = document.getElementById('man-group-pick');
+    if (pick) {
+        const keep = pick.value;
+        pick.innerHTML = '<option value="">No group</option>';
+        Array.from(groups).sort().forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = g; pick.appendChild(o); });
+        const nw = document.createElement('option'); nw.value = '__new'; nw.textContent = '+ New group…'; pick.appendChild(nw);
+        if (keep && (groups.has(keep) || keep === '__new')) pick.value = keep;
+    }
 };
+
+window.onManualGroupPick = function() {
+    const pick = document.getElementById('man-group-pick');
+    const inp = document.getElementById('man-group');
+    if (!pick || !inp) return;
+    const isNew = pick.value === '__new';
+    inp.style.display = isNew ? '' : 'none';
+    if (isNew) inp.focus();
+};
+
+// Same rules as Broadcast's typed numbers: bare 10 digits get the picked code, leading 0 dropped, +… kept.
+const manualPhone = () => {
+    const raw = document.getElementById('man-phone').value.trim().replace(/\s+/g, '');
+    const cc = (document.getElementById('man-cc') || {}).value || '91';
+    if (!raw) return { phone: '', issue: null };
+    let phone;
+    if (raw.startsWith('+')) phone = '+' + raw.slice(1).replace(/\D/g, '');
+    else {
+        const d = raw.replace(/\D/g, '').replace(/^0+/, '');
+        phone = d.length === 10 ? '+' + cc + d : (d.startsWith(cc) && d.length === cc.length + 10 ? '+' + d : '+' + d);
+    }
+    const d = phone.slice(1);
+    let issue = null;
+    if (d.length < 8 || d.length > 15) issue = 'Wrong length';
+    else if (d.startsWith('91') && d.length !== 12) issue = 'Indian numbers have 10 digits after +91';
+    else if (raw.startsWith('+') && d.length === 10 && !d.startsWith(cc)) issue = `Looks like it is missing the country code. Use +${cc}${d}?`;
+    return { phone, issue };
+};
+window.checkManualPhone = function() {
+    const h = document.getElementById('man-phone-hint');
+    if (!h) return;
+    const { phone, issue } = manualPhone();
+    if (!phone) { h.style.display = 'none'; return; }
+    h.style.display = 'block';
+    h.style.color = issue ? 'var(--error)' : '';
+    h.textContent = issue ? issue : `Will be saved as ${phone}`;
+};
+document.addEventListener('change', e => { if (e.target && e.target.id === 'man-cc') window.checkManualPhone(); });
 
 window.handleCSV = function(event) {
     const file = event.target.files[0];
@@ -396,13 +443,11 @@ window.downloadTemplate = function(e) {
 
 window.addManualContact = async function() {
     const name = document.getElementById('man-name').value.trim();
-    const phoneInput = document.getElementById('man-phone').value.trim();
-    const group = document.getElementById('man-group').value.trim();
-    
-    if (!phoneInput) return window.showToast("Phone number is required.", "error");
-    
-    let p = phoneInput.replace(/\s+/g, '');
-    const phone = p.startsWith('+') ? p : '+' + p;
+    const pick = document.getElementById('man-group-pick');
+    const group = pick && pick.value !== '__new' ? pick.value : document.getElementById('man-group').value.trim();
+    const { phone, issue } = manualPhone();
+    if (!phone) return window.showToast("Phone number is required.", "error");
+    if (issue) return window.showToast(issue, "error");
     
     const existing = contacts.find(c => c.phone === phone);
     if (existing) {
@@ -418,6 +463,7 @@ window.addManualContact = async function() {
     document.getElementById('man-name').value = '';
     document.getElementById('man-phone').value = '';
     document.getElementById('man-group').value = '';
+    window.checkManualPhone();
     
     window.updateGroups();
     window.renderContacts();

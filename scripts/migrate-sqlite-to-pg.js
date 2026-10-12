@@ -287,8 +287,6 @@ function sqliteSnapshot(file) {
                 await client.query("UPDATE scheduled_calls SET agent_id=$1 WHERE provider='sarvam' AND agent_id IS NULL", [agentId]);
                 report.agents = [{ id: agentId, label: 'Current agent', default: true }];
             }
-            await client.query(`INSERT INTO agents (label, app_id, version, notes, active, is_default)
-                VALUES ('Example agent (edit me)', 'example-app-id', NULL, 'Example only: inactive, so it is not offered in the picker', false, false)`);
             console.log(`Imported from .env (each verified by decrypting and comparing SHA-256):\n  ${imported.join('\n  ')}`);
         }
 

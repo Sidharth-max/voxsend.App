@@ -1,5 +1,5 @@
 /* App-shell service worker. API routes are never cached. */
-const CACHE = 'twilio-call-broadcast-shell-v70';
+const CACHE = 'twilio-call-broadcast-shell-v77';
 
 const PRECACHE = [
   '/',

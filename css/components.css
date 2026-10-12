@@ -1709,7 +1709,9 @@ select.vx-select-native { display: none !important; }
 .modal-overlay.is-leaving .modal { animation: vx-pop-close .2s cubic-bezier(.4, 0, 1, 1) forwards; }
 
 .vx-pop { animation: vx-pop-in .16s cubic-bezier(.4, 0, .2, 1) both; transform-origin: top center; }
-.vx-pop.is-leaving { animation: vx-fade-out .14s ease forwards; }
+@keyframes vx-pop-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.vx-pop.is-leaving { animation: vx-pop-out .16s cubic-bezier(.4, 0, .2, 1) forwards; }
+@media (prefers-reduced-motion: reduce) { .vx-pop, .vx-pop.is-leaving { animation: none !important; } }
 
 /* Switching tabs: the new page settles in */
 /* backwards (not both): no transform is left behind once it ends, since a leftover transform
@@ -2140,3 +2142,95 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
 .tog-thumb { background: var(--text2); }
 .toggle input:checked ~ .tog-track { background: var(--accent-red, #ef4444); border-color: var(--accent-red, #ef4444); }
 .toggle input:checked ~ .tog-track .tog-thumb { background: #fff; }
+
+/* Tables keep their own scroll box. The blurred fade strip that sat over the bottom of the page
+   (.bottomnav-fade) is gone, and the scroll box has room at the end so its last row scrolls clear. */
+.table-wrap tbody tr:last-child td { padding-bottom: 12px; }
+@media (max-width: 768px) {
+    .bottomnav-fade { display: none !important; }
+    .table-wrap::after { content: ''; display: block; height: 16px; }
+}
+
+/* Mobile: the bottom bar never changes size; Contacts rows are compact and stable */
+@media (max-width: 768px) {
+    .bottomnav.is-min { height: 64px !important; width: min(calc(100% - 2 * var(--nav-gap)), 420px) !important; opacity: 1 !important; }
+    .bottomnav.is-min .bn-item span { opacity: 1 !important; max-height: 12px !important; }
+    #tab-contacts .table tr.c-row {
+        padding: 10px 14px;
+        align-items: center;
+        min-height: 64px;
+        box-sizing: border-box;
+    }
+    #tab-contacts .c-check, #tab-contacts .c-num { margin-top: 0; align-self: center; }
+    #tab-contacts .c-main { gap: 2px; min-width: 0; }
+    #tab-contacts .c-name { font-size: 0.9375rem !important; line-height: 1.25; min-height: 0; padding: 0; }
+    #tab-contacts .c-details-wrap { flex-direction: row !important; align-items: center; gap: 8px; }
+    #tab-contacts .c-phone { min-height: 0; padding: 0; line-height: 1.3; }
+    #tab-contacts .c-group { margin-top: 0; }
+    #tab-contacts .mobile-edit { min-height: 30px !important; padding: 2px 12px !important; }
+    .tab-section { padding-bottom: calc(64px + 24px + 12px + env(safe-area-inset-bottom)) !important; }
+}
+
+/* Switches: knob slides with a little overshoot, track colour fades, knob squishes on press */
+.tog-track { transition: background-color .2s ease-out, border-color .2s ease-out; }
+.tog-thumb { transition: transform .22s cubic-bezier(.34, 1.4, .64, 1), width .15s ease-out, background-color .2s ease-out !important; }
+.toggle:active .tog-thumb { width: 15px; }
+.toggle:active input:checked ~ .tog-track .tog-thumb { transform: translateX(13px); }
+@media (prefers-reduced-motion: reduce) {
+    .tog-track, .tog-thumb { transition: none !important; }
+    .toggle:active .tog-thumb { width: 12px; }
+    .toggle:active input:checked ~ .tog-track .tog-thumb { transform: translateX(16px); }
+}
+
+/* Table panels: up to 20 rows at full height, then the panel scrolls; shorter lists fit content */
+:root { --row-h: 49px; --thead-h: 36px; }
+.table-wrap, .dir-block .table-wrap, #pick-contacts-block .table-wrap {
+    max-height: calc(20 * var(--row-h) + var(--thead-h)) !important;
+    overflow-y: auto !important;
+}
+@media (max-width: 768px) {
+    :root { --row-h: 72px; --thead-h: 0px; }
+}
+
+/* Segmented tabs: sliding highlight + soft content fade */
+.seg-row { position: relative; isolation: isolate; }
+.seg-row > .seg-ind {
+    position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none;
+    border-radius: 999px; background: var(--surface2);
+    transition: transform .22s cubic-bezier(.2, .8, .2, 1), width .22s cubic-bezier(.2, .8, .2, 1), opacity .15s ease;
+}
+.seg-row > .lang-pill { position: relative; z-index: 1; background: transparent !important; transition: color .2s ease, font-weight .2s ease; }
+@keyframes seg-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.seg-fade { animation: seg-fade .15s ease-out backwards; }
+@media (prefers-reduced-motion: reduce) {
+    .seg-row > .seg-ind { transition: none !important; }
+    .seg-fade { animation: none !important; }
+}
+
+/* Checkbox: fill fades in, then the tick draws left→right; unchecking reverses (tick undraws, then fill fades) */
+input[type="checkbox"].checkbox {
+    transition: background-color .15s ease .12s, border-color .15s ease .12s, box-shadow .15s ease;
+}
+input[type="checkbox"].checkbox:checked,
+input[type="checkbox"].checkbox:indeterminate {
+    transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+input[type="checkbox"].checkbox::before {
+    transform: none !important;
+    clip-path: inset(0 100% 0 0);
+    transition: clip-path .2s cubic-bezier(.4, 0, .2, 1);
+}
+input[type="checkbox"].checkbox:checked::before,
+input[type="checkbox"].checkbox:indeterminate::before {
+    clip-path: inset(0 0 0 0);
+    transition: clip-path .2s cubic-bezier(.4, 0, .2, 1) .1s;
+}
+@media (prefers-reduced-motion: reduce) {
+    input[type="checkbox"].checkbox, input[type="checkbox"].checkbox::before { transition: none !important; }
+}
+
+/* Contacts > Add manually: stacked form, no stretched empty space under it */
+.contacts-grid { align-items: start; }
+#import-block { align-self: start; height: auto; }
+.man-form > input, .man-form > .vx-select-btn, .man-form .vx-select-btn { min-height: 42px; }
+.man-form #man-cc + .vx-select-btn, .man-form .vx-select-btn.vx-select-field:first-child { flex: 0 0 auto; width: auto; }

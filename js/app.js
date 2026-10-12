@@ -48,9 +48,14 @@ window.vxHideModal = function(overlay, done) {
 window.vxRemove = function(el) {
     if (!el || !el.isConnected) return;
     if (vxReduced()) return el.remove();
+    if (el.classList.contains('is-leaving')) return;
     el.classList.add('is-leaving');
     el.style.pointerEvents = 'none';
-    setTimeout(() => el.remove(), 140);
+    // Same animation as opening, reversed; removed when it ends (timeout as a fallback).
+    let done = false;
+    const finish = () => { if (done) return; done = true; el.remove(); };
+    el.addEventListener('animationend', finish, { once: true });
+    setTimeout(finish, 260);
 };
 
 const TABS = ['broadcast', 'contacts', 'history', 'api', 'settings'];
@@ -334,36 +339,7 @@ window.placeNavIndicator = function() {
     ind.style.setProperty('--bn-index', Math.max(i, 0));
 };
 
-(function navMinimizeOnScroll() {
-    let lastY = new WeakMap(), ticking = false, pending = null;
-    const nav = () => document.querySelector('.bottomnav');
-    const setMin = min => {
-        const n = nav();
-        if (n && n.classList.contains('is-min') !== min) n.classList.toggle('is-min', min);
-    };
-    // Tabs scroll inside their own container on some widths and the window on others: listen to both.
-    document.addEventListener('scroll', e => {
-        pending = e.target === document ? document.scrollingElement : e.target;
-        if (ticking) return;
-        ticking = true;
-        requestAnimationFrame(() => {
-            ticking = false;
-            const el = pending;
-            if (!el || !el.closest || (el !== document.scrollingElement && !el.closest('.tab-section'))) return;
-            const y = el.scrollTop;
-            const prev = lastY.has(el) ? lastY.get(el) : y;
-            const nearTop = y < 40;
-            const nearEnd = el.scrollHeight - el.clientHeight - y < 40;
-            if (nearTop || nearEnd) setMin(false);
-            else if (y - prev > 6) setMin(true);
-            else if (prev - y > 6) setMin(false);
-            lastY.set(el, y);
-        });
-    }, { capture: true, passive: true });
-    // A new tab always starts with the full bar
-    const go0 = window.go;
-    if (typeof go0 === 'function') window.go = function(name) { setMin(false); return go0.apply(this, arguments); };
-})();
+// The bottom bar keeps one size; it no longer shrinks on scroll.
 
 
 // ── Sticky toolbars: mark them while stuck so they pick up the blurred pill look ──
@@ -398,3 +374,61 @@ window.placeNavIndicator = function() {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 
+
+// Segmented tab rows: one highlight pill slides to the active tab; list content fades in on change.
+(function segmentedTabs() {
+    const SEL = '.lang-pills[role="tablist"], #msg-lang-pills, #sched-mode, #sched-end-mode';
+    const reduced = () => vxReduced();
+    function place(row, instant) {
+        const ind = row.querySelector(':scope > .seg-ind');
+        const act = row.querySelector(':scope > .lang-pill.active');
+        if (!ind) return;
+        if (!act || !act.offsetWidth) { ind.style.opacity = '0'; return; }
+        if (instant || reduced()) ind.style.transition = 'none';
+        ind.style.opacity = '1';
+        ind.style.width = act.offsetWidth + 'px';
+        ind.style.height = act.offsetHeight + 'px';
+        ind.style.transform = `translate(${act.offsetLeft - row.scrollLeft * 0}px, ${act.offsetTop}px)`;
+        if (instant || reduced()) { void ind.offsetWidth; ind.style.transition = ''; }
+    }
+    function setup(row) {
+        if (row.__seg) return;
+        row.__seg = true;
+        row.classList.add('seg-row');
+        const ind = document.createElement('span');
+        ind.className = 'seg-ind';
+        ind.setAttribute('aria-hidden', 'true');
+        row.prepend(ind);
+        place(row, true);
+        new MutationObserver(() => {
+            if (!row.querySelector(':scope > .seg-ind')) row.prepend(ind); // rows rebuilt by JS
+            requestAnimationFrame(() => place(row));
+        }).observe(row, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+    }
+    const scan = () => document.querySelectorAll(SEL).forEach(setup);
+    document.addEventListener('DOMContentLoaded', scan);
+    window.addEventListener('resize', () => document.querySelectorAll('.seg-row').forEach(r => place(r, true)));
+    // Rows inside pages that were hidden get measured when they become visible.
+    const go1 = window.go;
+    if (typeof go1 === 'function') window.go = function() { const r = go1.apply(this, arguments); requestAnimationFrame(() => { scan(); document.querySelectorAll('.seg-row').forEach(x => place(x, true)); }); return r; };
+    setTimeout(scan, 0);
+
+    // Soft fade-in of a list when its content is replaced (filter / tab change).
+    window.vxFadeIn = function(el) {
+        if (!el || reduced()) return;
+        el.classList.remove('seg-fade');
+        void el.offsetWidth;
+        el.classList.add('seg-fade');
+    };
+    document.addEventListener('click', e => {
+        const pill = e.target.closest && e.target.closest('.seg-row > .lang-pill');
+        if (!pill) return;
+        const row = pill.parentElement;
+        const target = row.id === 'hist-subtabs' ? document.querySelector('#tab-history .history-list:not([style*="none"]), #hist-sarvam-content, #hist-broadcast-content, #hist-scheduled-content')
+            : null; // Call history fades its own list after the swap
+        if (row.id === 'hist-subtabs') {
+            requestAnimationFrame(() => ['hist-sarvam-content', 'hist-broadcast-content', 'hist-scheduled-content', 'hist-vobiz-content']
+                .map(id => document.getElementById(id)).filter(x => x && x.style.display !== 'none').forEach(window.vxFadeIn));
+        } else if (target) setTimeout(() => window.vxFadeIn(target), 120);
+    });
+})();

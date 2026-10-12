@@ -94,6 +94,7 @@ const callQuery = () => {
 
 window.setCallReason = function(reason) {
     callsReason = reason;
+    document.querySelectorAll('#calls-reasons > .lang-pill[data-v]').forEach(b => b.classList.toggle('active', b.dataset.v === reason));
     window.loadCalls();
 };
 
@@ -104,11 +105,23 @@ function renderReasonTabs(counts) {
     const row = document.getElementById('calls-reasons');
     if (!row) return;
     counts = counts || {};
-    row.innerHTML = '';
+    // Already built: update counts and the active tab in place (keeps the sliding highlight).
+    const existing = row.querySelectorAll(':scope > .lang-pill[data-v]');
+    if (existing.length === OUTCOME_TABS.length) {
+        existing.forEach((b, i) => {
+            const [value, label, key] = OUTCOME_TABS[i];
+            const t = `${label} (${counts[key || value] || 0})`;
+            if (b.textContent !== t) b.textContent = t;
+            b.classList.toggle('active', value === callsReason);
+        });
+        return;
+    }
+    row.querySelectorAll(':scope > .lang-pill').forEach(b => b.remove());
     OUTCOME_TABS.forEach(([value, label, key]) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'lang-pill' + (value === callsReason ? ' active' : '');
+        b.dataset.v = value;
         b.textContent = `${label} (${counts[key || value] || 0})`;
         b.onclick = () => window.setCallReason(value);
         row.appendChild(b);
@@ -116,7 +129,7 @@ function renderReasonTabs(counts) {
 }
 
 // Paging: a sentinel near the list end loads the next page; one fetch at a time.
-let callsTotal = 0, callsLoading = false, callsGen = 0, callsObserver = null;
+let callsTotal = 0, callsLoading = false, callsGen = 0, callsObserver = null, callsAbort = null;
 window.loadCalls = async function(more) {
     const list = document.getElementById('sarvam-calls-list');
     const empty = document.getElementById('sarvam-calls-empty');
@@ -125,22 +138,34 @@ window.loadCalls = async function(more) {
     if (!list) return;
     if (more === true && (callsLoading || callsOffset >= callsTotal)) return;
     const gen = more === true ? callsGen : ++callsGen; // a filter change cancels older pages
-    if (more !== true) callsOffset = 0;
+    if (more !== true) {
+        if (callsAbort) callsAbort.abort();
+        callsOffset = 0;
+        list.style.transition = 'opacity .15s ease';
+        list.style.opacity = list.children.length ? '0.6' : '';
+    }
+    const ctl = new AbortController();
+    if (more !== true) callsAbort = ctl;
     callsLoading = true;
     const p = callQuery();
     p.set('limit', '50');
-    p.set('offset', String(callsOffset));
+    p.set('offset', String(more === true ? callsOffset : 0));
     let data;
     try {
-        const res = await fetch('/api/calls?' + p.toString());
+        const res = await fetch('/api/calls?' + p.toString(), { signal: ctl.signal });
         data = res.ok ? await res.json() : null;
     } catch (e) { data = null; }
-    if (gen !== callsGen) return;
+    if (gen !== callsGen) return; // a newer request owns the list
     callsLoading = false;
+    if (more !== true) list.style.opacity = '';
     if (!data) return;
-    if (more !== true) list.innerHTML = '';
     const items = data.items || [];
-    items.forEach(r => list.appendChild(callCard(r)));
+    const frag = document.createDocumentFragment();
+    items.forEach(r => frag.appendChild(callCard(r)));
+    if (more !== true) {
+        list.replaceChildren(frag); // one swap: no empty flash
+        if (window.vxFadeIn) window.vxFadeIn(list);
+    } else list.appendChild(frag);
     callsOffset += items.length;
     callsTotal = data.total || 0;
     if (more !== true) renderReasonTabs(data.counts);
