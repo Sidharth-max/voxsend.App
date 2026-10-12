@@ -151,6 +151,7 @@ app.get('/api/broadcast-runs', wrap(async (req, res) => res.json(await runs.list
 app.get('/api/broadcast-runs/:key/calls', wrap(async (req, res) => res.json(await runs.runCalls(req.params.key))));
 app.get('/api/broadcast-runs/:key/recipients', wrap(async (req, res) => res.json(await runs.runRecipients(req.params.key))));
 app.delete('/api/broadcast-runs/:key', wrap(async (req, res) => res.json(await runs.hideRun(req.params.key))));
+app.post('/api/contact-names', wrap(async (req, res) => res.json({ names: await runs.namesFor((req.body || {}).phones) })));
 app.get('/api/broadcasts', wrap(async (req, res) => res.json(await service.listBroadcasts(req.query))));
 app.get('/api/broadcasts/resumable', wrap(async (req, res) => res.json(await broadcaster.resumable())));
 app.get('/api/broadcasts/:id', wrap(async (req, res) => res.json(await service.getBroadcast(Number(req.params.id)))));

@@ -117,13 +117,17 @@
             window.showToast(`Loaded ${list.length} number${list.length === 1 ? '' : 's'} into Broadcast.`, 'success');
             go('broadcast');
         });
-        const left = document.createElement('div');
-        left.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap; align-items:center;';
-        left.append(disc, nums, reuse);
+        // Two groups: the Calls / View numbers toggles, then the action pills (Delete last).
+        const toggles = document.createElement('div');
+        toggles.className = 'run-toggles';
+        toggles.append(disc, nums);
+        const actions = document.createElement('div');
+        actions.className = 'run-actions';
+        actions.appendChild(reuse);
         if (r.broadcast_id && ['interrupted', 'stopped'].includes(r.run_status) && Number(r.not_dialled) > 0) {
-            left.appendChild(mk(`Resume ${Number(r.not_dialled)} left`, 'btn btn-sm', () => window.resumeBroadcast(Number(r.broadcast_id), Number(r.not_dialled))));
+            actions.appendChild(mk(`Resume ${Number(r.not_dialled)} left`, 'btn btn-sm', () => window.resumeBroadcast(Number(r.broadcast_id), Number(r.not_dialled))));
         }
-        left.appendChild(retry);
+        actions.appendChild(retry);
         // Delete removes the run from this list only; its calls stay in Call history.
         const del = mk('Delete', 'btn btn-secondary btn-sm', async () => {
             if (!(await window.showConfirm('Delete this broadcast from history? Its call records stay in Call history.'))) return;
@@ -134,7 +138,11 @@
             window.showToast('Deleted from history.', 'success');
         });
         del.style.color = 'var(--error)';
-        acts.append(left, del);
+        del.classList.add('run-del');
+        actions.appendChild(del);
+        acts.className += ' run-acts';
+        acts.style.cssText = '';
+        acts.append(toggles, actions);
         card.appendChild(acts);
         // The calls / numbers lists open full-width under the card, like the Call history cards.
         [disc, nums].forEach(d => {

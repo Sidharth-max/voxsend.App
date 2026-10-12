@@ -217,10 +217,45 @@ let editingPhone = null;
 
 const escAttr = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
-// Clicking a number shows every Sarvam conversation with that person.
+// Clicking a contact's name/number expands that person's call history inline under the row
+// (shared vxInlineHistory component). Open panels survive list re-renders.
+const contactHist = new Map(); // phone -> { tr, panel }
+function contactHistRow(phone) {
+    let h = contactHist.get(phone);
+    if (!h) {
+        const tr = document.createElement('tr');
+        tr.className = 'c-hist-row';
+        const td = document.createElement('td');
+        td.colSpan = 6;
+        const panel = window.vxInlineHistory(phone);
+        td.appendChild(panel);
+        tr.appendChild(td);
+        h = { tr, panel };
+        contactHist.set(phone, h);
+    }
+    return h;
+}
+function placeContactHist() {
+    const tbody = document.getElementById('contacts-tbody');
+    if (!tbody) return;
+    contactHist.forEach((h, phone) => {
+        if (!h.panel.isOpen()) { h.tr.remove(); return; }
+        const link = tbody.querySelector(`.c-phone-link[data-phone="${CSS.escape(phone)}"]`);
+        const row = link && link.closest('tr');
+        if (row) row.after(h.tr); else h.tr.remove();
+    });
+}
 document.addEventListener('click', e => {
     const link = e.target.closest && e.target.closest('#contacts-tbody .c-phone-link');
-    if (link && window.openPersonConversations) window.openPersonConversations(link.dataset.phone, link.dataset.name);
+    if (!link) return;
+    e.preventDefault();
+    const phone = link.dataset.phone;
+    const row = link.closest('tr');
+    const h = contactHistRow(phone);
+    if (!h.panel.isOpen()) row.after(h.tr);
+    const open = h.panel.toggle();
+    row.querySelectorAll('.c-phone-link').forEach(l => l.setAttribute('aria-expanded', String(open)));
+    if (!open) setTimeout(() => { if (!h.panel.isOpen()) h.tr.remove(); }, 400);
 });
 
 window.renderContacts = function() {
@@ -262,15 +297,15 @@ window.renderContacts = function() {
             <td class="c-num"><div class="mono" style="color:var(--text3); font-size: 0.75rem;">${i + 1}</div></td>
             <td class="c-main">
                 <div class="c-name-wrap">
-                    <button type="button" class="c-name c-phone-link c-name-link" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.name || '—')}</button>
+                    <button type="button" class="c-name c-phone-link c-name-link" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history" aria-expanded="false">${escAttr(c.name || '—')}</button>
                     <button class="btn btn-secondary btn-sm mobile-edit" onclick="editContact('${escAttr(c.phone)}')" aria-label="Edit contact">Edit</button>
                 </div>
                 <div class="c-details-wrap">
-                    <button type="button" class="c-phone c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.phone)}</button>${window.vxInvalidPill(c.phone)}
+                    <button type="button" class="c-phone c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history" aria-expanded="false">${escAttr(c.phone)}</button>${window.vxInvalidPill(c.phone)}
                     ${c.group ? `<span class="badge c-group" style="font-size: 0.65rem;">${c.group}</span>` : ''}
                 </div>
             </td>
-            <td class="c-phone-desktop"><button type="button" class="c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.phone)}</button> ${window.vxInvalidPill(c.phone)}</td>
+            <td class="c-phone-desktop"><button type="button" class="c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history" aria-expanded="false">${escAttr(c.phone)}</button> ${window.vxInvalidPill(c.phone)}</td>
             <td class="c-group-desktop">${c.group ? `<span class="badge" style="font-size: 0.65rem;">${c.group}</span>` : '—'}</td>
             <td class="c-actions-desktop">
                 <button class="btn btn-secondary btn-sm c-edit-btn" onclick="editContact('${escAttr(c.phone)}')" aria-label="Edit contact">Edit</button>
@@ -515,3 +550,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (searchQ) searchQ.addEventListener('input', () => { contactsVisibleLimit = 100; });
     if (filterGroup) filterGroup.addEventListener('change', () => { contactsVisibleLimit = 100; });
 });
+
+// Keep open call-history panels attached after the list re-renders.
+(function () {
+    const orig = window.renderContacts;
+    window.renderContacts = function () { const r = orig.apply(this, arguments); placeContactHist(); return r; };
+})();

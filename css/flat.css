@@ -29,17 +29,57 @@
 
 .badge-invalid { margin-left: 6px; font-size: .65rem; cursor: help; vertical-align: middle; }
 
-/* Numbers list + View all modal: floating rounded card on every screen size */
+/* Numbers list + View all modal: floating rounded card, 20px inset, 16px rhythm */
 .nums-all-btn { margin: 8px 0 2px; }
-.nums-modal { padding: 12px !important; align-items: center !important; justify-content: center; background: var(--overlay); }
-.nums-modal .modal { max-width: 480px; width: 100%; display: flex; flex-direction: column; max-height: 85vh !important; height: auto !important;
-    overflow: hidden; border-radius: var(--radius-modal) !important; background: var(--surface); color: var(--text); box-shadow: var(--shadow-pop); }
-.nums-modal .nums-search { padding: 0 20px 10px; }
-.nums-modal .nums-search input { width: 100%; border-radius: 999px !important; }
-.nums-modal .modal-close { border-radius: 999px; }
-.nums-modal .nums-list { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px 14px; }
-@media (max-width: 600px) {
-    .nums-modal .modal { max-height: 85vh !important; border-radius: var(--radius-modal) !important; }
-    .nums-modal .nums-search { padding: 0 16px 10px; }
-    .nums-modal .nums-list { padding: 0 16px 14px; }
+.nums-modal { padding: 12px !important; align-items: center !important; justify-content: center !important; background: var(--overlay); }
+.nums-modal .modal { max-width: 480px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; max-height: 85vh !important; height: auto !important;
+    overflow: hidden; padding: 0 !important; border-radius: 24px !important; background: var(--surface); color: var(--text); box-shadow: var(--shadow-pop); }
+.nums-modal .modal-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 0 !important; margin: 0; border-bottom: 0 !important; }
+.nums-modal .modal-hd .row-sub { margin-top: 4px; }
+.nums-modal .modal-close { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px; }
+.nums-modal .nums-search { padding: 16px 20px; }
+/* Same pill as the Contacts search */
+.nums-modal .nums-search input { display: block; width: 100%; box-sizing: border-box; height: 44px; padding: 12px 16px !important;
+    line-height: 20px; border-radius: 999px !important; margin: 0; }
+.nums-modal .nums-list { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px 20px; }
+.nums-modal .nums-list .row-item { padding: 14px 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nums-modal .nums-list .row-sub { margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nums-modal .nums-list .badge-invalid { margin-left: 0; }
+
+/* Phones/small tablets (bottom-nav breakpoint) */
+@media (max-width: 768px) {
+    /* Settings > Integrations is desktop-only; API lives in the bottom bar. */
+    .settings-integrations { display: none !important; }
+    /* Every page panel spans the container: same left/right inset as the header divider. */
+    .tab-section .block, .tab-section .contacts-grid > *, .tab-section .broadcast-main > *, .tab-section .broadcast-side > * {
+        width: 100% !important; max-width: none !important; align-self: stretch !important;
+        margin-left: 0 !important; margin-right: 0 !important; box-sizing: border-box; min-width: 0;
+    }
 }
+
+/* Broadcast History run card actions: toggles group + action pills (Delete last) */
+.run-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.run-toggles { display: flex; align-items: center; gap: 4px 16px; flex-wrap: wrap; }
+.run-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; }
+.run-actions .run-del { margin-left: auto; }
+.run-actions > .btn[style*="display: none"], .run-actions > .btn[style*="display:none"] { display: none !important; }
+@media (max-width: 768px) {
+    .run-acts { flex-direction: column; align-items: stretch; gap: 10px; }
+    .run-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+    .run-actions > .btn { width: 100% !important; height: 34px !important; padding: 0 10px !important; margin: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* Inline call history (View-all modal rows, Contacts rows) */
+.nums-row-hd { cursor: pointer; }
+.nums-row-hd:hover { background: var(--surface2); }
+.nums-row-hd[aria-expanded="true"] .row-label { color: var(--text); font-weight: 600; }
+.vx-inline-hist { padding: 4px 0 12px; }
+.vx-inline-hist-msg { padding: 10px 0; }
+.nums-row:not(:last-child) .vx-inline-hist:not([hidden]) { border-bottom: 1px solid var(--divider); }
+.table tr.c-hist-row, #tab-contacts .table tr.c-hist-row { display: table-row; padding: 0; min-height: 0; background: transparent; }
+.table tr.c-hist-row > td { white-space: normal; padding: 0 12px !important; }
+@media (max-width: 768px) {
+    .table tr.c-hist-row, #tab-contacts .table tr.c-hist-row { display: block; padding: 0 14px; }
+    .table tr.c-hist-row > td { display: block; padding: 0 !important; }
+}
+.nums-row:not(:last-child) > .row-item { border-bottom: 1px solid var(--divider) !important; }

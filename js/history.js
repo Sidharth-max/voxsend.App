@@ -847,7 +847,7 @@ window.openContactHistory = function(phone) {
 };
 document.addEventListener('click', e => {
     const link = e.target.closest && e.target.closest('.c-phone-link[data-phone]');
-    if (!link) return;
+    if (!link || link.closest('#contacts-tbody')) return; // Contacts expands inline (js/contacts.js)
     e.preventDefault();
     e.stopPropagation();
     window.openContactHistory(link.dataset.phone);

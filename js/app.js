@@ -529,17 +529,45 @@ window.placeNavIndicator = function() {
 (function () {
     const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     const key = p => String(p || '').replace(/\D/g, '').slice(-10);
+    // Live contacts first; numbers whose contact was deleted use the server's last known name.
+    const known = new Map();
     function book() {
         const list = typeof contacts !== 'undefined' && Array.isArray(contacts) ? contacts : [];
-        return new Map(list.map(c => [key(c.phone), c]));
+        const m = new Map();
+        known.forEach((name, k) => m.set(k, { name, group: '' }));
+        list.forEach(c => m.set(key(c.phone), c));
+        return m;
     }
-    function row(phone, c) {
+    async function learnNames(phones) {
+        const live = book();
+        const missing = phones.filter(p => !live.has(key(p)));
+        if (!missing.length) return;
+        try {
+            const res = await fetch('/api/contact-names', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phones: missing }) });
+            const data = res.ok ? await res.json() : {};
+            Object.entries(data.names || {}).forEach(([p, n]) => n && known.set(key(p), n));
+        } catch (e) { /* names stay 'Not in contacts' */ }
+    }
+    function row(phone, c, expandable) {
         const line = document.createElement('div');
         line.className = 'row-item';
         line.innerHTML = `<div style="min-width:0"><div class="row-label">${esc(c && c.name ? c.name : 'Not in contacts')}</div>
             <div class="row-sub mono">${esc(phone)} ${window.vxInvalidPill(phone)}</div></div>
             ${c && c.group ? `<span class="badge badge-muted">${esc(c.group)}</span>` : ''}`;
-        return line;
+        if (!expandable) return line;
+        // Tap a row: that number's call history expands inline (no navigation).
+        const wrap = document.createElement('div');
+        wrap.className = 'nums-row';
+        line.classList.add('nums-row-hd');
+        line.setAttribute('role', 'button');
+        line.tabIndex = 0;
+        line.setAttribute('aria-expanded', 'false');
+        const panel = window.vxInlineHistory(phone);
+        const flip = () => line.setAttribute('aria-expanded', String(panel.toggle()));
+        line.addEventListener('click', flip);
+        line.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+        wrap.append(line, panel);
+        return wrap;
     }
     function openAll(phones, title) {
         const map = book();
@@ -558,7 +586,7 @@ window.placeNavIndicator = function() {
             const q = input.value.trim().toLowerCase(), qd = q.replace(/\D/g, '');
             const hits = all.filter(x => !q || (x.c && x.c.name && x.c.name.toLowerCase().includes(q)) || (qd && x.p.replace(/\D/g, '').includes(qd)));
             const frag = document.createDocumentFragment();
-            hits.forEach(x => frag.appendChild(row(x.p, x.c)));
+            hits.forEach(x => frag.appendChild(row(x.p, x.c, true)));
             list.replaceChildren(frag);
             if (!hits.length) list.innerHTML = '<div class="row-item"><div class="row-sub">No matches.</div></div>';
             count.textContent = (q ? `${hits.length} of ${all.length}` : `${all.length} number${all.length === 1 ? '' : 's'}`) + (bad ? ` · ${bad} invalid` : '');
@@ -573,8 +601,9 @@ window.placeNavIndicator = function() {
         window.vxShowModal(overlay);
         setTimeout(() => input.focus({ preventScroll: true }), 60);
     }
-    window.vxNumbersBox = function (box, phones, title) {
+    window.vxNumbersBox = async function (box, phones, title) {
         phones = Array.from(new Set((phones || []).filter(Boolean)));
+        await learnNames(phones);
         box.innerHTML = '';
         if (!phones.length) { box.innerHTML = '<div class="row-item"><div class="row-sub">No numbers stored.</div></div>'; return; }
         const map = book();
@@ -589,4 +618,49 @@ window.placeNavIndicator = function() {
         }
     };
     window.vxOpenNumbers = openAll;
+})();
+
+// ── Inline call history (one component for the View-all modal and Contacts) ──────────
+// vxInlineHistory(phone) returns a panel element; call .toggle() to expand/collapse it in
+// place (vxCollapse animation). Lazy-loads /api/calls?q=<number> on first open and renders
+// the existing call cards (conversation accordion + custom recording player).
+(function () {
+    window.vxInlineHistory = function (phone) {
+        const panel = document.createElement('div');
+        panel.className = 'vx-inline-hist';
+        panel.hidden = true;
+        let loaded = false, open = false;
+        async function load() {
+            loaded = true;
+            panel.innerHTML = '<div class="hint vx-inline-hist-msg">Loading calls…</div>';
+            const digits = String(phone || '').replace(/\D/g, '');
+            const q = digits.length > 10 ? digits.slice(-10) : digits;
+            let items = null;
+            try {
+                const res = await fetch('/api/calls?' + new URLSearchParams({ q, limit: '50' }));
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Could not load the calls.');
+                items = data.items || [];
+            } catch (e) {
+                loaded = false;
+                panel.innerHTML = `<div class="hint vx-inline-hist-msg" style="color:var(--error)">${String(e.message).replace(/[<>&]/g, '')}</div>`;
+                return;
+            }
+            if (!items.length) { panel.innerHTML = '<div class="hint vx-inline-hist-msg">No calls yet.</div>'; return; }
+            const frag = document.createDocumentFragment();
+            items.forEach(c => frag.appendChild(window.vxCallCard(c)));   // newest first (API order)
+            panel.replaceChildren(frag);
+            if (open && panel.style.height) panel.style.height = '';
+        }
+        panel.toggle = function (force) {
+            const next = typeof force === 'boolean' ? force : !open;
+            if (next === open) return open;
+            open = next;
+            if (open && !loaded) load();
+            window.vxCollapse(panel, open, () => { panel.hidden = false; }, () => { panel.hidden = true; });
+            return open;
+        };
+        panel.isOpen = () => open;
+        return panel;
+    };
 })();
