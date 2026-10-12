@@ -88,7 +88,7 @@ const callQuery = () => {
     if (ag) p.set('agentId', ag);
     const days = document.getElementById('calls-range').value;
     if (days) p.set('from', new Date(Date.now() - Number(days) * 86400000).toISOString());
-    if (callsReason) p.set('reason', callsReason);
+    if (callsReason) p.set('outcome', callsReason);
     return p;
 };
 
@@ -97,26 +97,22 @@ window.setCallReason = function(reason) {
     window.loadCalls();
 };
 
-// Failure-reason tabs: "All" plus one per reason present under the other filters.
-function renderReasonTabs(reasons) {
+// Outcome tabs: a fixed set, each with its count under the other filters.
+const OUTCOME_TABS = [['', 'All', 'all'], ['answered', 'Answered'], ['busy', 'Busy'], ['no_answer', 'No answer'],
+    ['rejected', 'Rejected'], ['failed', 'Failed'], ['no_reason', 'No reason']];
+function renderReasonTabs(counts) {
     const row = document.getElementById('calls-reasons');
     if (!row) return;
-    const list = (reasons || []).filter(x => x.n > 0);
-    if (callsReason && !list.some(x => x.reason === callsReason)) list.push({ reason: callsReason, n: 0 });
+    counts = counts || {};
     row.innerHTML = '';
-    const mk = (value, label) => {
+    OUTCOME_TABS.forEach(([value, label, key]) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'lang-pill' + (value === callsReason ? ' active' : '');
-        b.style.flex = '0 0 auto';
-        b.style.whiteSpace = 'nowrap';
-        b.dataset.reason = value;
-        b.textContent = label;
+        b.textContent = `${label} (${counts[key || value] || 0})`;
         b.onclick = () => window.setCallReason(value);
         row.appendChild(b);
-    };
-    mk('', 'All');
-    list.forEach(x => mk(x.reason, `${reasonLabel(x.reason)} (${x.n})`));
+    });
 }
 
 // Paging: a sentinel near the list end loads the next page; one fetch at a time.
@@ -147,7 +143,7 @@ window.loadCalls = async function(more) {
     items.forEach(r => list.appendChild(callCard(r)));
     callsOffset += items.length;
     callsTotal = data.total || 0;
-    if (more !== true) renderReasonTabs(data.reasons);
+    if (more !== true) renderReasonTabs(data.counts);
     showSynced(data.synced_at);
     if (empty) empty.style.display = data.total ? 'none' : 'block';
     if (sentinel) sentinel.style.display = callsOffset < callsTotal ? 'block' : 'none';
@@ -202,7 +198,23 @@ function callCard(r) {
     num.className = 'mono';
     num.style.color = 'var(--text)';
     const phoneOk = r.phone && !/^NO_/.test(r.phone) && !/^[0-9a-f]{24,}$/i.test(r.phone);
-    num.textContent = phoneOk ? r.phone : 'Unknown number';
+    // Name from Contacts (matched on the last 10 digits), else the name the agent collected.
+    const av = r.agent_variables && typeof r.agent_variables === 'object' ? r.agent_variables : {};
+    const who = r.contact_name || (typeof av.user_name === 'string' && av.user_name.trim() ? av.user_name.trim() : '');
+    num.className = 'convo-caller';
+    num.style.color = '';
+    if (who) {
+        const n = document.createElement('span');
+        n.className = 'convo-name';
+        n.textContent = who;
+        num.appendChild(n);
+    }
+    const dial = phoneOk ? String(r.phone).replace(/[^\d+]/g, '') : '';
+    const ph = document.createElement(dial && !dial.includes('*') ? 'a' : 'span');
+    ph.className = 'mono convo-phone';
+    if (ph.tagName === 'A') { ph.href = 'tel:' + (dial.startsWith('+') ? dial : (dial.length === 10 ? '+91' + dial : '+' + dial)); ph.title = 'Call ' + r.phone; }
+    ph.textContent = phoneOk ? r.phone : 'Unknown number';
+    num.appendChild(ph);
     const when = document.createElement('div');
     when.className = 'hint';
     const bits = [];
@@ -229,13 +241,21 @@ function callCard(r) {
         body.appendChild(fr);
     }
 
-    const vars = r.agent_variables && typeof r.agent_variables === 'object' && Object.keys(r.agent_variables).length ? r.agent_variables : null;
-    if (vars) {
-        const v = document.createElement('div');
-        v.className = 'hint mono';
-        v.style.cssText = 'margin-top:8px; white-space:pre-wrap;';
-        v.textContent = Object.entries(vars).map(([k, val]) => `${k}: ${typeof val === 'object' ? JSON.stringify(val) : val}`).join('\n');
-        body.appendChild(v);
+    // Details the agent collected (name, summary, ...), as in the old app. Empty values are left out.
+    const vars = Object.entries(r.agent_variables && typeof r.agent_variables === 'object' ? r.agent_variables : {}).filter(([, val]) =>
+        val !== null && val !== undefined && String(typeof val === 'object' ? JSON.stringify(val) : val).trim() &&
+        !(typeof val === 'object' && !Object.keys(val).length));
+    if (vars.length) {
+        const dl = document.createElement('dl');
+        dl.className = 'convo-vars';
+        vars.forEach(([k, val]) => {
+            const dt = document.createElement('dt');
+            dt.textContent = String(k).replace(/[_-]+/g, ' ').trim().replace(/^./, c => c.toUpperCase());
+            const dd = document.createElement('dd');
+            dd.textContent = typeof val === 'object' ? JSON.stringify(val) : String(val);
+            dl.append(dt, dd);
+        });
+        body.appendChild(dl);
     }
 
     const acts = document.createElement('div');
@@ -266,36 +286,146 @@ function callCard(r) {
                 none.textContent = t.note || 'No conversation was recorded for this call.';
                 box.appendChild(none);
             }
+            const convo = document.createElement('div');
+            convo.className = 'convo';
             turns.forEach(turn => {
                 const caller = /user|caller|human|customer/.test(turn.role || '');
-                const line = document.createElement('div');
-                line.style.cssText = 'margin-top:8px; font-size:0.9rem; line-height:1.5;';
-                const w = document.createElement('strong');
-                w.style.color = caller ? 'var(--text)' : 'var(--text2)';
-                w.textContent = (caller ? 'Caller' : 'Agent') + ': ';
-                line.append(w, document.createTextNode(turn.text));
-                box.appendChild(line);
+                const msg = document.createElement('div');
+                msg.className = 'convo-msg ' + (caller ? 'is-caller' : 'is-agent');
+                const w = document.createElement('div');
+                w.className = 'convo-who';
+                w.textContent = caller ? 'Caller' : 'Agent';
+                const said = document.createElement('div');
+                said.className = 'convo-text';
+                said.textContent = turn.text;
+                msg.append(w, said);
+                if (turn.en) {
+                    const tr = document.createElement('div');
+                    tr.className = 'convo-en';
+                    tr.textContent = turn.en;
+                    msg.appendChild(tr);
+                }
+                convo.appendChild(msg);
             });
+            if (turns.length) box.appendChild(convo);
         }));
     }
     if (r.has_recording) {
         acts.appendChild(window.VxDisclosure('Recording', box => {
+            // Own controls (no native player UI): play/pause, seek bar, time, speed, download.
+            const src = `/api/calls/${encodeURIComponent(r.attempt_id)}/recording`;
             const audio = document.createElement('audio');
-            audio.controls = true;
             audio.preload = 'none';
-            audio.style.cssText = 'width:100%; margin-top:8px;';
-            audio.src = `/api/calls/${encodeURIComponent(r.attempt_id)}/recording`;
+            audio.setAttribute('controlsList', 'nodownload noplaybackrate');
+            audio.src = src;
+            const bar = document.createElement('div');
+            bar.style.cssText = 'display:flex; align-items:center; gap:12px; width:100%; padding:4px 2px; box-sizing:border-box; overflow:visible;';
+            const ICON_PLAY = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
+            const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1"/><rect x="13.5" y="5" width="4" height="14" rx="1"/></svg>';
+            const roundBtn = (tag) => {
+                const b = document.createElement(tag);
+                b.className = 'theme-btn';
+                b.style.cssText = 'width:32px; height:32px; min-width:32px; flex:0 0 32px; padding:0; box-sizing:border-box; text-decoration:none;';
+                return b;
+            };
+            const play = roundBtn('button');
+            play.type = 'button';
+            play.setAttribute('aria-label', 'Play recording');
+            play.innerHTML = ICON_PLAY;
+            const track = document.createElement('div');
+            track.setAttribute('role', 'slider');
+            track.setAttribute('aria-label', 'Seek');
+            track.tabIndex = 0;
+            track.style.cssText = 'flex:1 1 140px; min-width:80px; height:20px; position:relative; cursor:pointer; touch-action:none;';
+            const rail = document.createElement('div');
+            rail.style.cssText = 'position:absolute; left:0; right:0; top:8px; height:4px; border-radius:999px; background:var(--border2);';
+            const fill = document.createElement('div');
+            fill.style.cssText = 'position:absolute; left:0; top:0; bottom:0; width:0; border-radius:999px; background:var(--accent-red, #ef4444); transition:width .12s linear;';
+            const knob = document.createElement('div');
+            knob.style.cssText = 'position:absolute; top:4px; left:0; width:12px; height:12px; margin-left:-6px; border-radius:50%; background:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.4); transition:left .12s linear;';
+            rail.appendChild(fill);
+            track.append(rail, knob);
+            const time = document.createElement('span');
+            time.className = 'hint mono';
+            time.style.cssText = 'white-space:nowrap; flex:0 0 auto;';
+            time.textContent = '0:00 / 0:00';
+            const fmtT = x => isFinite(x) && x >= 0 ? `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}` : '0:00';
+            const speeds = [1, 1.25, 1.5, 2];
+            const speed = document.createElement('button');
+            speed.type = 'button';
+            speed.className = 'lang-pill';
+            speed.style.flex = '0 0 auto';
+            speed.textContent = '1x';
+            speed.onclick = () => { const k = (speeds.indexOf(audio.playbackRate) + 1) % speeds.length; audio.playbackRate = speeds[k]; speed.textContent = speeds[k] + 'x'; };
+            const dl = roundBtn('a');
+            dl.href = src + '?download=1';
+            dl.title = 'Download recording';
+            dl.setAttribute('aria-label', 'Download recording');
+            dl.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/></svg>';
+            let dragging = false, raf = 0;
+            const paint = (t) => {
+                const d = audio.duration;
+                const pct = d && isFinite(d) ? Math.min(100, Math.max(0, t / d * 100)) : 0;
+                fill.style.width = pct + '%';
+                knob.style.left = pct + '%';
+                time.textContent = `${fmtT(t)} / ${fmtT(d)}`;
+            };
+            const loop = () => { if (!dragging) paint(audio.currentTime); raf = audio.paused ? 0 : requestAnimationFrame(loop); };
+            play.onclick = () => { if (audio.paused) audio.play().catch(() => {}); else audio.pause(); };
+            audio.onplay = () => { play.innerHTML = ICON_PAUSE; play.setAttribute('aria-label', 'Pause recording'); if (!raf) raf = requestAnimationFrame(loop); };
+            audio.onpause = audio.onended = () => { play.innerHTML = ICON_PLAY; play.setAttribute('aria-label', 'Play recording'); cancelAnimationFrame(raf); raf = 0; paint(audio.currentTime); };
+            audio.onloadedmetadata = audio.ondurationchange = () => paint(audio.currentTime);
+            const seekTo = (clientX, commit) => {
+                const rc = track.getBoundingClientRect();
+                const f = Math.min(1, Math.max(0, (clientX - rc.left) / rc.width));
+                const d = audio.duration;
+                if (!d || !isFinite(d)) { if (commit && audio.paused) audio.play().catch(() => {}); return; }
+                paint(f * d);
+                if (commit) audio.currentTime = f * d;
+            };
+            track.addEventListener('pointerdown', e => {
+                dragging = true; fill.style.transition = knob.style.transition = 'none';
+                track.setPointerCapture(e.pointerId); seekTo(e.clientX, false);
+            });
+            track.addEventListener('pointermove', e => { if (dragging) seekTo(e.clientX, false); });
+            const endDrag = e => {
+                if (!dragging) return; dragging = false; seekTo(e.clientX, true);
+                fill.style.transition = 'width .12s linear'; knob.style.transition = 'left .12s linear';
+            };
+            track.addEventListener('pointerup', endDrag);
+            track.addEventListener('pointercancel', endDrag);
+            track.addEventListener('keydown', e => {
+                if (!audio.duration) return;
+                if (e.key === 'ArrowRight') audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+                else if (e.key === 'ArrowLeft') audio.currentTime = Math.max(0, audio.currentTime - 5);
+                else return;
+                e.preventDefault(); paint(audio.currentTime);
+            });
             audio.onerror = () => {
                 const err = document.createElement('div');
                 err.className = 'hint';
-                err.style.marginTop = '6px';
                 err.textContent = 'No recording is available for this call.';
-                audio.replaceWith(err);
+                bar.replaceWith(err);
             };
-            box.appendChild(audio);
+            bar.append(play, track, time, speed, dl, audio);
+            box.appendChild(bar);
         }));
     }
-    if (acts.children.length) body.appendChild(acts);
+    if (acts.children.length) {
+        body.appendChild(acts);
+        // Conversation / Recording open full-width below the pills (same edge as the card text),
+        // one at a time, like the schedule cards.
+        const discs = [...acts.querySelectorAll(':scope > .vx-disclosure')];
+        discs.forEach(d => {
+            const b = d.querySelector('.vx-disclosure-body');
+            if (b) { b.style.width = '100%'; b.style.marginTop = '8px'; body.appendChild(b); }
+        });
+        const btns = discs.map(d => d.querySelector('.vx-disclosure-btn')).filter(Boolean);
+        btns.forEach(b => b.addEventListener('click', () => {
+            if (b.getAttribute('aria-expanded') !== 'true') return;
+            btns.forEach(o => { if (o !== b && o.getAttribute('aria-expanded') === 'true') o.click(); });
+        }));
+    }
     item.appendChild(body);
     return item;
 }

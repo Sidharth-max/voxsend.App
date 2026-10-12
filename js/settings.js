@@ -56,6 +56,10 @@ window.applyTheme = function (isLight, animate) {
         clearTimeout(themeAnimTimer);
         themeAnimTimer = setTimeout(() => root.classList.remove('theme-anim'), THEME_ANIM_HOLD);
     }
+    // One theme state: the Settings switch and the header button both follow it.
+    const tog = document.getElementById('theme-toggle');
+    if (tog) tog.checked = !!isLight;
+    document.dispatchEvent(new CustomEvent('vx-theme', { detail: { light: !!isLight } }));
     const fab = document.getElementById('settings-fab');
     if (fab) {
         const label = isLight ? 'Switch to dark mode' : 'Switch to light mode';
@@ -67,6 +71,8 @@ window.applyTheme = function (isLight, animate) {
 window.setThemeMode = function (isLight) {
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
     window.applyTheme(isLight, true);
+    fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: isLight ? 'light' : 'dark' }) }).catch(() => {});
 };
 
 window.toggleTheme = function () {
@@ -120,6 +126,11 @@ window.loadAppSettings = function () {
         if (s.retry_failed !== undefined) document.getElementById('retry-toggle').checked = !!s.retry_failed;
         if (s.default_language) document.getElementById('default-lang').value = s.default_language;
         if (s.delay_ms) document.getElementById('call-delay').value = s.delay_ms;
+        // A theme saved on the server (another device) wins over a missing local choice.
+        if ((s.theme === 'light' || s.theme === 'dark') && !localStorage.getItem('theme')) {
+            localStorage.setItem('theme', s.theme);
+            window.applyTheme(s.theme === 'light', false);
+        }
     }).catch(e => console.error("Error loading settings:", e));
 };
 

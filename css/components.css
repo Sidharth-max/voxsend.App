@@ -2006,7 +2006,7 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
     font-size: 0.8571rem;
     transition: background-color .25s ease, color .25s ease, font-weight .25s ease;
 }
-#hist-subtabs .lang-pill.active { font-weight: 600; }
+#hist-subtabs .lang-pill.active, #calls-reasons .lang-pill.active { font-weight: 600; }
 
 /* Contacts search + group filter */
 .sticky-tools {
@@ -2071,7 +2071,7 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
 :root { --accent-red: #ef4444; }
 .bn-item.active { color: var(--accent-red) !important; }
 .bn-indicator { background: color-mix(in srgb, var(--accent-red) 14%, transparent) !important; }
-#hist-subtabs .lang-pill { border: none !important; }
+#hist-subtabs .lang-pill, #calls-reasons .lang-pill { border: none !important; }
 
 /* ── Top edge blur ──────────────────────────────────────────────
    Shown only while a selector bar (e.g. History's switcher) is pinned at the top: the content
@@ -2102,3 +2102,32 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
 }
 
 .top-fade.is-on { opacity: 1; visibility: visible; transition: height .35s cubic-bezier(.32, .72, 0, 1), opacity .3s ease; }
+
+/* Call history failure-reason tabs: same pill as the History switcher, sized to content, centred */
+#calls-reasons {
+    display: flex;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto 16px;
+    padding: 4px;
+    border-radius: 999px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+}
+#calls-reasons::-webkit-scrollbar { display: none; }
+#calls-reasons .lang-pill {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 0.8571rem;
+    white-space: nowrap;
+    transition: background-color .25s ease, color .25s ease, font-weight .25s ease;
+}
+
+/* Switches: visible in dark mode, accent when on */
+.tog-track { background: var(--surface2); border-color: var(--border2); }
+.tog-thumb { background: var(--text2); }
+.toggle input:checked ~ .tog-track { background: var(--accent-red, #ef4444); border-color: var(--accent-red, #ef4444); }
+.toggle input:checked ~ .tog-track .tog-thumb { background: #fff; }
