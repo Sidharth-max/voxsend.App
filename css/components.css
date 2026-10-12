@@ -1296,6 +1296,7 @@
 .vx-disclosure-btn:focus-visible { outline: 1px solid var(--border2); outline-offset: 2px; border-radius: 4px; }
 .vx-chev { transition: transform .15s ease; }
 .vx-disclosure-btn[aria-expanded="true"] .vx-chev { transform: rotate(90deg); }
+.sched-card .vx-disclosure-btn[aria-expanded="true"] { color: var(--text); }
 .vx-disclosure-body { margin-top: 4px; }
 
 /* PIN fields: spaced digits, normal placeholder */

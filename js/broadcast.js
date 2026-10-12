@@ -1231,8 +1231,14 @@ window.loadSchedules = async function(force) {
         // The per-time and numbers lists span the whole card width, below the actions row.
         card.appendChild(detBody);
         card.appendChild(numsBody);
+        // Accordion: "Show each time" and "View numbers" share the space; opening one closes the other.
+        const pairClose = (opened, other) => opened.addEventListener('click', () => {
+            if (opened.getAttribute('aria-expanded') === 'true' && other.getAttribute('aria-expanded') === 'true') other.click();
+        });
+        pairClose(detBtn, numsBtn);
+        pairClose(numsBtn, detBtn);
         if (expandedSchedules.has(groupId)) detBtn.click();
-        if (expandedNumbers.has(groupId)) numsBtn.click();
+        else if (expandedNumbers.has(groupId)) numsBtn.click();
         target.appendChild(card);
     };
     activeGroups.forEach(renderCard(false, list));

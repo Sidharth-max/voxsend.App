@@ -528,8 +528,8 @@ window.renderHistory = function() {
                             RESUME ${Number(h.not_dialled)} LEFT
                         </button>` : ''}
                         ${window.getFailedNumbers(h).length > 0 ? `
-                        <button class="btn btn-sm" onclick="event.stopPropagation(); retryFailedCalls(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px; background:var(--warning, #f59e0b); color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
-                            ↺ RETRY ${window.getFailedNumbers(h).length} FAILED
+                        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); retryFailedCalls(${h._index})" style="width:auto; height:32px; font-size:11px; padding:0 12px;">
+                            Retry ${window.getFailedNumbers(h).length} failed
                         </button>` : ''}
                     </div>
                     <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); deleteHistoryEntry(${h._index}, ${h.id ? h.id : 'null'})" style="width:auto; height:32px; font-size:11px; padding:0 12px; color:var(--error);">
@@ -570,7 +570,7 @@ window.showHistoryDetails = function(index) {
     if (retryBtn) {
         if (failedNums.length > 0) {
             retryBtn.style.display = 'inline-flex';
-            retryBtn.textContent = `↺ Retry ${failedNums.length} Failed`;
+            retryBtn.textContent = `Retry ${failedNums.length} failed`;
             retryBtn.onclick = () => {
                 closeHistoryDetails();
                 retryFailedCalls(index);
