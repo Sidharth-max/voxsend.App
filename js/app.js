@@ -484,8 +484,38 @@ window.placeNavIndicator = function() {
             inp.parentNode.insertBefore(wrap, inp);
             wrap.appendChild(inp);
             wrap.insertAdjacentHTML('beforeend', SVG);
+            replay(inp);
         });
     };
+    // Lists re-render on every tick (Contacts, Broadcast picker, select-all), which replaces the
+    // input that was clicked, so its CSS transition never plays. Remember recent changes and
+    // replay them on the fresh input: render the old state, then flip it on the next frame.
+    let recent = [], allAt = 0, allState = null;
+    const sig = inp => inp.id || inp.getAttribute('onchange') || inp.getAttribute('onclick') || '';
+    document.addEventListener('change', e => {
+        const t = e.target;
+        if (!t || !t.matches || !t.matches('input.checkbox')) return;
+        if (/check-all/.test(t.id)) { allAt = performance.now(); allState = t.checked; }
+        else recent.push({ s: sig(t), state: t.checked, at: performance.now() });
+    }, true);
+    document.addEventListener('click', e => {
+        const t = e.target;
+        if (t && t.matches && t.matches('input.checkbox') && /check-all/.test(t.id)) { allAt = performance.now(); allState = t.checked; }
+    }, true);
+    function replay(inp) {
+        if (vxReduced() || inp.indeterminate) return;
+        const now = performance.now();
+        recent = recent.filter(r => now - r.at < 500);
+        const s = sig(inp);
+        const hit = s && recent.find(r => r.s === s);
+        let want = null;
+        if (hit && inp.checked === hit.state) want = hit.state;
+        else if (now - allAt < 500 && inp.checked === allState && !/check-all/.test(inp.id)) want = allState;
+        if (want === null) return;
+        inp.checked = !want;
+        void inp.offsetWidth;
+        requestAnimationFrame(() => requestAnimationFrame(() => { inp.checked = want; }));
+    }
     const start = () => {
         enhance(document.body);
         new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) enhance(n); })))

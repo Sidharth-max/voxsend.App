@@ -1,11 +1,12 @@
-/* ── Flat pass: no borders, one radius/height scale ─────────────────────────
-   Loaded last. Elements are told apart by surface tone + shadow; the only lines
-   left are thin dividers between table/list rows. Focus = soft ring, not a border. */
+/* Loaded last: list-row dividers, the Contacts filter bar without its wrapper pill, the
+   Invalid pill and the View-all numbers modal. Original borders and radii are untouched. */
 :root {
-    --radius-ctl: 10px;          /* inputs, selects, buttons, pills */
+    --radius-ctl: 999px;         /* inputs, selects, buttons, pills: full pill */
     --ctl-h: 38px;               /* one control height */
     --ctl-h-sm: 32px;
-    --radius-card: 14px;         /* cards, panels, modals, popovers */
+    --radius-card: 22px;         /* cards, panels */
+    --radius-pop: 16px;          /* dropdown lists */
+    --radius-modal: 24px;
     --field-bg: #1a1a1a;         /* inputs and pills sit on a slightly lighter surface */
     --field-bg-hover: #202020;
     --divider: rgba(255, 255, 255, .06);
@@ -18,70 +19,27 @@
     --ring: 0 0 0 3px rgba(9, 9, 11, .12);
 }
 
-/* 1) Borders off everywhere (kept transparent so layout doesn't shift).
-   Exceptions: the checkbox box and spinners draw with borders. */
-*:not(input.checkbox):not(.spinner):not(.spin):not(.loader),
-*::before, *::after { border-color: transparent !important; }
-input.checkbox { border-color: var(--border2) !important; }
-input.checkbox:checked, input.checkbox:indeterminate { border-color: transparent !important; }
+/* Row dividers (all but the last row). */
+.row-item:not(:last-child) { border-bottom: 1px solid var(--divider) !important; }
 
-/* 2) The only lines: dividers between rows (all but the last). */
-.table tbody tr:not(:last-child) > td,
-.row-item:not(:last-child),
-.vx-select-opt:not(:last-child),
-.hist-list > .hist-card:not(:last-child) { border-bottom: 1px solid var(--divider) !important; }
-.table thead th { border-bottom: 1px solid var(--divider) !important; }
-
-/* 3) Controls: one radius, one height, field surface, soft focus ring. */
-input[type=text], input[type=password], input[type=email], input[type=number], input[type=search],
-input[type=tel], input[type=url], input:not([type]), textarea, select,
-.vx-select-btn, .vx-select-field, .select-pill, .vx-select-pill {
-    background-color: var(--field-bg) !important;
-    border-radius: var(--radius-ctl) !important;
-    box-shadow: none;
-}
-input[type=text], input[type=password], input[type=email], input[type=number], input[type=search],
-input[type=tel], input[type=url], input:not([type]), .vx-select-btn { min-height: var(--ctl-h); }
-.vx-select-btn:hover, .select-pill:hover { background-color: var(--field-bg-hover) !important; }
-.btn, .vx-pop-btn, .theme-btn { border-radius: var(--radius-ctl) !important; }
-.btn:not(.btn-sm) { min-height: var(--ctl-h); }
-.btn.btn-secondary, .vx-pop-btn { background-color: var(--field-bg); box-shadow: none; }
-.btn.btn-secondary:hover, .vx-pop-btn:hover { background-color: var(--field-bg-hover); }
-:where(input, textarea, select, button, .btn, .vx-select-btn, [tabindex], a):focus-visible,
-input:focus, textarea:focus { outline: none !important; box-shadow: var(--ring) !important; }
-
-/* Tab rows: tone, no outline. */
-.lang-pills, .seg-row { background-color: var(--field-bg) !important; box-shadow: none !important; }
-
-/* 4) Cards: one radius. Nested surfaces: outer = inner + padding. */
-.block, .card, .panel, .hist-card, .modal, .stat-card, .metric-card { border-radius: var(--radius-card) !important; }
-.vx-pop { border-radius: calc(var(--radius-ctl) + 4px) !important; }  /* list padding 4px */
-.vx-select-opt { border-radius: var(--radius-ctl); }
-.lang-pills { border-radius: calc(var(--radius-ctl) + 4px) !important; }
-.lang-pills > *, .seg-ind { border-radius: var(--radius-ctl) !important; }
-.block, .card, .panel, .hist-card { box-shadow: var(--shadow-card); }
-.modal { box-shadow: var(--shadow-pop); }
-.modal-hd, .modal-ft, .block-head { border: 0 !important; }
-
-/* 5) Contacts filter bar: no wrapper pill; the input and dropdown sit in the page. */
+/* Contacts filter bar: no wrapper pill; the input and dropdown sit in the page. */
 .sticky-tools, .sticky-tools.is-stuck, .sticky-bar.is-stuck.sticky-tools {
-    padding: 0 !important; background: transparent !important; box-shadow: none !important;
-    backdrop-filter: none !important; -webkit-backdrop-filter: none !important; border-radius: 0 !important;
-}
+    padding: 0 !important; background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 
-/* Small pills (badges) keep their tint, lose the outline. */
-.badge { box-shadow: none; }
 .badge-invalid { margin-left: 6px; font-size: .65rem; cursor: help; vertical-align: middle; }
 
-/* Numbers list + View all modal */
+/* Numbers list + View all modal: floating rounded card on every screen size */
 .nums-all-btn { margin: 8px 0 2px; }
-.nums-modal .modal { max-width: 520px; width: 100%; display: flex; flex-direction: column; max-height: min(640px, 86vh); overflow: hidden; }
+.nums-modal { padding: 12px !important; align-items: center !important; justify-content: center; background: var(--overlay); }
+.nums-modal .modal { max-width: 480px; width: 100%; display: flex; flex-direction: column; max-height: 85vh !important; height: auto !important;
+    overflow: hidden; border-radius: var(--radius-modal) !important; background: var(--surface); color: var(--text); box-shadow: var(--shadow-pop); }
 .nums-modal .nums-search { padding: 0 20px 10px; }
-.nums-modal .nums-search input { width: 100%; }
+.nums-modal .nums-search input { width: 100%; border-radius: 999px !important; }
+.nums-modal .modal-close { border-radius: 999px; }
 .nums-modal .nums-list { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px 14px; }
 @media (max-width: 600px) {
-    .nums-modal { padding: 0 !important; align-items: flex-end !important; }
-    .nums-modal .modal { max-height: 100dvh !important; height: 100dvh; border-radius: 0 !important; }
+    .nums-modal .modal { max-height: 85vh !important; border-radius: var(--radius-modal) !important; }
     .nums-modal .nums-search { padding: 0 16px 10px; }
-    .nums-modal .nums-list { padding: 0 16px calc(14px + env(safe-area-inset-bottom)); }
+    .nums-modal .nums-list { padding: 0 16px 14px; }
 }

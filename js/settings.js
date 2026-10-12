@@ -68,9 +68,15 @@ window.applyTheme = function (isLight, animate) {
     }
 };
 
-window.setThemeMode = function (isLight) {
+let themeSwitchTimer = null;
+window.setThemeMode = function (isLight, fromSwitch) {
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
-    window.applyTheme(isLight, true);
+    // From the Settings switch: let its knob slide first (the theme swap freezes transitions
+    // for its crossfade), then switch the theme. Same element, no re-render.
+    clearTimeout(themeSwitchTimer);
+    if (fromSwitch && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+        themeSwitchTimer = setTimeout(() => window.applyTheme(isLight, true), 230);
+    } else window.applyTheme(isLight, true);
     fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ theme: isLight ? 'light' : 'dark' }) }).catch(() => {});
 };

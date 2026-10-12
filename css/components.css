@@ -561,9 +561,11 @@
 
         .table th, .table td {
             padding: 8px 12px;
-            border-bottom: 1px solid var(--border);
             white-space: nowrap;
         }
+        /* One divider per row (on the row, never per cell). */
+        .table thead tr, .table tbody tr { border-bottom: 1px solid var(--border); }
+        .table tbody tr:last-child { border-bottom: 0; }
 
         .table th {
             position: sticky;
