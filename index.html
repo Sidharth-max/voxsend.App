@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/layout.css" />
     <link rel="stylesheet" href="css/components.css" />
     <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/flat.css" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -490,7 +491,7 @@
                                 <div class="man-form" style="display:flex; flex-direction:column; gap:10px;">
                                     <input type="text" id="man-name" placeholder="Name" autocomplete="off" />
                                     <div style="display:flex; gap:10px; align-items:stretch;">
-                                        <select id="man-cc" aria-label="Country code" style="flex:0 0 auto;">
+                                        <select id="man-cc" class="select-pill" aria-label="Country code" style="flex:0 0 auto;">
                                                 <option value="91" selected>+91 India</option>
                                                 <option value="1">+1 US / Canada</option>
                                                 <option value="44">+44 UK</option>
@@ -507,7 +508,7 @@
                                         <input type="tel" id="man-phone" placeholder="9876543210" style="flex:1 1 auto; min-width:0;"
                                             autocomplete="off" inputmode="tel" oninput="this.value = this.value.replace(/[^0-9+]/g, ''); checkManualPhone()" />
                                     </div>
-                                    <div class="hint" id="man-phone-hint" style="display:none; margin-top:-4px;"></div>
+                                    <div class="hint" id="man-phone-hint" style="display:none; margin:0;"></div>
                                     <select id="man-group-pick" aria-label="Group" onchange="onManualGroupPick()">
                                         <option value="">No group</option>
                                         <option value="__new">+ New group…</option>
@@ -600,7 +601,9 @@
                     </div>
 
                     <div id="hist-broadcast-content">
-                        <div id="hist-list" class="history-list"></div>
+                        <div id="runs-list" class="history-list"></div>
+                        <div id="runs-empty" class="empty" style="display:none;">No broadcasts found.</div>
+                        <div id="runs-sentinel" class="hint" style="text-align:center; padding:10px 0; display:none;">Loading…</div>
                     </div>
 
                     <div id="hist-vobiz-content" style="display:none;">
@@ -1165,11 +1168,14 @@
         </div>
     </div>
 
+    <script src="js/phonecheck.js"></script>
     <script src="js/app.js"></script>
     <script src="js/pickers.js"></script>
+    <script src="js/countries.js"></script>
     <script src="js/select.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/history.js"></script>
+    <script src="js/runs.js"></script>
     <script src="js/library.js"></script>
     <script src="js/contacts.js"></script>
     <script src="js/broadcast.js"></script>

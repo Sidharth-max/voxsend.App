@@ -143,12 +143,14 @@
     const enabled = list => list.filter(el => el.getAttribute('aria-disabled') !== 'true');
 
     function renderList(sel) {
-        const pop = openState.pop;
+        const pop = openState.list || openState.pop;
+        const q = (openState.query || '').trim().toLowerCase().replace(/^\+/, '');
+        const matches = opt => !q || (opt.label + ' ' + (opt.dataset.search || '')).toLowerCase().split(/[\s+()/]+/).some(w => w.startsWith(q)) || (q.length >= 3 && opt.label.toLowerCase().includes(q));
         const prevActive = document.activeElement && pop.contains(document.activeElement) ? document.activeElement.dataset.index : null;
         pop.innerHTML = '';
         const cur = indexDesc.get.call(sel);
         const addOpt = (opt, parent, groupDisabled) => {
-            if (opt.hidden) return;
+            if (opt.hidden || !matches(opt)) return;
             const el = document.createElement('div');
             el.className = 'vx-select-opt';
             el.setAttribute('role', 'option');
@@ -180,6 +182,12 @@
                 addOpt(child, pop, false);
             }
         });
+        if (q && !pop.querySelector('.vx-select-opt')) {
+            const none = document.createElement('div');
+            none.className = 'vx-select-group-label vx-select-empty';
+            none.textContent = 'No matches';
+            pop.appendChild(none);
+        }
         if (prevActive !== null) {
             const again = pop.querySelector(`[data-index="${prevActive}"]`);
             if (again) again.focus({ preventScroll: true });
@@ -198,10 +206,35 @@
         if (st.btn.id) pop.setAttribute('aria-labelledby', st.btn.id);
         const r = st.btn.getBoundingClientRect();
         openState = { sel, btn: st.btn, pop, id: st.id, typed: '', typedAt: 0, at: { top: r.top, left: r.left, vw: window.innerWidth } };
+        if (sel.hasAttribute('data-search')) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'vx-select-search';
+            input.placeholder = sel.getAttribute('data-search') || 'Search';
+            input.setAttribute('aria-label', input.placeholder);
+            input.autocomplete = 'off';
+            input.spellcheck = false;
+            const list = document.createElement('div');
+            list.className = 'vx-select-list';
+            pop.classList.add('has-search');
+            pop.append(input, list);
+            openState.search = input;
+            openState.list = list;
+            openState.query = '';
+            input.addEventListener('input', () => { openState.query = input.value; list.classList.toggle('is-filtered', !!input.value.trim()); renderList(sel); list.scrollTop = 0; });
+        }
         sync(sel);
         renderList(sel);
         document.body.appendChild(pop);
         place(pop, st.btn);
+        if (openState.search) {
+            const cur = openState.list.querySelector('.vx-select-opt.is-selected');
+            if (cur) openState.list.scrollTop = Math.max(0, cur.offsetTop - openState.list.offsetTop - 40);
+            openState.search.focus({ preventScroll: true });
+            st.btn.setAttribute('aria-expanded', 'true');
+            st.btn.setAttribute('aria-controls', st.id);
+            return;
+        }
         st.btn.setAttribute('aria-expanded', 'true');
         st.btn.setAttribute('aria-controls', st.id);
         const target = pop.querySelector('.vx-select-opt.is-selected:not(.is-disabled)') || enabled(items())[0];
@@ -223,8 +256,8 @@
         if (!el) return;
         el.focus({ preventScroll: true });
         // Keep it visible inside the list without moving the page.
-        const pop = openState.pop;
-        const top = el.offsetTop, bottom = top + el.offsetHeight;
+        const pop = openState.list || openState.pop;
+        const top = el.offsetTop - (openState.list ? openState.list.offsetTop : 0), bottom = top + el.offsetHeight;
         if (top < pop.scrollTop) pop.scrollTop = top - 4;
         else if (bottom > pop.scrollTop + pop.clientHeight) pop.scrollTop = bottom - pop.clientHeight + 4;
     }
@@ -260,6 +293,21 @@
         if (!inPop && document.activeElement !== openState.btn) return;
         const list = enabled(items());
         const cur = list.indexOf(document.activeElement);
+        const srch = openState.search;
+        if (srch) {
+            const inSearch = document.activeElement === srch;
+            if (inSearch) {
+                if (e.key === 'ArrowDown') { e.preventDefault(); focusItem(list[0]); return; }
+                if (e.key === 'Enter') { e.preventDefault(); pick(list[0] || null); return; }
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); return; }
+                if (e.key === 'Tab') { close(true); return; }
+                return; // typing, space, Home/End stay in the input
+            }
+            if (e.key === 'ArrowUp' && cur === 0) { e.preventDefault(); srch.focus(); return; }
+            if ((e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) || e.key === 'Backspace') {
+                srch.focus(); return; // keep typing into the search box
+            }
+        }
         switch (e.key) {
             case 'ArrowDown': e.preventDefault(); focusItem(list[cur < 0 ? 0 : Math.min(list.length - 1, cur + 1)]); break;
             case 'ArrowUp': e.preventDefault(); focusItem(list[cur < 0 ? list.length - 1 : Math.max(0, cur - 1)]); break;

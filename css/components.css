@@ -2171,9 +2171,9 @@ a.convo-phone:hover { color: var(--text); text-decoration: underline; text-under
     .tab-section { padding-bottom: calc(64px + 24px + 12px + env(safe-area-inset-bottom)) !important; }
 }
 
-/* Switches: knob slides with a little overshoot, track colour fades, knob squishes on press */
+/* Switches: knob slides (200ms ease-out), track colour fades, knob squishes on press */
 .tog-track { transition: background-color .2s ease-out, border-color .2s ease-out; }
-.tog-thumb { transition: transform .22s cubic-bezier(.34, 1.4, .64, 1), width .15s ease-out, background-color .2s ease-out !important; }
+.tog-thumb { transition: transform .2s ease-out, width .15s ease-out, background-color .2s ease-out !important; }
 .toggle:active .tog-thumb { width: 15px; }
 .toggle:active input:checked ~ .tog-track .tog-thumb { transform: translateX(13px); }
 @media (prefers-reduced-motion: reduce) {
@@ -2234,3 +2234,29 @@ input[type="checkbox"].checkbox:indeterminate::before {
 #import-block { align-self: start; height: auto; }
 .man-form > input, .man-form > .vx-select-btn, .man-form .vx-select-btn { min-height: 42px; }
 .man-form #man-cc + .vx-select-btn, .man-form .vx-select-btn.vx-select-field:first-child { flex: 0 0 auto; width: auto; }
+
+/* Checkbox tick drawn with stroke-dashoffset (SVG overlay added by js/app.js).
+   Check: fill fades/scales in, then the tick draws (~200ms). Uncheck: tick undraws, then fill fades. */
+.vx-cb { position: relative; display: inline-grid; place-items: center; vertical-align: middle; flex-shrink: 0; line-height: 0; }
+.vx-cb > input[type="checkbox"].checkbox::before { display: none; }
+.vx-cb > input[type="checkbox"].checkbox { transform: scale(.92); transition: background-color .12s ease .1s, border-color .12s ease .1s, transform .12s ease .1s, box-shadow .15s ease; }
+.vx-cb > input[type="checkbox"].checkbox:checked,
+.vx-cb > input[type="checkbox"].checkbox:indeterminate { transform: scale(1); transition: background-color .12s ease, border-color .12s ease, transform .12s cubic-bezier(.2, .8, .2, 1), box-shadow .15s ease; }
+.vx-cb > input[type="checkbox"].checkbox:not(:checked):not(:indeterminate) { transform: none; }
+.vx-cb-mark { position: absolute; width: 12px; height: 12px; pointer-events: none; color: var(--bg); overflow: visible; }
+.vx-cb-mark path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .2s cubic-bezier(.4, 0, .2, 1); }
+.vx-cb > input:checked:not(:indeterminate) ~ .vx-cb-mark .vx-cb-tick,
+.vx-cb > input:indeterminate ~ .vx-cb-mark .vx-cb-dash { stroke-dashoffset: 0; transition-delay: .08s; }
+.vx-cb > input:disabled ~ .vx-cb-mark { opacity: .35; }
+@media (max-width: 768px) { .vx-cb-mark { width: 14px; height: 14px; } }
+@media (prefers-reduced-motion: reduce) {
+    .vx-cb > input[type="checkbox"].checkbox, .vx-cb-mark path { transition: none !important; transform: none !important; }
+}
+
+/* Searchable dropdown (country codes): search input pinned on top, list scrolls under it */
+.vx-pop.vx-select-pop.has-search { display: flex; flex-direction: column; overflow: hidden; max-height: min(360px, calc(100vh - 24px)); min-width: 240px; }
+.vx-select-pop .vx-select-search { flex: 0 0 auto; margin: 2px 2px 6px; height: 36px; padding: 0 10px; font-size: 0.9286rem; width: auto; }
+.vx-select-pop .vx-select-list { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; position: relative; }
+.vx-select-pop .vx-select-list:not(.is-filtered) > .vx-select-opt:first-child { border-bottom: 1px solid var(--border); margin-bottom: 2px; }
+.vx-select-empty { padding: 10px; text-transform: none; letter-spacing: 0; }

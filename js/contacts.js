@@ -77,13 +77,15 @@ window.updateGroups = function() {
     const groups = new Set(contacts.map(c => c.group).filter(Boolean));
     
     select.innerHTML = '<option value="">All Groups</option>';
+    const badN = contacts.filter(c => window.vxPhoneIssue(c.phone)).length;
+    if (badN) { const o = document.createElement('option'); o.value = '__invalid'; o.textContent = `Invalid (${badN})`; select.appendChild(o); }
     Array.from(groups).sort().forEach(g => {
         const opt = document.createElement('option');
         opt.value = g;
         opt.textContent = g;
         select.appendChild(opt);
     });
-    if (groups.has(currentVal)) select.value = currentVal;
+    if (groups.has(currentVal) || (currentVal === '__invalid' && badN)) select.value = currentVal;
     // Manual add form: existing groups + "New group…"
     const pick = document.getElementById('man-group-pick');
     if (pick) {
@@ -104,22 +106,14 @@ window.onManualGroupPick = function() {
     if (isNew) inp.focus();
 };
 
-// Same rules as Broadcast's typed numbers: bare 10 digits get the picked code, leading 0 dropped, +… kept.
+// Same rules (and helper) as Broadcast's typed numbers: js/app.js vxNormalizePhone / vxCheckPhone.
 const manualPhone = () => {
-    const raw = document.getElementById('man-phone').value.trim().replace(/\s+/g, '');
+    const raw = document.getElementById('man-phone').value;
     const cc = (document.getElementById('man-cc') || {}).value || '91';
-    if (!raw) return { phone: '', issue: null };
-    let phone;
-    if (raw.startsWith('+')) phone = '+' + raw.slice(1).replace(/\D/g, '');
-    else {
-        const d = raw.replace(/\D/g, '').replace(/^0+/, '');
-        phone = d.length === 10 ? '+' + cc + d : (d.startsWith(cc) && d.length === cc.length + 10 ? '+' + d : '+' + d);
-    }
-    const d = phone.slice(1);
-    let issue = null;
-    if (d.length < 8 || d.length > 15) issue = 'Wrong length';
-    else if (d.startsWith('91') && d.length !== 12) issue = 'Indian numbers have 10 digits after +91';
-    else if (raw.startsWith('+') && d.length === 10 && !d.startsWith(cc)) issue = `Looks like it is missing the country code. Use +${cc}${d}?`;
+    const phone = window.vxNormalizePhone(raw, cc);
+    if (!phone) return { phone: '', issue: null };
+    const bad = window.vxCheckPhone(phone, cc);
+    const issue = bad ? (bad.fix ? `Looks wrong (${bad.reason}). Use ${bad.fix}?` : `Looks wrong: ${bad.reason}`) : null;
     return { phone, issue };
 };
 window.checkManualPhone = function() {
@@ -154,13 +148,26 @@ window.handleCSV = function(event) {
 
         let added = 0, updated = 0;
         const changedContacts = []; // only track what actually changed
-
+        const bad = [];
+        const rows = [];
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-            if (cols.length <= phoneIdx || !cols[phoneIdx]) continue;
-            
-            let p = cols[phoneIdx].replace(/\s+/g, '');
-            const phone = p.startsWith('+') ? p : '+' + p;
+            if (cols.length <= phoneIdx || !cols[phoneIdx]) { bad.push({ line: i + 1, phone: '', reason: 'Empty number' }); continue; }
+            const v = window.VxPhone.check(cols[phoneIdx]);
+            if (!v.ok) { bad.push({ line: i + 1, phone: cols[phoneIdx], reason: v.reason + (v.hint ? ' – ' + v.hint : '') }); continue; }
+            rows.push({ cols, phone: v.e164 });
+        }
+        if (bad.length) {
+            const list = bad.slice(0, 12).map(b => `Line ${b.line}: ${b.phone || '(blank)'} – ${b.reason}`).join('\n');
+            const more = bad.length > 12 ? `\n…and ${bad.length - 12} more.` : '';
+            if (!rows.length) { event.target.value = ''; return window.showToast(`No valid numbers. ${bad.length} invalid row(s), e.g. line ${bad[0].line}: ${bad[0].reason}.`, 'error'); }
+            const html = (`${bad.length} invalid row${bad.length > 1 ? 's' : ''} won't be imported:\n\n${list}${more}\n\nImport the ${rows.length} valid row${rows.length > 1 ? 's' : ''} only?`)
+                .replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])).replace(/\n/g, '<br>');
+            const go = await window.showConfirm(html);
+            if (!go) { event.target.value = ''; return; }
+        }
+
+        for (const { cols, phone } of rows) {
             const name = nameIdx !== -1 && cols.length > nameIdx ? cols[nameIdx] : '';
             const group = groupIdx !== -1 && cols.length > groupIdx ? cols[groupIdx] : '';
             
@@ -226,7 +233,8 @@ window.renderContacts = function() {
     const sq = searchQ.value.toLowerCase();
     
     const filtered = contacts.filter(c => {
-        if (fv && c.group !== fv) return false;
+        if (fv === '__invalid') { if (!window.vxPhoneIssue(c.phone)) return false; }
+        else if (fv && c.group !== fv) return false;
         if (sq && !c.name.toLowerCase().includes(sq) && !c.phone.includes(sq)) return false;
         return true;
     });
@@ -258,11 +266,11 @@ window.renderContacts = function() {
                     <button class="btn btn-secondary btn-sm mobile-edit" onclick="editContact('${escAttr(c.phone)}')" aria-label="Edit contact">Edit</button>
                 </div>
                 <div class="c-details-wrap">
-                    <button type="button" class="c-phone c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.phone)}</button>
+                    <button type="button" class="c-phone c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.phone)}</button>${window.vxInvalidPill(c.phone)}
                     ${c.group ? `<span class="badge c-group" style="font-size: 0.65rem;">${c.group}</span>` : ''}
                 </div>
             </td>
-            <td class="c-phone-desktop"><button type="button" class="c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.phone)}</button></td>
+            <td class="c-phone-desktop"><button type="button" class="c-phone-link mono" data-phone="${escAttr(c.phone)}" data-name="${escAttr(c.name)}" title="Show call history">${escAttr(c.phone)}</button> ${window.vxInvalidPill(c.phone)}</td>
             <td class="c-group-desktop">${c.group ? `<span class="badge" style="font-size: 0.65rem;">${c.group}</span>` : '—'}</td>
             <td class="c-actions-desktop">
                 <button class="btn btn-secondary btn-sm c-edit-btn" onclick="editContact('${escAttr(c.phone)}')" aria-label="Edit contact">Edit</button>
@@ -307,8 +315,9 @@ window.saveEditedContact = async function() {
 
     if (!phoneInput) return window.showToast("Phone number is required.", "error");
 
-    let p = phoneInput.replace(/\s+/g, '');
-    const phone = p.startsWith('+') ? p : '+' + p;
+    const chk = window.VxPhone.check(phoneInput);
+    if (!chk.ok) return window.showToast(`Invalid number: ${chk.reason}${chk.hint ? ' – ' + chk.hint : ''}`, "error");
+    const phone = chk.e164;
 
     const existingIndex = contacts.findIndex(c => c.phone === editingPhone);
     if (existingIndex !== -1) {
@@ -348,7 +357,8 @@ window.toggleSelectAll = function(forceCheck) {
     const sq = document.getElementById('search-contacts').value.toLowerCase();
     
     const filtered = contacts.filter(c => {
-        if (fv && c.group !== fv) return false;
+        if (fv === '__invalid') { if (!window.vxPhoneIssue(c.phone)) return false; }
+        else if (fv && c.group !== fv) return false;
         if (sq && !c.name.toLowerCase().includes(sq) && !c.phone.includes(sq)) return false;
         return true;
     });
@@ -485,7 +495,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const sq = searchQ ? searchQ.value.toLowerCase() : '';
                 
                 const filtered = contacts.filter(c => {
-                    if (fv && c.group !== fv) return false;
+                    if (fv === '__invalid') { if (!window.vxPhoneIssue(c.phone)) return false; }
+        else if (fv && c.group !== fv) return false;
                     if (sq && !c.name.toLowerCase().includes(sq) && !c.phone.includes(sq)) return false;
                     return true;
                 });

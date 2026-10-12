@@ -1,3 +1,39 @@
+// ── Phone numbers (shared by Broadcast typed numbers and Contacts > Add manually) ──
+// Bare 10 digits -> +<cc>; leading 0s stripped; numbers typed with '+' kept as is.
+// Red 'Invalid' pill for any number shown in the UI (computed at render time, so numbers
+// edited straight in the DB are flagged too). '' when the number is fine.
+window.vxPhoneIssue = function(phone) {
+    if (!window.VxPhone || !phone) return null;
+    const v = window.VxPhone.check(phone);
+    return v.ok ? null : v;
+};
+window.vxInvalidPill = function(phone) {
+    const v = window.vxPhoneIssue(phone);
+    if (!v) return '';
+    const tip = String(v.reason + (v.hint ? ' – ' + v.hint : '')).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    return `<span class="badge badge-danger badge-invalid" title="${tip}" aria-label="Invalid number: ${tip}">Invalid</span>`;
+};
+window.vxCleanPhone = function(value = '') {
+    if (!value) return '';
+    return String(value).trim().replace(/\s+/g, '').replace(/(?!^)\+/g, '').replace(/[^0-9+]/g, '');
+};
+window.vxNormalizePhone = function(value = '', cc = '91') {
+    const c = window.vxCleanPhone(value);
+    if (!c) return '';
+    if (c.startsWith('+')) return c;
+    const d = c.replace(/^0+/, '');
+    if (d.length === 10) return '+' + cc + d;
+    return '+' + d;
+};
+// null when fine, else { reason, fix } for a number that looks wrong.
+window.vxCheckPhone = function(normalized = '', cc = '91') {
+    const d = String(normalized).replace(/\D/g, '');
+    if (d.length === 10) return { reason: 'missing country code', fix: '+' + cc + d };
+    const v = window.VxPhone ? window.VxPhone.check('+' + d, cc) : { ok: d.length >= 8 && d.length <= 15, reason: 'wrong length' };
+    if (v.ok) return null;
+    return { reason: v.reason + (v.hint ? ' (' + v.hint + ')' : ''), fix: v.fix || null };
+};
+
 // ── Motion helpers ─────────────────────────────────────
 // One timing for every open/close in the app; nothing animates under reduced motion.
 const VX_EASE = 'cubic-bezier(.4, 0, .2, 1)';
@@ -431,4 +467,96 @@ window.placeNavIndicator = function() {
                 .map(id => document.getElementById(id)).filter(x => x && x.style.display !== 'none').forEach(window.vxFadeIn));
         } else if (target) setTimeout(() => window.vxFadeIn(target), 120);
     });
+})();
+
+// ── Checkbox tick (shared): every input.checkbox gets an SVG tick drawn with stroke-dashoffset ──
+// The real <input> stays (a11y, JS, :checked); a wrapper span holds the SVG overlay.
+(function () {
+    const SVG = '<svg class="vx-cb-mark" viewBox="0 0 12 12" aria-hidden="true" focusable="false">'
+        + '<path class="vx-cb-tick" pathLength="1" d="M2.5 6.2l2.3 2.3L9.5 3.6"/>'
+        + '<path class="vx-cb-dash" pathLength="1" d="M3 6h6"/></svg>';
+    const enhance = (root) => {
+        const list = root.matches && root.matches('input.checkbox') ? [root] : (root.querySelectorAll ? root.querySelectorAll('input.checkbox') : []);
+        list.forEach(inp => {
+            if (inp.parentNode && inp.parentNode.classList && inp.parentNode.classList.contains('vx-cb')) return;
+            const wrap = document.createElement('span');
+            wrap.className = 'vx-cb';
+            inp.parentNode.insertBefore(wrap, inp);
+            wrap.appendChild(inp);
+            wrap.insertAdjacentHTML('beforeend', SVG);
+        });
+    };
+    const start = () => {
+        enhance(document.body);
+        new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) enhance(n); })))
+            .observe(document.body, { childList: true, subtree: true });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
+// ── Numbers list (schedule / broadcast cards) ─────────────
+// Shows the first 6 numbers with contact names, then "View all (N)" opens a searchable modal.
+(function () {
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const key = p => String(p || '').replace(/\D/g, '').slice(-10);
+    function book() {
+        const list = typeof contacts !== 'undefined' && Array.isArray(contacts) ? contacts : [];
+        return new Map(list.map(c => [key(c.phone), c]));
+    }
+    function row(phone, c) {
+        const line = document.createElement('div');
+        line.className = 'row-item';
+        line.innerHTML = `<div style="min-width:0"><div class="row-label">${esc(c && c.name ? c.name : 'Not in contacts')}</div>
+            <div class="row-sub mono">${esc(phone)} ${window.vxInvalidPill(phone)}</div></div>
+            ${c && c.group ? `<span class="badge badge-muted">${esc(c.group)}</span>` : ''}`;
+        return line;
+    }
+    function openAll(phones, title) {
+        const map = book();
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay nums-modal';
+        overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+            <div class="modal-hd"><div><div class="modal-title">${esc(title)}</div><div class="row-sub nums-count"></div></div>
+                <button type="button" class="modal-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+            <div class="nums-search"><input type="text" placeholder="Search name or number" autocomplete="off" aria-label="Search numbers"></div>
+            <div class="nums-list"></div></div>`;
+        document.body.appendChild(overlay);
+        const list = overlay.querySelector('.nums-list'), input = overlay.querySelector('input'), count = overlay.querySelector('.nums-count');
+        const all = phones.map(p => ({ p, c: map.get(key(p)) }));
+        const bad = all.filter(x => window.vxPhoneIssue(x.p)).length;
+        function render() {
+            const q = input.value.trim().toLowerCase(), qd = q.replace(/\D/g, '');
+            const hits = all.filter(x => !q || (x.c && x.c.name && x.c.name.toLowerCase().includes(q)) || (qd && x.p.replace(/\D/g, '').includes(qd)));
+            const frag = document.createDocumentFragment();
+            hits.forEach(x => frag.appendChild(row(x.p, x.c)));
+            list.replaceChildren(frag);
+            if (!hits.length) list.innerHTML = '<div class="row-item"><div class="row-sub">No matches.</div></div>';
+            count.textContent = (q ? `${hits.length} of ${all.length}` : `${all.length} number${all.length === 1 ? '' : 's'}`) + (bad ? ` · ${bad} invalid` : '');
+        }
+        input.addEventListener('input', render);
+        render();
+        const close = () => { document.removeEventListener('keydown', onKey, true); window.vxHideModal(overlay, () => overlay.remove()); };
+        const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+        document.addEventListener('keydown', onKey, true);
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        overlay.querySelector('.modal-close').onclick = close;
+        window.vxShowModal(overlay);
+        setTimeout(() => input.focus({ preventScroll: true }), 60);
+    }
+    window.vxNumbersBox = function (box, phones, title) {
+        phones = Array.from(new Set((phones || []).filter(Boolean)));
+        box.innerHTML = '';
+        if (!phones.length) { box.innerHTML = '<div class="row-item"><div class="row-sub">No numbers stored.</div></div>'; return; }
+        const map = book();
+        phones.slice(0, 6).forEach(p => box.appendChild(row(p, map.get(key(p)))));
+        if (phones.length > 6) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn btn-secondary btn-sm nums-all-btn';
+            b.textContent = `View all (${phones.length})`;
+            b.onclick = e => { e.stopPropagation(); openAll(phones, title || 'Numbers'); };
+            box.appendChild(b);
+        }
+    };
+    window.vxOpenNumbers = openAll;
 })();

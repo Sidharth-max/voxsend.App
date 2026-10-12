@@ -1,5 +1,5 @@
 /* App-shell service worker. API routes are never cached. */
-const CACHE = 'twilio-call-broadcast-shell-v77';
+const CACHE = 'twilio-call-broadcast-shell-v79';
 
 const PRECACHE = [
   '/',
@@ -8,11 +8,15 @@ const PRECACHE = [
   '/css/layout.css',
   '/css/components.css',
   '/css/theme.css',
+  '/css/flat.css',
+  '/js/phonecheck.js',
   '/js/app.js',
   '/js/pickers.js',
+  '/js/countries.js',
   '/js/select.js',
   '/js/auth.js',
   '/js/history.js',
+  '/js/runs.js',
   '/js/library.js',
   '/js/contacts.js',
   '/js/broadcast.js',

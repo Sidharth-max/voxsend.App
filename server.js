@@ -25,6 +25,7 @@ const scheduler = require('./lib/scheduler');
 const schedules = require('./lib/schedules');
 const callsync = require('./lib/callsync');
 const service = require('./lib/service');
+const runs = require('./lib/runs');
 const v1 = require('./lib/v1');
 
 const app = express();
@@ -129,8 +130,8 @@ app.post('/api/auth/change-pin', auth.requireAuth({ scope: 'admin' }), wrap(asyn
 
 // contacts
 app.get('/api/contacts', wrap(async (req, res) => res.json(await service.listContacts())));
-app.post('/api/contacts', wrap(async (req, res) => ok(res, { count: await service.upsertContacts(req.body) })));
-app.post('/api/contacts/upsert', wrap(async (req, res) => ok(res, { count: await service.upsertContacts(req.body) })));
+app.post('/api/contacts', wrap(async (req, res) => ok(res, await service.upsertContacts(req.body))));
+app.post('/api/contacts/upsert', wrap(async (req, res) => ok(res, await service.upsertContacts(req.body))));
 app.delete('/api/contacts', wrap(async (req, res) => {
     const { phone, phones } = req.body || {};
     ok(res, { deleted: await service.deleteContacts(Array.isArray(phones) && phones.length ? phones : phone) });
@@ -146,6 +147,10 @@ app.post('/api/broadcast', wrap(async (req, res) => {
     const r = await broadcaster.start({ nums: b.nums, msg: b.msg, lang: b.lang, sentBy: b.sentBy, provider: b.provider, voice: b.voice, agentId: b.agentId || b.agent_id });
     ok(res, { message: 'Broadcast started in background.', duplicatesRemoved: r.duplicates, id: r.id });
 }));
+app.get('/api/broadcast-runs', wrap(async (req, res) => res.json(await runs.listRuns(req.query))));
+app.get('/api/broadcast-runs/:key/calls', wrap(async (req, res) => res.json(await runs.runCalls(req.params.key))));
+app.get('/api/broadcast-runs/:key/recipients', wrap(async (req, res) => res.json(await runs.runRecipients(req.params.key))));
+app.delete('/api/broadcast-runs/:key', wrap(async (req, res) => res.json(await runs.hideRun(req.params.key))));
 app.get('/api/broadcasts', wrap(async (req, res) => res.json(await service.listBroadcasts(req.query))));
 app.get('/api/broadcasts/resumable', wrap(async (req, res) => res.json(await broadcaster.resumable())));
 app.get('/api/broadcasts/:id', wrap(async (req, res) => res.json(await service.getBroadcast(Number(req.params.id)))));

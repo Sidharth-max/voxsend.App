@@ -2,43 +2,16 @@ let lang = 'hi';
 window.lastNumStats = { total: 0, unique: 0, duplicatesRemoved: 0 };
 let broadcastVisibleLimit = 100;
 
-const cleanNumberEntry = (value = '') => {
-    if (!value) return '';
-    let cleaned = value.trim();
-    cleaned = cleaned.replace(/\s+/g, '');
-    cleaned = cleaned.replace(/(?!^)\+/g, '');
-    cleaned = cleaned.replace(/[^0-9+]/g, '');
-    return cleaned;
-};
+const cleanNumberEntry = (value = '') => window.vxCleanPhone(value);
 
 // Typed numbers: bare 10-digit -> selected country code; leading 0 stripped; +... kept as is.
+// Rules live in js/app.js (vxNormalizePhone / vxCheckPhone) so Contacts uses the same ones.
 const selectedCountryCode = () => {
     const el = document.getElementById('numbers-cc');
     return (el && el.value) || '91';
 };
-const normalizeTypedNumber = (value = '', cc = selectedCountryCode()) => {
-    const c = cleanNumberEntry(value);
-    if (!c) return '';
-    if (c.startsWith('+')) return c;
-    let d = c.replace(/^0+/, '');
-    if (d.length === 10) return '+' + cc + d;
-    if (d.startsWith(cc) && d.length === cc.length + 10) return '+' + d;
-    return '+' + d;
-};
-// Returns null when fine, else { reason, fix } for a line that looks wrong.
-const checkTypedNumber = (normalized, cc = selectedCountryCode()) => {
-    const d = normalized.replace(/\D/g, '');
-    if (d.length < 8 || d.length > 15) {
-        if (d.length === 10) return { reason: 'missing country code', fix: '+' + cc + d };
-        return { reason: 'wrong length', fix: null };
-    }
-    if (d.startsWith('91') && d.length !== 12) {
-        if (d.length === 10) return { reason: 'missing country code', fix: '+' + cc + d };
-        return { reason: 'Indian numbers have 10 digits after +91', fix: null };
-    }
-    if (!d.startsWith(cc) && d.length === 10) return { reason: `looks like a ${d.length}-digit number without a country code`, fix: '+' + cc + d };
-    return null;
-};
+const normalizeTypedNumber = (value = '', cc = selectedCountryCode()) => window.vxNormalizePhone(value, cc);
+const checkTypedNumber = (normalized, cc = selectedCountryCode()) => window.vxCheckPhone(normalized, cc);
 const normalizeNumberKey = (value = '') => normalizeTypedNumber(value).replace(/[^0-9]/g, '');
 
 const buildUniqueNumberList = (entries = []) => {
@@ -1246,29 +1219,9 @@ window.loadSchedules = async function(force) {
         // "View numbers": who this schedule calls (loaded on first open)
         const nums = window.VxDisclosure(`View numbers (${first.total})`, async box => {
             box.className += ' sched-times-list';
-            box.style.cssText = 'max-height:320px; overflow-y:auto; overscroll-behavior:contain;';
             box.innerHTML = '<div class="row-item"><div class="row-sub">Loading…</div></div>';
             const data = await fetch(`/api/schedule/group/${encodeURIComponent(groupId)}`).then(x => x.json()).catch(() => null);
-            box.innerHTML = '';
-            const byKey = new Map(allContacts().map(c => [normalizeNumberKey(c.phone), c]));
-            ((data && data.group && data.group.recipients) || []).forEach(phone => {
-                const c = byKey.get(normalizeNumberKey(phone));
-                const line = document.createElement('div');
-                line.className = 'row-item';
-                const left = document.createElement('div');
-                left.style.minWidth = '0';
-                const name = document.createElement('div');
-                name.className = 'row-label';
-                name.textContent = c && c.name ? c.name : 'Not in contacts';
-                const ph = document.createElement('div');
-                ph.className = 'row-sub mono';
-                ph.textContent = phone;
-                left.append(name, ph);
-                line.appendChild(left);
-                if (c && c.group) line.appendChild(makeBadge(c.group, 'badge-muted'));
-                box.appendChild(line);
-            });
-            if (!box.children.length) box.innerHTML = '<div class="row-item"><div class="row-sub">No numbers stored.</div></div>';
+            window.vxNumbersBox(box, (data && data.group && data.group.recipients) || [], `Numbers · ${first.total}`);
         });
         const numsBtn = nums.querySelector('.vx-disclosure-btn');
         const numsBody = nums.querySelector('.vx-disclosure-body');
@@ -1374,7 +1327,7 @@ window.renderBroadcastContacts = function() {
             <td style="padding: 8px;" class="b-num"><div class="mono" style="color:var(--text3); font-size: 0.65rem;">${i + 1}</div></td>
             <td style="padding: 8px;" class="b-main">
                 <div style="font-weight:500;color:var(--text);font-size:0.8rem;">${c.name || '—'}</div>
-                <div class="mono" style="color:var(--text2);font-size:0.7rem;margin-top:2px;">${c.phone}</div>
+                <div class="mono" style="color:var(--text2);font-size:0.7rem;margin-top:2px;">${c.phone} ${window.vxInvalidPill(c.phone)}</div>
             </td>
         </tr>
     `}).join('');

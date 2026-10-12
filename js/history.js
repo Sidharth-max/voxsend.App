@@ -24,6 +24,7 @@ window.loadHistory = async function() {
     window.renderHistory();
     window.updateMetrics();
     window.loadVobizLogs();
+    if (window.loadBroadcastRuns) window.loadBroadcastRuns();
 };
 
 // Until the user picks a History sub-tab, Sarvam setups open on Sarvam Conversations.
@@ -208,6 +209,7 @@ window.syncCalls = async function() {
 setInterval(() => { if (callsVisible()) window.syncCalls(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (callsVisible()) window.syncCalls(); });
 
+window.vxCallCard = r => callCard(r);
 function callCard(r) {
     const item = document.createElement('div');
     item.className = 'block panel';
@@ -240,10 +242,11 @@ function callCard(r) {
     if (ph.tagName === 'A') { ph.href = 'tel:' + (dial.startsWith('+') ? dial : (dial.length === 10 ? '+91' + dial : '+' + dial)); ph.title = 'Call ' + r.phone; }
     ph.textContent = phoneOk ? r.phone : 'Unknown number';
     num.appendChild(ph);
+    if (phoneOk && !String(r.phone).includes('*') && window.vxInvalidPill(r.phone)) num.insertAdjacentHTML('beforeend', ' ' + window.vxInvalidPill(r.phone));
     const when = document.createElement('div');
     when.className = 'hint';
     const bits = [];
-    if (r.sort_at) bits.push(new Date(r.sort_at).toLocaleString());
+    if (r.sort_at) bits.push(new Date(r.sort_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' IST');
     if (r.duration) bits.push(`${Math.round(r.duration)}s`);
     if (r.agent_label) bits.push(r.agent_label);
     const endedBy = { USER_ENDS: 'caller', AGENT_ENDS: 'agent' }[r.ended_by] || (r.ended_by && !/^NO_/.test(r.ended_by) ? String(r.ended_by).toLowerCase().replace(/_/g, ' ') : '');
